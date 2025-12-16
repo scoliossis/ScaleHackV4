@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "scalehackv4",
+  "version": "${version}",
+
+  "name": "ScaleHackV4",
+  "description": "i love dragon warrior pee",
+  "authors": [],
+  "contact": {},
+
+  "license": "All-Rights-Reserved",
+  "icon": "assets/scalehackv4/icon.png",
+
+  "environment": "*",
+  "entrypoints": {
+    "main": ["com.scale.scalehackv4.Main"]
+  },
+
+  "mixins": [
+    "scalehackv4.mixins.json"
+  ],
+
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
