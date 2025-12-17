@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.events.render;
+package com.scale.scalehackv4.events.impl.render;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.modules.Module;
