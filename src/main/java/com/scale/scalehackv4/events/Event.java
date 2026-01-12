@@ -7,18 +7,18 @@ import java.util.function.Predicate;
 
 // todo: probably a weird way to make an event bus, will probably hate myself later
 public abstract class Event {
-    public final Module parent;
+    public final Module module;
     public final Predicate<Object> predicate;
 
-    public Event(Module parent, Predicate<?> predicate) {
-        this.parent = parent;
+    public Event(Module module, Predicate<?> predicate) {
+        this.module = module;
         this.predicate = (Predicate<Object>) predicate;
 
         ArrayList<Event> events = Bus.events.get(this.getClass());
         if (events == null) events = new ArrayList<>();
-        events.add(this);
-        Bus.events.put(this.getClass(), events);
 
-        System.out.println("Event " + this.getClass() + " created!");
+        events.add(this);
+
+        Bus.events.put(this.getClass(), events);
     }
 }

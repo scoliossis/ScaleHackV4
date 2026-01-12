@@ -15,7 +15,7 @@ public class RenderTickEvent extends Event {
         public RenderTickCounter renderTickCounter;
     }
 
-    public RenderTickEvent(Module module, Predicate<Params> predicate) {
-        super(module, predicate);
+    public RenderTickEvent(Module parent, Predicate<Params> predicate) {
+        super(parent, predicate);
     }
 }

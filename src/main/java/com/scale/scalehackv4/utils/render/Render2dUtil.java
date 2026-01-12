@@ -1,123 +1,36 @@
 package com.scale.scalehackv4.utils.render;
 
-import com.mojang.blaze3d.pipeline.BlendFunction;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.scale.scalehackv4.Main;
-import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
-import com.scale.scalehackv4.utils.C;
-import lombok.Setter;
-import net.minecraft.client.gl.RenderPipelines;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.ScreenRect;
-import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState;
-import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
-import net.minecraft.client.texture.AbstractTexture;
-import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.util.Identifier;
 import org.joml.Matrix3x2f;
-import org.joml.Matrix3x2fStack;
-import org.joml.Matrix3x2fc;
-import org.jspecify.annotations.Nullable;
 
 import java.awt.*;
-import java.util.HashMap;
-import java.util.function.Predicate;
 
-public class Render2dUtil {
-    @Setter protected static DrawContext drawContext;
-
-    private static final HashMap<VertexFormat, HashMap<VertexFormat.DrawMode, RenderPipeline>> PIPELINES = new HashMap<>();
-
-    private static RenderPipeline getRenderPipeline(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode) {
-        HashMap<VertexFormat.DrawMode, RenderPipeline> pipelineMap = PIPELINES.get(vertexFormat);
-
-        if (pipelineMap == null || !pipelineMap.containsKey(drawMode)) {
-            pipelineMap = new HashMap<>();
-
-            RenderPipeline pipeline = RenderPipelines.register(
-                    RenderPipeline.builder(getRenderPipelineSnippet(vertexFormat))
-                            .withVertexFormat(vertexFormat, drawMode)
-                            .withLocation(Main.MOD_ID + PIPELINES.size())
-                            .build()
-            );
-
-            PIPELINES.put(vertexFormat, pipelineMap);
-            return pipeline;
-        }
-
-        return pipelineMap.get(drawMode);
-    }
-
-    private static RenderPipeline.Snippet getRenderPipelineSnippet(VertexFormat vertexFormat) {
-        RenderPipeline.Snippet base = RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
-                .withBlend(BlendFunction.TRANSLUCENT)
-                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                .buildSnippet();
-
-        if (vertexFormat == VertexFormats.POSITION_COLOR) return RenderPipeline.builder(base)
-                .withVertexShader("core/position_color")
-                .withFragmentShader("core/position_color")
-                .buildSnippet();
-
-        else if (vertexFormat == VertexFormats.POSITION_TEXTURE_COLOR) return RenderPipeline.builder(base)
-                .withVertexShader("core/position_tex_color")
-                .withFragmentShader("core/position_tex_color")
-                .withSampler("Sampler0")
-                .buildSnippet();
-
-        return RenderPipeline.builder(base)
-                .withVertexShader("core/gui")
-                .withFragmentShader("core/gui")
-                .buildSnippet();
-    }
-
+public class Render2dUtil extends RenderUtil {
     private static Matrix3x2f getMatrices() {
         return new Matrix3x2f(drawContext.getMatrices());
     }
 
-    // courtesy of Lnet/minecraft/client/gui/DrawContext;drawTexturedQuad(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/util/Identifier;IIIIFFFFI)V
-    private static TextureSetup getTexture(Identifier texture) {
-        AbstractTexture abstractTexture = C.mc.getTextureManager().getTexture(texture);
-        return TextureSetup.of(abstractTexture.getGlTextureView(), abstractTexture.getSampler());
+    public static final Color[] SKEET_COLOURS = new Color[]{
+            new Color(177, 194, 255),
+            new Color(255, 130, 250),
+            new Color(255, 239, 163),
+    };
+
+    public static void drawSkeetRect(int x, int y, int width, int height, Color colour) {
+        drawRect(x-3, y-4, width+6, height+7, new Color(60, 60, 60));
+        drawRect(x-2, y-3, width+4, height+5, new Color(40, 40, 40));
+        drawRect(x-1, y-2, width+2, height+3, new Color(60, 60, 60));
+        drawRect(x, y, width, height, new Color(22, 22, 22));
+
+        if (colour != null) drawRect(0, -1, width, 1, colour);
+        else {
+            int gradientWidth = width/2;
+            drawGradientAcross(0, -1, gradientWidth, 1, SKEET_COLOURS[0], SKEET_COLOURS[1]);
+            drawGradientAcross(gradientWidth, -1, gradientWidth, 1, SKEET_COLOURS[1], SKEET_COLOURS[2]);
+        }
     }
-
-    private static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, Predicate<VertexConsumer> callable) {
-        drawVertexes(vertexFormat, drawMode, TextureSetup.empty(), callable);
-    }
-
-    // idea hit me when i saw "net.minecraft.client.gui.render.state.ColoredQuadGuiElementRenderState.ColoredQuadGuiElementRenderState"
-    private static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, TextureSetup textureSetup, Predicate<VertexConsumer> callable) {
-        drawContext.state.addSimpleElement(new SimpleGuiElementRenderState() {
-            @Override
-            public void setupVertices(VertexConsumer vertices) {
-                callable.test(vertices);
-            }
-
-            @Override
-            public RenderPipeline pipeline() {
-                return getRenderPipeline(vertexFormat, drawMode);
-            }
-
-            @Override
-            public TextureSetup textureSetup() {
-                return textureSetup;
-            }
-
-            @Override
-            public @Nullable ScreenRect scissorArea() {
-                return drawContext.scissorStack.peekLast();
-            }
-
-            @Override
-            public ScreenRect bounds() {
-                return new ScreenRect(0, 1, C.mc.getWindow().getScaledWidth(), C.mc.getWindow().getScaledHeight());
-            }
-        });
-    }
-
 
     public static void drawRect(int x, int y, int width, int height, Color colour) {
         // as far as im aware, theres no way to set the colour before drawing,

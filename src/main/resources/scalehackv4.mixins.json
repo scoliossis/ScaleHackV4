@@ -10,6 +10,16 @@
     "requireAnnotations": true
   },
   "client": [
-    "render.RenderTickEventMixin"
+    "render.MouseBridgeMixin",
+    "render.MouseDraggedEventMixin",
+    "render.PartialTicksMixin",
+    "render.RenderTickEventMixin",
+    "render.ModelModifier.ArmorRendererMixin",
+    "render.ModelModifier.HandMixin",
+    "render.ModelModifier.HeldItemMixin",
+    "render.ModelModifier.ModelModifierMixin"
+  ],
+  "mixins": [
+    "render.RenderWorldEventMixin"
   ]
 }

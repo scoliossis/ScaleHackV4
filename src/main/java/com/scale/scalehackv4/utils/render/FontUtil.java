@@ -14,6 +14,6 @@ public class FontUtil {
     }
 
     public static int getFontHeight(int fontSize) {
-        return C.mc.textRenderer.fontHeight;
+        return 8;
     }
 }
