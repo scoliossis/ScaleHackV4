@@ -24,11 +24,11 @@ public class Render2dUtil extends RenderUtil {
         drawRect(x-1, y-2, width+2, height+3, new Color(60, 60, 60));
         drawRect(x, y, width, height, new Color(22, 22, 22));
 
-        if (colour != null) drawRect(0, -1, width, 1, colour);
+        if (colour != null) drawRect(x, y-1, width, 1, colour);
         else {
             int gradientWidth = width/2;
-            drawGradientAcross(0, -1, gradientWidth, 1, SKEET_COLOURS[0], SKEET_COLOURS[1]);
-            drawGradientAcross(gradientWidth, -1, gradientWidth, 1, SKEET_COLOURS[1], SKEET_COLOURS[2]);
+            drawGradientAcross(x, y-1, gradientWidth, 1, SKEET_COLOURS[0], SKEET_COLOURS[1]);
+            drawGradientAcross(x+gradientWidth, y-1, gradientWidth+1, 1, SKEET_COLOURS[1], SKEET_COLOURS[2]);
         }
     }
 
