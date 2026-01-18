@@ -10,6 +10,8 @@
     "requireAnnotations": true
   },
   "client": [
+    "client.ChatReceivedMixin",
+    "client.ChatSentMixin",
     "render.MouseBridgeMixin",
     "render.MouseDraggedEventMixin",
     "render.PartialTicksMixin",
@@ -20,6 +22,8 @@
     "render.ModelModifier.ModelModifierMixin"
   ],
   "mixins": [
+    "client.PacketEventMixin",
+    "client.TabCompleteMixin",
     "render.RenderWorldEventMixin"
   ]
 }

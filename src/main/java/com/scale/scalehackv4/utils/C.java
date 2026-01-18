@@ -26,4 +26,8 @@ public class C {
     public static Window res() {
         return mc.getWindow();
     }
+
+    public static boolean isInGame() {
+        return w() != null;
+    }
 }

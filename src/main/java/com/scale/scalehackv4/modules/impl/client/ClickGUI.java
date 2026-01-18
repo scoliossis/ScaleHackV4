@@ -4,8 +4,7 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 
 @RegisterModule(
-        name = "Click GUI",
-        enabledByDefault = true
+        name = "Click GUI"
 )
 public class ClickGUI extends Module {
     @Override

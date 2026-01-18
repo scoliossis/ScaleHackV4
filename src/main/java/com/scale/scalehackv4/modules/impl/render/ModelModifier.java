@@ -31,6 +31,9 @@ import java.awt.*;
 public class ModelModifier extends Module {
     @RegisterSubModule(name = "Self")
     public static boolean self = true;
+    @RegisterSubModule(name = "Change Hand", parent = "Self")
+    public static boolean changeHand = true;
+
     @RegisterSubModule(name = "Others")
     public static boolean others = true;
 
@@ -38,9 +41,6 @@ public class ModelModifier extends Module {
     public static boolean hideArmor = true;
     @RegisterSubModule(name = "Hide Helmet", parent = "Hide Armor")
     public static boolean hideHelmet = false;
-
-    @RegisterSubModule(name = "Change Hand")
-    public static boolean changeHand = true;
 
     public static boolean shouldHideHelmet() {
         return shouldChangeModel() && hideHelmet && hideArmor;

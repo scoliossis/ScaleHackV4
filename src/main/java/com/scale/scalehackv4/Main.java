@@ -1,5 +1,6 @@
 package com.scale.scalehackv4;
 
+import com.scale.scalehackv4.commands.CommandManager;
 import com.scale.scalehackv4.modules.ModuleManager;
 import com.scale.scalehackv4.utils.render.DraggableRenderer;
 import net.fabricmc.api.ModInitializer;
@@ -18,6 +19,7 @@ public class Main implements ModInitializer {
     @Override
     public void onInitialize() {
         ModuleManager.init();
+        CommandManager.init();
         DraggableRenderer.loadDraggingPositions();
     }
 }

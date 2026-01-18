@@ -41,6 +41,9 @@ dependencies {
 
     // need reflections for modules, prob is a better way, I just can't think of one rn +1mb :sob:
     modImplementation "org.reflections:reflections:0.10.2"
+
+    // need for commands and any other searching things, long live fuzzysearch
+    modImplementation "me.xdrop:fuzzywuzzy:1.4.0"
 }
 
 processResources {
