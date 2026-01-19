@@ -27,8 +27,9 @@ public class Render2dUtil extends RenderUtil {
         if (colour != null) drawRect(x, y-1, width, 1, colour);
         else {
             int gradientWidth = width/2;
+            // skeet uses https://github.com/h4xrOx/gamesense.pub/blob/h4xrOx-patch-1/images/Rainbowbar.png for their website, but i think thats blehh
             drawGradientAcross(x, y-1, gradientWidth, 1, SKEET_COLOURS[0], SKEET_COLOURS[1]);
-            drawGradientAcross(x+gradientWidth, y-1, gradientWidth+1, 1, SKEET_COLOURS[1], SKEET_COLOURS[2]);
+            drawGradientAcross(x+gradientWidth, y-1, gradientWidth+ (gradientWidth % 2 == 0 ? 1 : 0), 1, SKEET_COLOURS[1], SKEET_COLOURS[2]);
         }
     }
 

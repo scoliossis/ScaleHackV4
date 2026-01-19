@@ -6,5 +6,6 @@ import java.lang.annotation.RetentionPolicy;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface RegisterModule {
     String name();
+    Category category();
     boolean enabledByDefault() default false;
 }

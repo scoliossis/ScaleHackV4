@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.mixins.render.ModelModifier;
 
-import com.scale.scalehackv4.modules.impl.render.ModelModifier;
+import com.scale.scalehackv4.modules.impl.render.ModelModifierModule;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.feature.HeldItemFeatureRenderer;
@@ -31,10 +31,10 @@ public abstract class HeldItemMixin<S extends PlayerEntityRenderState, M extends
             cancellable = true
     )
     protected void onRenderItem(S entityState, ItemRenderState itemState, ItemStack stack, Arm arm, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, CallbackInfo ci) {
-        if (!ModelModifier.shouldChangeModel() || !ModelModifier.isValidTarget(entityState.id)) return;
+        if (!ModelModifierModule.shouldChangeModel() || !ModelModifierModule.isValidTarget(entityState.id)) return;
 
         ci.cancel();
 
-        ModelModifier.drawItem(this.getContextModel(), itemState, arm, matrices, queue, light, entityState.outlineColor);
+        ModelModifierModule.drawItem(this.getContextModel(), itemState, arm, matrices, queue, light, entityState.outlineColor);
     }
 }

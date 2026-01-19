@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.modules.impl.client;
 
+import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.ModuleManager;
 import com.scale.scalehackv4.modules.RegisterModule;
@@ -8,9 +9,10 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.Draggable;
 
 @RegisterModule(
-        name = "Click GUI"
+        name = "Click GUI",
+        category = Category.CLIENT
 )
-public class ClickGUI extends Module {
+public class ClickGuiModule extends Module {
     private static final ClickGuiScreen GUI = new ClickGuiScreen();
 
     private static boolean enabled = false;
@@ -24,13 +26,13 @@ public class ClickGUI extends Module {
                 }
 
                 if (!(C.mc.currentScreen instanceof ClickGuiScreen)) {
-                    ModuleManager.getModule(ClickGUI.class).setEnabled(false);
+                    ModuleManager.getModule(ClickGuiModule.class).setEnabled(false);
                     return new int[] {0, 0};
                 }
 
-                return new int[] {(int) (ClickGuiScreen.WIDTH + (4 * ClickGuiScreen.BORDER_SCALE)), (int) (5 * ClickGuiScreen.BORDER_SCALE)};
+                return new int[] {ClickGuiScreen.WIDTH + 4, 6};
             },
-            e -> ModuleManager.getModule(ClickGUI.class).isEnabled(),
+            e -> ModuleManager.getModule(ClickGuiModule.class).isEnabled(),
             e -> true
     );
 

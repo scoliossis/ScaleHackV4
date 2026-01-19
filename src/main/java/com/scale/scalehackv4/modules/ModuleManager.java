@@ -5,6 +5,7 @@ import com.scale.scalehackv4.utils.C;
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 import me.xdrop.fuzzywuzzy.model.ExtractedResult;
 
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 
@@ -18,6 +19,27 @@ public class ModuleManager {
                 Module m = (Module) clazz.getDeclaredConstructor().newInstance();
                 m.setAnnotation(annotation);
                 m.setEnabled(annotation.enabledByDefault());
+
+                for (Field field : clazz.getDeclaredFields()) {
+                    RegisterSubModule registerSubModule = field.getAnnotation(RegisterSubModule.class);
+
+                    if (registerSubModule != null) {
+                        SubModule subModule = new SubModule(m, field);
+
+                        if (!registerSubModule.parent().isEmpty()) {
+                            // todo: children have to be below parents in the file, fix later if needed <3
+                            for (SubModule sm : m.getChildren()) {
+                                if (registerSubModule.parent().equals(sm.getAnnotation().name())) {
+                                    sm.getChildren().add(subModule);
+                                    subModule.setParent(sm);
+                                    break;
+                                }
+                            }
+                        }
+                        m.getChildren().add(subModule);
+                    }
+                }
+
 
                 MODULES.put(clazz, m);
             } catch (Exception e) {
@@ -52,5 +74,10 @@ public class ModuleManager {
     public static Module getModule(String text, int closeness) {
         List<ExtractedResult> results = getModules(text, closeness);
         return results.getFirst().getIndex() == -1 ? null : getModules().get(results.getFirst().getIndex());
+    }
+
+
+    public static List<Module> getModulesByCategory(Category category) {
+        return ModuleManager.MODULES.values().stream().filter(e -> e.getAnnotation().category() == category).toList();
     }
 }

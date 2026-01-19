@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.mixins.render.ModelModifier;
 
-import com.scale.scalehackv4.modules.impl.render.ModelModifier;
+import com.scale.scalehackv4.modules.impl.render.ModelModifierModule;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.feature.ArmorFeatureRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRenderer;
@@ -33,10 +33,10 @@ public abstract class ArmorRendererMixin<S extends BipedEntityRenderState, M ext
             cancellable = true
     )
     public void render(MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, S bipedEntityRenderState, float f, float g, CallbackInfo ci) {
-        if (bipedEntityRenderState.entityType != EntityType.PLAYER || !ModelModifier.isValidTarget(((PlayerEntityRenderState) bipedEntityRenderState).id)) return;
-        if (ModelModifier.shouldHideHelmet()) return;
+        if (bipedEntityRenderState.entityType != EntityType.PLAYER || !ModelModifierModule.isValidTarget(((PlayerEntityRenderState) bipedEntityRenderState).id)) return;
+        if (ModelModifierModule.shouldHideHelmet()) return;
 
-        if (ModelModifier.shouldHideArmor()) {
+        if (ModelModifierModule.shouldHideArmor()) {
             this.renderArmor(matrixStack, orderedRenderCommandQueue, bipedEntityRenderState.equippedHeadStack, EquipmentSlot.HEAD, i, bipedEntityRenderState);
             ci.cancel();
         }

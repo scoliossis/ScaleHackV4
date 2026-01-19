@@ -1,8 +1,7 @@
 package com.scale.scalehackv4.modules.impl.client;
 
 import com.scale.scalehackv4.Main;
-import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
+import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.utils.C;
@@ -14,9 +13,10 @@ import java.awt.*;
 
 @RegisterModule(
         name = "HUD",
-        enabledByDefault = true
+        enabledByDefault = true,
+        category = Category.CLIENT
 )
-public class HUD extends Module {
+public class HudModule extends Module {
     private static final String CLIENT_NAME = Main.MOD_NAME.split(" ")[0];
     private static final String GAMESENSE_TAG = "Sense";
 

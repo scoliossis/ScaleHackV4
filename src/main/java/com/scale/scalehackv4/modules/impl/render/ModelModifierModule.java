@@ -1,9 +1,7 @@
 package com.scale.scalehackv4.modules.impl.render;
 
+import com.scale.scalehackv4.modules.*;
 import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.ModuleManager;
-import com.scale.scalehackv4.modules.RegisterModule;
-import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.ModelUtil;
@@ -26,9 +24,10 @@ import java.awt.*;
 
 @RegisterModule(
         name = "Model Modifier",
-        enabledByDefault = true
+        enabledByDefault = true,
+        category = Category.RENDER
 )
-public class ModelModifier extends Module {
+public class ModelModifierModule extends Module {
     @RegisterSubModule(name = "Self")
     public static boolean self = true;
     @RegisterSubModule(name = "Change Hand", parent = "Self")
@@ -54,7 +53,7 @@ public class ModelModifier extends Module {
     }
 
     public static boolean shouldChangeModel() {
-        return ModuleManager.getModule(ModelModifier.class).isEnabled();
+        return ModuleManager.getModule(ModelModifierModule.class).isEnabled();
     }
 
     public static boolean isValidTarget(int entityId) {
@@ -89,9 +88,9 @@ public class ModelModifier extends Module {
         MatrixStack matrices = Render3dUtil.getMatrices();
         matrices.push();
 
-        ModelModifier.entityModel = model;
-        ModelModifier.matrices = matrices;
-        ModelModifier.color = color;
+        ModelModifierModule.entityModel = model;
+        ModelModifierModule.matrices = matrices;
+        ModelModifierModule.color = color;
 
         doTranslations();
 

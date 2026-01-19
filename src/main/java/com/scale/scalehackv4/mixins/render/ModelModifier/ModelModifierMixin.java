@@ -1,13 +1,12 @@
 package com.scale.scalehackv4.mixins.render.ModelModifier;
 
-import com.scale.scalehackv4.modules.impl.render.ModelModifier;
+import com.scale.scalehackv4.modules.impl.render.ModelModifierModule;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
-import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.render.entity.feature.FeatureRendererContext;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.state.LivingEntityRenderState;
@@ -44,9 +43,9 @@ public abstract class ModelModifierMixin<T extends LivingEntity, S extends Livin
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;getRenderLayer(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;ZZZ)Lnet/minecraft/client/render/RenderLayer;")
     )
     public @Nullable RenderLayer render(LivingEntityRenderer instance, S state, boolean showBody, boolean translucent, boolean showOutline, S livingEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState) {
-        if (ModelModifier.shouldChangeModel() && livingEntityRenderState.entityType == EntityType.PLAYER && ModelModifier.isValidTarget(((PlayerEntityRenderState) livingEntityRenderState).id)) {
+        if (ModelModifierModule.shouldChangeModel() && livingEntityRenderState.entityType == EntityType.PLAYER && ModelModifierModule.isValidTarget(((PlayerEntityRenderState) livingEntityRenderState).id)) {
             Render3dUtil.tickRender(matrixStack, null, null);
-            ModelModifier.drawRayman(this.model, new Color(this.getMixColor(livingEntityRenderState)));
+            ModelModifierModule.drawRayman(this.model, new Color(this.getMixColor(livingEntityRenderState)));
             Render3dUtil.finishTickRender();
             return null;
         }

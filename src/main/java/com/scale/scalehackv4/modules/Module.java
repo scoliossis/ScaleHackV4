@@ -4,8 +4,12 @@ import com.scale.scalehackv4.utils.client.ChatUtil;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.ArrayList;
+
 public abstract class Module {
     @Getter @Setter private RegisterModule annotation;
+
+    @Getter private final ArrayList<SubModule> children = new ArrayList<>();
 
     @Getter private boolean enabled = false;
     public void setEnabled(boolean enabled) {

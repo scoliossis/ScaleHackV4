@@ -2,7 +2,6 @@ package com.scale.scalehackv4.utils.render;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
@@ -17,7 +16,6 @@ import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.util.Identifier;
-import org.joml.Matrix3x2f;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
@@ -90,6 +88,7 @@ public class RenderUtil {
 
     // idea hit me when i saw "net.minecraft.client.gui.render.state.ColoredQuadGuiElementRenderState.ColoredQuadGuiElementRenderState"
     protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, TextureSetup textureSetup, Predicate<VertexConsumer> callable) {
+        ScreenRect scissor = drawContext.scissorStack.peekLast();
         drawContext.state.addSimpleElement(new SimpleGuiElementRenderState() {
             @Override
             public void setupVertices(VertexConsumer vertices) {
@@ -108,7 +107,7 @@ public class RenderUtil {
 
             @Override
             public @Nullable ScreenRect scissorArea() {
-                return drawContext.scissorStack.peekLast();
+                return scissor;
             }
 
             @Override
