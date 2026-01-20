@@ -8,7 +8,7 @@ import org.joml.Matrix3x2f;
 import java.awt.*;
 
 public class Render2dUtil extends RenderUtil {
-    private static Matrix3x2f getMatrices() {
+    public static Matrix3x2f getMatrices() {
         return new Matrix3x2f(drawContext.getMatrices());
     }
 

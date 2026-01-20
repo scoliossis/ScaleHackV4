@@ -4,6 +4,7 @@ import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
+import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.FontUtil;
@@ -17,6 +18,16 @@ import java.awt.*;
         category = Category.CLIENT
 )
 public class HudModule extends Module {
+    @RegisterSubModule(
+            name = "Array List"
+    )
+    public static boolean arrayList = true;
+
+    @RegisterSubModule(
+            name = "Watermark"
+    )
+    public static boolean watermark = true;
+
     private static final String CLIENT_NAME = Main.MOD_NAME.split(" ")[0];
     private static final String GAMESENSE_TAG = "Sense";
 

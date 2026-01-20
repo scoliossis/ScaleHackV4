@@ -3,6 +3,7 @@ package com.scale.scalehackv4;
 import com.scale.scalehackv4.commands.CommandManager;
 import com.scale.scalehackv4.modules.ModuleManager;
 import com.scale.scalehackv4.utils.render.DraggableRenderer;
+import com.scale.scalehackv4.utils.render.FontUtil;
 import net.fabricmc.api.ModInitializer;
 
 public class Main implements ModInitializer {
@@ -18,6 +19,8 @@ public class Main implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        FontUtil.setCurrentFont(FontUtil.Fonts.Verdana);
+
         ModuleManager.init();
         CommandManager.init();
         DraggableRenderer.loadDraggingPositions();

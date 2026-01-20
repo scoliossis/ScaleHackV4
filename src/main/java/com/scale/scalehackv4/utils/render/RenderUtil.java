@@ -14,10 +14,13 @@ import net.minecraft.client.gui.render.state.SimpleGuiElementRenderState;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.util.Identifier;
 import org.jspecify.annotations.Nullable;
 
+import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.function.Predicate;
 
@@ -78,8 +81,28 @@ public class RenderUtil {
 
     // courtesy of Lnet/minecraft/client/gui/DrawContext;drawTexturedQuad(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/util/Identifier;IIIIFFFFI)V
     protected static TextureSetup getTexture(Identifier texture) {
-        AbstractTexture abstractTexture = C.mc.getTextureManager().getTexture(texture);
+        return getTexture(C.mc.getTextureManager().getTexture(texture));
+    }
+
+    protected static TextureSetup getTexture(BufferedImage bufferedImage, String name) {
+        return getTexture(createTexture(bufferedImage, name));
+    }
+
+    protected static TextureSetup getTexture(AbstractTexture abstractTexture) {
         return TextureSetup.of(abstractTexture.getGlTextureView(), abstractTexture.getSampler());
+    }
+
+
+    public static AbstractTexture createTexture(BufferedImage bufferedImage, String name) {
+        NativeImage nativeImage = new NativeImage(bufferedImage.getWidth(), bufferedImage.getHeight(), false);
+        for (int x = 0; x < bufferedImage.getWidth(); x++) {
+            for (int y = 0; y < bufferedImage.getHeight(); y++) {
+                int color = bufferedImage.getRGB(x, y);
+                nativeImage.fillRect(x, y, 1, 1, color);
+            }
+        }
+
+        return new NativeImageBackedTexture(() -> name, nativeImage);
     }
 
     protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, Predicate<VertexConsumer> callable) {

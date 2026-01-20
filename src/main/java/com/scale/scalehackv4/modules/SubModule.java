@@ -14,7 +14,7 @@ public class SubModule {
 
     @Setter private SubModule parent;
 
-    @Getter public final RegisterSubModule annotation;
+    @Getter private final RegisterSubModule annotation;
 
     public SubModule(Module parentModule, Field field) {
         this.parentModule = parentModule;

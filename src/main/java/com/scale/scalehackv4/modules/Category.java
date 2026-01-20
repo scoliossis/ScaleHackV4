@@ -11,7 +11,8 @@ public enum Category {
     SKYBLOCK(Identifier.of("scalehackv4", "clickgui/skyblock.png")),
     PLAYER(Identifier.of("scalehackv4", "clickgui/player.png")),
     OTHER(Identifier.of("scalehackv4", "clickgui/other.png")),
-    CLIENT(Identifier.of("scalehackv4", "clickgui/client.png"));
+    CLIENT(Identifier.of("scalehackv4", "clickgui/client.png")),
+    CONFIGS(Identifier.of("scalehackv4", "clickgui/configs.png"));
 
     public Identifier texture;
 }

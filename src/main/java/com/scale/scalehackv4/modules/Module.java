@@ -9,6 +9,10 @@ import java.util.ArrayList;
 public abstract class Module {
     @Getter @Setter private RegisterModule annotation;
 
+    public int xSide = 0;
+    public int y = 0;
+    public int height = 0;
+
     @Getter private final ArrayList<SubModule> children = new ArrayList<>();
 
     @Getter private boolean enabled = false;
