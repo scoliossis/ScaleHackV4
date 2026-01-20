@@ -38,16 +38,17 @@ public class ClickGuiScreen extends Screen {
 
         Render2dUtil.drawSkeetRect(0, 0, WIDTH, HEIGHT, null);
 
-        int categoryWidth = 48;
-        int halfWidth = categoryWidth/2;
+        int categoryDiameter = 48;
+        int categoryDiameterHalf = categoryDiameter/2;
 
         int categoryGap = 14;
         int halfGap = categoryGap/2;
 
-        Render2dUtil.drawRect(0, 0, categoryWidth, HEIGHT, new Color(15, 15, 15));
-        Render2dUtil.drawRect(categoryWidth, 0, 1, HEIGHT, new Color(60, 60, 60));
+        Render2dUtil.drawRect(0, 0, categoryDiameter, HEIGHT, new Color(15, 15, 15));
+        Render2dUtil.drawRect(categoryDiameter, 0, 1, HEIGHT, new Color(60, 60, 60));
 
-        matrices.translate(0, categoryWidth/4f);
+        // todo: skeet centers them on the y axis
+        matrices.translate(0, categoryDiameterHalf/2f);
 
         matrices.pushMatrix();
         for (Category category : Category.values()) {
@@ -56,17 +57,17 @@ public class ClickGuiScreen extends Screen {
             boolean selected = category == selectedCategory;
 
             if (selected) {
-                Render2dUtil.drawRect(0, halfWidth+halfGap, categoryWidth, 1, new Color(60, 60, 60));
+                Render2dUtil.drawRect(0, categoryDiameterHalf+halfGap, categoryDiameter, 1, new Color(60, 60, 60));
 
-                Render2dUtil.drawRect(0, -halfGap, categoryWidth+1, halfWidth+categoryGap, new Color(22, 22, 22));
+                Render2dUtil.drawRect(0, -halfGap, categoryDiameter+1, categoryDiameterHalf+categoryGap, new Color(22, 22, 22));
 
-                Render2dUtil.drawRect(0, -halfGap-1, categoryWidth, 1, new Color(60, 60, 60));
-                Render2dUtil.drawRect(0, halfWidth+halfGap, categoryWidth, 1, new Color(60, 60, 60));
+                Render2dUtil.drawRect(0, -halfGap-1, categoryDiameter, 1, new Color(60, 60, 60));
+                Render2dUtil.drawRect(0, categoryDiameterHalf+halfGap, categoryDiameter, 1, new Color(60, 60, 60));
             }
 
-            Render2dUtil.drawTexturedRect(category.texture, halfWidth/2, 0, halfWidth, halfWidth, selected ? new Color(180, 180, 180) : new Color(130, 130, 130));
+            Render2dUtil.drawTexturedRect(category.texture, categoryDiameterHalf/2, 0, categoryDiameterHalf, categoryDiameterHalf, selected ? new Color(180, 180, 180) : new Color(130, 130, 130));
 
-            matrices.translate(0, halfWidth+categoryGap);
+            matrices.translate(0, categoryDiameterHalf+categoryGap);
         }
         matrices.popMatrix();
 
