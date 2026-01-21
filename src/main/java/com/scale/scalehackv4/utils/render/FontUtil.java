@@ -125,7 +125,7 @@ public class FontUtil {
 
         Matrix3x2f matrices = Render2dUtil.getMatrices();
         Render2dUtil.drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, fontTexture.texture, (vertices) -> {
-            matrices.translate(startX, startY);
+            matrices.translate(x, y);
             float downScale = 1f / scaleFactor;
             matrices.scale(downScale);
 
@@ -305,7 +305,8 @@ public class FontUtil {
     }
 
     private static float getScaleFactor() {
-        return C.res().getScaleFactor();
+        Matrix3x2f matrix = RenderUtil.getDrawContext().getMatrices();
+        return (float) Math.sqrt(matrix.m00() * matrix.m00() + matrix.m10() * matrix.m10()) * C.res().getScaleFactor();
     }
 
     // todo:

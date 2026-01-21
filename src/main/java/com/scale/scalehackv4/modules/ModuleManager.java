@@ -2,6 +2,7 @@ package com.scale.scalehackv4.modules;
 
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
+import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.utils.C;
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 import me.xdrop.fuzzywuzzy.model.ExtractedResult;
@@ -70,7 +71,7 @@ public class ModuleManager {
                 categoryModules.get(i).y = i / 2;
 
                 int sideModules = i % 2 == 0 ? (int) Math.ceil((double) modules / 2) : modules / 2;
-                categoryModules.get(i).height = (ClickGuiScreen.HEIGHT / sideModules) - ClickGuiScreen.MODULE_Y_GAP - (ClickGuiScreen.MODULE_Y_GAP / sideModules);
+                categoryModules.get(i).height = (ClickGuiScreen.HEIGHT / sideModules) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / sideModules);
             }
         }
         // todo: impl saving and loading gui positions

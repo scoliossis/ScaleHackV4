@@ -9,13 +9,10 @@ import com.scale.scalehackv4.events.impl.render.MouseDraggedEvent;
 import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
-import net.fabricmc.fabric.mixin.client.gametest.input.MouseHandlerAccessor;
-import net.minecraft.client.Mouse;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.input.MouseInput;
 import org.apache.commons.io.FileUtils;
 import org.joml.Matrix3x2fStack;
-import org.lwjgl.opengl.GL11;
 
 import java.awt.*;
 import java.io.File;
@@ -72,8 +69,9 @@ public class DraggableRenderer {
     public final Event onDrag = new MouseDraggedEvent(null, (e) -> {
         if (dragging == null) return false;
 
-        dragging.x += Mouse.scaleX(C.res(), e.deltaX) / C.res().getWidth();
-        dragging.y += Mouse.scaleY(C.res(), e.deltaY) / C.res().getHeight();
+        // i couldnt tell you why the number is 2x bigger than it should be
+        dragging.x += e.deltaX / C.res().getWidth() / 2;
+        dragging.y += e.deltaY / C.res().getHeight() / 2;
 
         return false;
     });

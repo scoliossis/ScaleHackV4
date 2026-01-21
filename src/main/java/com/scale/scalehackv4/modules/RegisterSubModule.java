@@ -7,4 +7,8 @@ import java.lang.annotation.RetentionPolicy;
 public @interface RegisterSubModule {
     String name();
     String parent() default "";
+
+    double min() default 0;
+    double max() default 1;
+    double increment() default 0.01;
 }

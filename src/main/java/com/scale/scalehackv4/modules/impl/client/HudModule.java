@@ -24,9 +24,34 @@ public class HudModule extends Module {
     public static boolean arrayList = true;
 
     @RegisterSubModule(
+            name = "Colour wowow"
+    )
+    public static Color colour = new Color(255, 0, 0);
+
+    @RegisterSubModule(
             name = "Watermark"
     )
     public static boolean watermark = true;
+
+    @RegisterSubModule(
+            name = "smol slider",
+            min = 0.001,
+            max = 0.1,
+            increment = 0.001
+    )
+    public static double smolslider = 0.01;
+
+    @RegisterSubModule(
+            name = "mid slider"
+    )
+    public static float midslider = 1;
+
+    @RegisterSubModule(
+            name = "big slider",
+            min = 1000,
+            max = 10000
+    )
+    public static long bigslider = 1010;
 
     private static final String CLIENT_NAME = Main.MOD_NAME.split(" ")[0];
     private static final String GAMESENSE_TAG = "Sense";

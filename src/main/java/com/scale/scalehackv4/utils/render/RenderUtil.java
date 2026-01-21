@@ -18,16 +18,22 @@ import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.texture.TextureSetup;
 import net.minecraft.util.Identifier;
+import org.joml.Matrix3x2f;
+import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 
 public class RenderUtil {
     private static final HashMap<VertexFormat, HashMap<VertexFormat.DrawMode, RenderPipeline>> PIPELINES = new HashMap<>();
 
     @Setter @Getter protected static DrawContext drawContext;
+
+    private static final Queue<SimpleGuiElementRenderState> RENDER_QUEUE = new ConcurrentLinkedQueue<>();
 
     protected static RenderPipeline getRenderPipeline(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode) {
         HashMap<VertexFormat.DrawMode, RenderPipeline> pipelineMap = PIPELINES.get(vertexFormat);
@@ -105,14 +111,27 @@ public class RenderUtil {
         return new NativeImageBackedTexture(() -> name, nativeImage);
     }
 
+    public static Vector2f projectPos(Vector2f pos, Matrix3x2f matrices) {
+        return matrices.transformPosition(pos);
+    }
+
     protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, Predicate<VertexConsumer> callable) {
-        drawVertexes(vertexFormat, drawMode, TextureSetup.empty(), callable);
+        drawVertexes(vertexFormat, drawMode, callable, false);
+    }
+
+    protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, Predicate<VertexConsumer> callable, boolean queue) {
+        drawVertexes(vertexFormat, drawMode, TextureSetup.empty(), callable, queue);
+    }
+
+    protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, TextureSetup textureSetup, Predicate<VertexConsumer> callable) {
+        drawVertexes(vertexFormat, drawMode, textureSetup, callable, false);
     }
 
     // idea hit me when i saw "net.minecraft.client.gui.render.state.ColoredQuadGuiElementRenderState.ColoredQuadGuiElementRenderState"
-    protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, TextureSetup textureSetup, Predicate<VertexConsumer> callable) {
+    protected static void drawVertexes(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, TextureSetup textureSetup, Predicate<VertexConsumer> callable, boolean queue) {
         ScreenRect scissor = drawContext.scissorStack.peekLast();
-        drawContext.state.addSimpleElement(new SimpleGuiElementRenderState() {
+
+        SimpleGuiElementRenderState guiElementRenderState = new SimpleGuiElementRenderState() {
             @Override
             public void setupVertices(VertexConsumer vertices) {
                 callable.test(vertices);
@@ -137,6 +156,15 @@ public class RenderUtil {
             public ScreenRect bounds() {
                 return new ScreenRect(0, 1, C.mc.getWindow().getScaledWidth(), C.mc.getWindow().getScaledHeight());
             }
-        });
+        };
+
+        if (queue) RENDER_QUEUE.add(guiElementRenderState);
+        else drawContext.state.addSimpleElement(guiElementRenderState);
+    }
+
+    public static void renderQueued() {
+        while (!RENDER_QUEUE.isEmpty()) {
+            drawContext.state.addSimpleElement(RENDER_QUEUE.poll());
+        }
     }
 }

@@ -22,14 +22,19 @@ public class MouseUtil {
     }
 
     public static boolean isMouseInBounds(int x, int y, int width, int height, DrawContext drawContext) {
+        return isMouseInBounds(x, y, width, height, drawContext, true);
+    }
+
+    public static boolean isMouseInBounds(int x, int y, int width, int height, DrawContext drawContext, boolean scissor) {
         Matrix3x2fStack matrices = drawContext.getMatrices();
 
-        Vector2f xy = matrices.transformPosition(new Vector2f(x, y));
-        Vector2f wh = matrices.transformPosition(new Vector2f(x+width, y+height));
+        Vector2f xy = RenderUtil.projectPos(new Vector2f(x, y), matrices);
+        Vector2f wh = RenderUtil.projectPos(new Vector2f(x+width, y+height), matrices);
 
         Vector2f mousePos = getMousePos();
-        if (!drawContext.scissorContains((int) mousePos.x, (int) mousePos.y)) return false;
+        if (scissor && !drawContext.scissorContains((int) mousePos.x, (int) mousePos.y)) return false;
 
         return isMouseInBounds((int) xy.x, (int) xy.y, (int) wh.x, (int) wh.y, C.mc.mouse);
     }
+
 }
