@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.screens.clickgui.components.submodules;
 
 import com.scale.scalehackv4.modules.SubModule;
+import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.screens.clickgui.components.SubModuleRenderer;
 import com.scale.scalehackv4.utils.render.FontUtil;
@@ -15,7 +16,7 @@ public class BooleanRenderer extends SubModuleRenderer {
     @Override
     public void render(SubModule subModule, Matrix3x2fStack matrices) {
         // draw box.
-        Render2dUtil.drawRect(0, 0, 4, 4, (boolean) subModule.get() ? ClickGuiScreen.HIGHLIGHT_COLOUR : ClickGuiScreen.OUTLINE_COLOUR);
+        Render2dUtil.drawRect(0, 0, 4, 4, (boolean) subModule.get() ? ClickGuiModule.guiColour : ClickGuiScreen.OUTLINE_COLOUR);
 
         matrices.pushMatrix();
         matrices.translate(SubModuleRenderer.MIDDLE_PADDING, 0);

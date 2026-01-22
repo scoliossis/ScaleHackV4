@@ -1,18 +1,23 @@
 package com.scale.scalehackv4.modules.impl.client;
 
-import com.scale.scalehackv4.modules.Category;
+import com.scale.scalehackv4.modules.*;
 import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.ModuleManager;
-import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.Draggable;
+
+import java.awt.*;
 
 @RegisterModule(
         name = "Click GUI",
         category = Category.CLIENT
 )
 public class ClickGuiModule extends Module {
+    @RegisterSubModule(
+            name = "Menu Colour"
+    )
+    public static Color guiColour = new Color(0x7B9818);
+
     private static final ClickGuiScreen GUI = new ClickGuiScreen();
 
     private static boolean enabled = false;
@@ -30,7 +35,9 @@ public class ClickGuiModule extends Module {
                     return new int[] {0, 0};
                 }
 
-                return new int[] {ClickGuiScreen.WIDTH + 4, 6};
+                float scaleFactor = (2f/C.res().getScaleFactor());
+
+                return new int[] {(int) ((ClickGuiScreen.WIDTH + 4) * scaleFactor), (int) (6*scaleFactor)};
             },
             e -> ModuleManager.getModule(ClickGuiModule.class).isEnabled(),
             e -> true

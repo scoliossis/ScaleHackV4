@@ -66,6 +66,4 @@ public class SubModule {
                 || this.getField().getType() == long.class
                 || this.getField().getType() == int.class;
     }
-
-    public boolean open = false;
 }

@@ -11,9 +11,12 @@ import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.ScreenRect;
 import org.joml.Matrix3x2fStack;
+import org.joml.Vector2f;
+import org.joml.Vector2i;
 
 import java.awt.*;
 
+// scalehack manages to do this in 168 lines, not sure how, but this code is much cleaner imo
 public class ColourRenderer extends SubModuleRenderer {
     private static final int SMALL_BOX_HEIGHT = 4;
     private static final int SMALL_BOX_WIDTH = 8;
@@ -34,10 +37,10 @@ public class ColourRenderer extends SubModuleRenderer {
     private static final Rectangle POP_UP_SQUARE = new Rectangle(SHOWCASE_SQUARE.x, ModuleRenderer.SUBMODULE_Y_GAP, BIG_BOX_WIDTH, BIG_BOX_HEIGHT);
 
     private static final  Rectangle COLOUR_SQUARE = new Rectangle(POP_UP_SQUARE.x+COLOUR_BOX_GAP_SIZE, POP_UP_SQUARE.y+COLOUR_BOX_GAP_SIZE, COLOUR_BOX_DIAMETER, COLOUR_BOX_DIAMETER);
-    private static final  Rectangle SATURATION_SLIDER_RECT = new Rectangle(COLOUR_SQUARE.x + COLOUR_BOX_DIAMETER + COLOUR_BOX_GAP_SIZE, COLOUR_SQUARE.y, HSL_SLIDER_WIDTH, COLOUR_BOX_DIAMETER);
+    private static final  Rectangle HUE_SLIDER_RECT = new Rectangle(COLOUR_SQUARE.x + COLOUR_BOX_DIAMETER + COLOUR_BOX_GAP_SIZE, COLOUR_SQUARE.y, HSL_SLIDER_WIDTH, COLOUR_BOX_DIAMETER);
     private static final  Rectangle OPACITY_SLIDER_RECT = new Rectangle(COLOUR_SQUARE.x, COLOUR_SQUARE.y + COLOUR_SQUARE.height + COLOUR_BOX_GAP_SIZE, COLOUR_BOX_DIAMETER, OPACITY_SLIDER_HEIGHT);
 
-    private static final Color[] HSL_COLOURS = new Color[] {
+    private static final Color[] HUES = new Color[] {
             new Color(255, 0, 0),
             new Color(255, 0, 255),
             new Color(0, 0, 255),
@@ -49,50 +52,73 @@ public class ColourRenderer extends SubModuleRenderer {
 
     private static Part selectedPart;
     private enum Part {
-        LIGHT, SATURATION, OPACITY
+        SATURATION_BRIGHTNESS, HUE, OPACITY
     }
+
+    private static float[] hsb = new float[] {-1, -1, -1};
 
     @Override
     public void render(SubModule subModule, Matrix3x2fStack matrices) {
         Color moduleValue = (Color) subModule.get();
-
-        matrices.pushMatrix();
+        Color moduleRGB = new Color(moduleValue.getRGB(), false);
 
         FontUtil.drawString(subModule.getAnnotation().name(), SubModuleRenderer.MIDDLE_PADDING, -2, ClickGuiScreen.FONT_SIZE, Color.WHITE, true);
 
         Render2dUtil.drawRect(SHOWCASE_SQUARE.x, SHOWCASE_SQUARE.y, SHOWCASE_SQUARE.width, SHOWCASE_SQUARE.height, moduleValue);
 
-        if (SubModuleRenderer.activeSubModule == subModule) {
-            DrawContext drawContext = RenderUtil.getDrawContext();
-            ScreenRect scissor = drawContext.scissorStack.peekLast();
+        if (SubModuleRenderer.activeSubModule != subModule) return;
 
-            drawContext.disableScissor();
-            Render2dUtil.drawRect(POP_UP_SQUARE.x-1, POP_UP_SQUARE.y-1, POP_UP_SQUARE.width+2, POP_UP_SQUARE.height+2, ClickGuiScreen.OUTLINE_COLOUR, true);
-            Render2dUtil.drawRect(POP_UP_SQUARE.x, POP_UP_SQUARE.y, POP_UP_SQUARE.width, POP_UP_SQUARE.height, new Color(22, 22, 22), true);
+        if (hsb[0] == -1) hsb = Color.RGBtoHSB(moduleRGB.getRed(), moduleRGB.getGreen(), moduleRGB.getBlue(), null);
+        Color hueColour = Color.getHSBColor(hsb[0], 1, 1);
 
-            Render2dUtil.drawGradient(COLOUR_SQUARE.x, COLOUR_SQUARE.y, COLOUR_SQUARE.width, COLOUR_SQUARE.height, Color.WHITE, Color.WHITE, moduleValue, moduleValue, true);
-            Render2dUtil.drawGradient(COLOUR_SQUARE.x, COLOUR_SQUARE.y, COLOUR_SQUARE.width, COLOUR_SQUARE.height, new Color(0,0,0,0), Color.BLACK, Color.BLACK, new Color(0,0,0,0), true);
+        DrawContext drawContext = RenderUtil.getDrawContext();
+        ScreenRect scissor = drawContext.scissorStack.peekLast();
 
-            for (int i = 0; i < HSL_COLOURS.length-1; i++) {
-                int h = SATURATION_SLIDER_RECT.height / (HSL_COLOURS.length-1);
-                int y = SATURATION_SLIDER_RECT.y + h*i;
-                Render2dUtil.drawGradient(SATURATION_SLIDER_RECT.x, y, SATURATION_SLIDER_RECT.width, h, HSL_COLOURS[i], HSL_COLOURS[i+1], HSL_COLOURS[i+1], HSL_COLOURS[i], true);
-            }
+        drawContext.disableScissor();
 
-            Color transparentColour = new Color(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), 0);
-            Render2dUtil.drawFakeTransparent(OPACITY_SLIDER_RECT.x, OPACITY_SLIDER_RECT.y, OPACITY_SLIDER_RECT.width, OPACITY_SLIDER_RECT.height, true);
-            Render2dUtil.drawGradient(OPACITY_SLIDER_RECT.x, OPACITY_SLIDER_RECT.y, OPACITY_SLIDER_RECT.width, OPACITY_SLIDER_RECT.height, transparentColour, transparentColour, moduleValue, moduleValue, true);
+        // colour square background
+        Render2dUtil.drawRect(POP_UP_SQUARE.x-1, POP_UP_SQUARE.y-1, POP_UP_SQUARE.width+2, POP_UP_SQUARE.height+2, ClickGuiScreen.OUTLINE_COLOUR, true);
+        Render2dUtil.drawRect(POP_UP_SQUARE.x, POP_UP_SQUARE.y, POP_UP_SQUARE.width, POP_UP_SQUARE.height, new Color(22, 22, 22), true);
 
-            drawContext.scissorStack.push(scissor);
+        // saturation/brightness square
+        Render2dUtil.drawGradient(COLOUR_SQUARE.x, COLOUR_SQUARE.y, COLOUR_SQUARE.width, COLOUR_SQUARE.height, Color.WHITE, Color.WHITE, hueColour, hueColour, true);
+        Render2dUtil.drawGradient(COLOUR_SQUARE.x, COLOUR_SQUARE.y, COLOUR_SQUARE.width, COLOUR_SQUARE.height, new Color(0,0,0,0), Color.BLACK, Color.BLACK, new Color(0,0,0,0), true);
+
+        // show selected
+        Vector2i selectLightSaturation = new Vector2i(COLOUR_SQUARE.x + (int) (COLOUR_SQUARE.width * hsb[1]), COLOUR_SQUARE.y + (int) (COLOUR_SQUARE.height * (1-hsb[2])));
+        Render2dUtil.drawRect(selectLightSaturation.x-1, selectLightSaturation.y-1, 3, 3, Color.BLACK, true);
+        Render2dUtil.drawRect(selectLightSaturation.x, selectLightSaturation.y, 1, 1, moduleRGB, true);
+
+        // hsl slider
+        for (int i = 0; i < HUES.length-1; i++) {
+            int h = HUE_SLIDER_RECT.height / (HUES.length-1);
+            int y = HUE_SLIDER_RECT.y + h*i;
+            Render2dUtil.drawGradient(HUE_SLIDER_RECT.x, y, HUE_SLIDER_RECT.width, h, HUES[i], HUES[i+1], HUES[i+1], HUES[i], true);
         }
 
-        matrices.popMatrix();
+        int selectedHueY = (int) (HUE_SLIDER_RECT.y + ((1-hsb[0]) * HUE_SLIDER_RECT.height));
+        Render2dUtil.drawRect(HUE_SLIDER_RECT.x, selectedHueY-1, HUE_SLIDER_RECT.width, 3, Color.BLACK, true);
+        Render2dUtil.drawRect(HUE_SLIDER_RECT.x, selectedHueY, HUE_SLIDER_RECT.width, 1, Color.WHITE, true);
+
+        // opacity slider
+        Color transparentColour = new Color(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), 0);
+        Render2dUtil.drawFakeTransparent(OPACITY_SLIDER_RECT.x, OPACITY_SLIDER_RECT.y, OPACITY_SLIDER_RECT.width, OPACITY_SLIDER_RECT.height, true);
+        Render2dUtil.drawGradient(OPACITY_SLIDER_RECT.x, OPACITY_SLIDER_RECT.y, OPACITY_SLIDER_RECT.width, OPACITY_SLIDER_RECT.height, transparentColour, transparentColour, moduleRGB, moduleRGB, true);
+
+        int selectedOpacityX = (int) (OPACITY_SLIDER_RECT.x + ((moduleValue.getAlpha()/255f) * OPACITY_SLIDER_RECT.width));
+        Render2dUtil.drawRect(selectedOpacityX-1, OPACITY_SLIDER_RECT.y, 3, OPACITY_SLIDER_RECT.height, Color.BLACK, true);
+        Render2dUtil.drawRect(selectedOpacityX, OPACITY_SLIDER_RECT.y, 1, OPACITY_SLIDER_RECT.height, Color.WHITE, true);
+
+        drawContext.scissorStack.push(scissor);
     }
 
     @Override
     public boolean handleClick(SubModule subModule) {
+        // handle clicking the kawaii little small square
         boolean isMouseOverModule = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, 1, SubModuleRenderer.MIDDLE_WIDTH+SubModuleRenderer.RIGHT_PADDING+SMALL_BOX_WIDTH+2, SMALL_BOX_HEIGHT+2, RenderUtil.getDrawContext());
         if (SubModuleRenderer.activeSubModule != subModule && isMouseOverModule) {
+            selectedPart = null;
+            ColourRenderer.hsb[0] = -1;
             SubModuleRenderer.activeSubModule = subModule;
 
             return true;
@@ -101,24 +127,16 @@ public class ColourRenderer extends SubModuleRenderer {
         if (SubModuleRenderer.activeSubModule != subModule) return false;
 
         // we have escaped the box. bad.
-        if (!MouseUtil.isMouseInBounds(COLOUR_SQUARE, false)) {
-            System.err.println("bad");
+        if (!MouseUtil.isMouseInBounds(POP_UP_SQUARE, false)) {
             SubModuleRenderer.activeSubModule = null;
             return false;
         }
 
-        if (!MouseUtil.isMouseInBounds(COLOUR_SQUARE, false)) {
-            System.err.println("light");
-            selectedPart = Part.LIGHT;
-        }
-        else if (MouseUtil.isMouseInBounds(SATURATION_SLIDER_RECT, false)) {
-            System.err.println("satu");
-            selectedPart = Part.SATURATION;
-        }
-        else if (MouseUtil.isMouseInBounds(OPACITY_SLIDER_RECT, false)) {
-            System.err.println("op");
-            selectedPart = Part.OPACITY;
-        }
+        // which part of the box have we interacted with? (please dont be empty space)
+        if (MouseUtil.isMouseInBounds(COLOUR_SQUARE, false)) selectedPart = Part.SATURATION_BRIGHTNESS;
+        else if (MouseUtil.isMouseInBounds(HUE_SLIDER_RECT, false)) selectedPart = Part.HUE;
+        else if (MouseUtil.isMouseInBounds(OPACITY_SLIDER_RECT, false)) selectedPart = Part.OPACITY;
+        else selectedPart = null;
 
         return false;
     }
@@ -127,9 +145,45 @@ public class ColourRenderer extends SubModuleRenderer {
     public boolean handleMouseDown(SubModule subModule) {
         if (SubModuleRenderer.activeSubModule != subModule || selectedPart == null) return false;
 
+        Color moduleValue = (Color) subModule.get();
+
         switch (selectedPart) {
             case OPACITY -> {
+                float projectedX = RenderUtil.projectPos(new Vector2f(OPACITY_SLIDER_RECT.x, 0), Render2dUtil.getMatrices()).x;
+                float projectedW = RenderUtil.projectPos(new Vector2f(OPACITY_SLIDER_RECT.x+OPACITY_SLIDER_RECT.width, 0), Render2dUtil.getMatrices()).x-projectedX;
 
+                double mousePos = Math.clamp(MouseUtil.getMousePos().x - projectedX, 0, OPACITY_SLIDER_RECT.width);
+                double percent = Math.clamp(mousePos / projectedW, 0, 1);
+
+                subModule.set(new Color(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), (int) (percent * 255)));
+            }
+            case HUE -> {
+                float projectedY = RenderUtil.projectPos(new Vector2f(0, HUE_SLIDER_RECT.y), Render2dUtil.getMatrices()).y;
+                float projectedH = RenderUtil.projectPos(new Vector2f(0, HUE_SLIDER_RECT.y+HUE_SLIDER_RECT.height), Render2dUtil.getMatrices()).y-projectedY;
+
+                float mousePos = Math.clamp(MouseUtil.getMousePos().y - projectedY, 0, HUE_SLIDER_RECT.height);
+                // skeet draws the hsl slider upside down, so 1-percent
+                ColourRenderer.hsb[0] = 1-Math.clamp(mousePos / projectedH, 0, 1);
+
+                float[] hsbValues = Color.RGBtoHSB(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), null);
+                Color colour = Color.getHSBColor(ColourRenderer.hsb[0], hsbValues[1], hsbValues[2]);
+
+                subModule.set(new Color(colour.getRed(), colour.getGreen(), colour.getBlue(), moduleValue.getAlpha()));
+            }
+            case SATURATION_BRIGHTNESS -> {
+                Vector2f projectedXY = RenderUtil.projectPos(new Vector2f(COLOUR_SQUARE.x, COLOUR_SQUARE.y), Render2dUtil.getMatrices());
+                Vector2f projectedWH = RenderUtil.projectPos(new Vector2f(COLOUR_SQUARE.x+COLOUR_SQUARE.width, COLOUR_SQUARE.y+COLOUR_SQUARE.height), Render2dUtil.getMatrices()).sub(projectedXY, new Vector2f());
+
+                float mousePosX = Math.clamp(MouseUtil.getMousePos().x - projectedXY.x, 0, COLOUR_SQUARE.width);
+                float mousePosY = Math.clamp(MouseUtil.getMousePos().y - projectedXY.y, 0, COLOUR_SQUARE.height);
+
+                float hue = ColourRenderer.hsb[0] == -1 ? Color.RGBtoHSB(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), null)[0] : ColourRenderer.hsb[0];
+                ColourRenderer.hsb[1] = Math.clamp(mousePosX / projectedWH.x, 0, 1);
+                ColourRenderer.hsb[2] = 1-Math.clamp(mousePosY / projectedWH.y, 0, 1);
+
+                Color newColour = Color.getHSBColor(hue, ColourRenderer.hsb[1], ColourRenderer.hsb[2]);
+                newColour = new Color(newColour.getRed(), newColour.getGreen(), newColour.getBlue(), moduleValue.getAlpha());
+                subModule.set(newColour);
             }
         }
 

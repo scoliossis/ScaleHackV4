@@ -25,8 +25,6 @@ public class ClickGuiScreen extends Screen {
     public static final int WIDTH = 390;
     public static final int HEIGHT = 340;
 
-    public static final Color HIGHLIGHT_COLOUR = new Color(0x7B9818);
-
     public static final Color OUTLINE_COLOUR = new Color(60, 60, 60);
 
     public static final int FONT_SIZE = 6;

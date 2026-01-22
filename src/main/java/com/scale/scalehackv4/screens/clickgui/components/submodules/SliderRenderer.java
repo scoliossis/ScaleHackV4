@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.screens.clickgui.components.submodules;
 
 import com.scale.scalehackv4.modules.SubModule;
+import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.SubModuleRenderer;
@@ -37,7 +38,7 @@ public class SliderRenderer extends SubModuleRenderer {
         int sliderWidth = (int) (percent * SubModuleRenderer.MIDDLE_WIDTH);
 
         Render2dUtil.drawRect(sliderWidth, 0, SubModuleRenderer.MIDDLE_WIDTH-sliderWidth, 2, ClickGuiScreen.OUTLINE_COLOUR);
-        Render2dUtil.drawRect(0, 0, sliderWidth, 2, ClickGuiScreen.HIGHLIGHT_COLOUR);
+        Render2dUtil.drawRect(0, 0, sliderWidth, 2, ClickGuiModule.guiColour);
 
         FontUtil.drawString(valueString, Math.clamp(sliderWidth - (valueWidth/2), 0, SubModuleRenderer.MIDDLE_WIDTH-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
@@ -66,6 +67,9 @@ public class SliderRenderer extends SubModuleRenderer {
         boolean hoveringAdd = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING + SubModuleRenderer.MIDDLE_WIDTH + 2, sliderY, addWidth, sliderHeight, RenderUtil.getDrawContext());
 
         if (hoveringMinus || hoveringAdd) {
+            // weird, this shouldnt be needed, ig i did smth wrong.
+            SubModuleRenderer.activeSubModule = null;
+
             double increment = (subModule.getField().getType() == long.class || subModule.getField().getType() == int.class)
                     ? Math.ceil(subModule.getAnnotation().increment())
                     : subModule.getAnnotation().increment();
@@ -83,9 +87,13 @@ public class SliderRenderer extends SubModuleRenderer {
     @Override
     public boolean handleMouseDown(SubModule subModule) {
         if (SubModuleRenderer.activeSubModule == subModule) {
+            float projectedX = RenderUtil.projectPos(new Vector2f(SubModuleRenderer.MIDDLE_PADDING, 0), Render2dUtil.getMatrices()).x;
+            float projectedW = RenderUtil.projectPos(new Vector2f(SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.MIDDLE_WIDTH, 0), Render2dUtil.getMatrices()).x-projectedX;
+
             double range = subModule.getAnnotation().max() - subModule.getAnnotation().min();
-            double mousePos = Math.clamp(MouseUtil.getMousePos().x - RenderUtil.projectPos(new Vector2f(SubModuleRenderer.MIDDLE_PADDING, 0), Render2dUtil.getMatrices()).x, 0, SubModuleRenderer.MIDDLE_WIDTH);
-            double percent = mousePos / SubModuleRenderer.MIDDLE_WIDTH;
+            // percent doesnt need to be clamped cause i handle that in the set method, well done scale.
+            double mousePos = MouseUtil.getMousePos().x - projectedX;
+            double percent = mousePos / projectedW; // .y is the width, bore
 
             subModule.set(subModule.getAnnotation().min() + percent * range);
 
