@@ -6,9 +6,15 @@ import net.minecraft.client.gui.DrawContext;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector2f;
 
+import java.awt.*;
+
 public class MouseUtil {
     public static Vector2f getMousePos() {
         return new Vector2f((float) C.mc.mouse.getScaledX(C.res()), (float) C.mc.mouse.getScaledY(C.res()));
+    }
+
+    public static boolean isMouseInBounds(Rectangle rectangle, boolean scissor) {
+        return isMouseInBounds(rectangle.x, rectangle.y, rectangle.width, rectangle.height, RenderUtil.getDrawContext(), scissor);
     }
 
     public static boolean isMouseInBounds(int x, int y, int x2, int y2, Mouse mouse) {

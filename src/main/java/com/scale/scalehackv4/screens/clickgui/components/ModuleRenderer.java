@@ -24,7 +24,7 @@ public class ModuleRenderer {
     public static void renderSection(Matrix3x2fStack matrices) {
         matrices.translate(MODULE_X_GAP, 0);
 
-        List<Module> modules = ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory).stream().sorted(Comparator.comparingInt(m -> m.y)).toList();
+        List<Module> modules = ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory).stream().sorted(Comparator.comparingInt(m -> m.y)).sorted(Comparator.comparingInt(m -> m.xSide)).toList();
         for (Module module : modules) {
             matrices.pushMatrix();
             drawModule(module, RenderUtil.getDrawContext(), matrices);

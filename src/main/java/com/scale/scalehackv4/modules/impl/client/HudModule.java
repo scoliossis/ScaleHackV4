@@ -58,7 +58,6 @@ public class HudModule extends Module {
 
     private static final int GAMESENSE_FONT_SIZE = 10;
     private static final int TEXT_INDENT_X = 2;
-    private static final int TEXT_INDENT_Y = 2;
 
     public final Draggable gamesenseWatermark = new Draggable(
             "Gamesense",
@@ -73,19 +72,19 @@ public class HudModule extends Module {
                 int remainingWidth = FontUtil.getStringWidth(remainingHudText, GAMESENSE_FONT_SIZE);
 
                 int innerBoxWidth = clientNameWidth + gamesenseWidth + remainingWidth + (TEXT_INDENT_X * 2);
-                int innerBoxHeight = FontUtil.getFontHeight(GAMESENSE_FONT_SIZE) + (TEXT_INDENT_Y * 2);
+                int innerBoxHeight = FontUtil.getFontHeight(GAMESENSE_FONT_SIZE);
 
                 Render2dUtil.drawSkeetRect(
                         0,
                         0,
                         innerBoxWidth,
-                        FontUtil.getFontHeight(GAMESENSE_FONT_SIZE) + (TEXT_INDENT_Y * 2),
+                        innerBoxHeight,
                         new Color(255, 117, 117)
                 );
 
-                FontUtil.drawString(CLIENT_NAME, TEXT_INDENT_X, TEXT_INDENT_Y, GAMESENSE_FONT_SIZE, new Color(255, 255, 255), false);
-                FontUtil.drawString(GAMESENSE_TAG, TEXT_INDENT_X + clientNameWidth, TEXT_INDENT_Y, GAMESENSE_FONT_SIZE, new Color(255, 117, 117), false);
-                FontUtil.drawString(remainingHudText, TEXT_INDENT_X + clientNameWidth + gamesenseWidth, TEXT_INDENT_Y, GAMESENSE_FONT_SIZE, new Color(255, 255, 255), false);
+                FontUtil.drawString(CLIENT_NAME, TEXT_INDENT_X, 0, GAMESENSE_FONT_SIZE, new Color(255, 255, 255), false);
+                FontUtil.drawString(GAMESENSE_TAG, TEXT_INDENT_X + clientNameWidth, 0, GAMESENSE_FONT_SIZE, new Color(255, 117, 117), false);
+                FontUtil.drawString(remainingHudText, TEXT_INDENT_X + clientNameWidth + gamesenseWidth, 0, GAMESENSE_FONT_SIZE, new Color(255, 255, 255), false);
 
                 return new int[] {innerBoxWidth, innerBoxHeight};
             },

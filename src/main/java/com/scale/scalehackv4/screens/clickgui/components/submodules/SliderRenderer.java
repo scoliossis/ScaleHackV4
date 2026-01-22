@@ -29,17 +29,17 @@ public class SliderRenderer extends SubModuleRenderer {
         matrices.translate(0, fontHeight);
 
         FontUtil.drawString("-", -FontUtil.getStringWidth("-", ClickGuiScreen.FONT_SIZE) - 2, -3, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
-        FontUtil.drawString("+", SubModuleRenderer.MIDDLE_WIDTH + 2, -2, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        FontUtil.drawString("+", SubModuleRenderer.MIDDLE_WIDTH + 2, -3, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         double range = subModule.getAnnotation().max() - subModule.getAnnotation().min();
         double percent = (value - subModule.getAnnotation().min()) / range;
 
         int sliderWidth = (int) (percent * SubModuleRenderer.MIDDLE_WIDTH);
 
-        Render2dUtil.drawRect(sliderWidth, 0, SubModuleRenderer.MIDDLE_WIDTH-sliderWidth, 3, ClickGuiScreen.OUTLINE_COLOUR);
-        Render2dUtil.drawRect(0, 0, sliderWidth, 3, ClickGuiScreen.HIGHLIGHT_COLOUR);
+        Render2dUtil.drawRect(sliderWidth, 0, SubModuleRenderer.MIDDLE_WIDTH-sliderWidth, 2, ClickGuiScreen.OUTLINE_COLOUR);
+        Render2dUtil.drawRect(0, 0, sliderWidth, 2, ClickGuiScreen.HIGHLIGHT_COLOUR);
 
-        FontUtil.drawString(valueString, Math.max(0, sliderWidth - valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        FontUtil.drawString(valueString, Math.clamp(sliderWidth - (valueWidth/2), 0, SubModuleRenderer.MIDDLE_WIDTH-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         matrices.popMatrix();
 
@@ -50,6 +50,14 @@ public class SliderRenderer extends SubModuleRenderer {
     public boolean handleClick(SubModule subModule) {
         int sliderHeight = (FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE)/2)+3+(ModuleRenderer.SUBMODULE_Y_GAP/2);
         int sliderY = -sliderHeight/2 + 2;
+
+        if (MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, sliderY, SubModuleRenderer.MIDDLE_WIDTH+1, sliderHeight, RenderUtil.getDrawContext())) {
+            SubModuleRenderer.activeSubModule = subModule;
+            return true;
+        }
+        else if (SubModuleRenderer.activeSubModule == subModule) {
+            SubModuleRenderer.activeSubModule = null;
+        }
 
         int addWidth = FontUtil.getStringWidth("+", ClickGuiScreen.FONT_SIZE);
         int minusWidth = FontUtil.getStringWidth("-", ClickGuiScreen.FONT_SIZE);
@@ -67,14 +75,6 @@ public class SliderRenderer extends SubModuleRenderer {
             subModule.set(value + (hoveringMinus ? -increment : increment));
 
             return true;
-        }
-
-        if (MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, sliderY, SubModuleRenderer.MIDDLE_WIDTH+1, sliderHeight, RenderUtil.getDrawContext())) {
-            SubModuleRenderer.activeSubModule = subModule;
-            return true;
-        }
-        else if (SubModuleRenderer.activeSubModule == subModule) {
-            SubModuleRenderer.activeSubModule = null;
         }
 
         return false;
