@@ -162,7 +162,8 @@ public class ColourRenderer extends SubModuleRenderer {
                 float projectedH = RenderUtil.projectPos(new Vector2f(0, HUE_SLIDER_RECT.y+HUE_SLIDER_RECT.height), Render2dUtil.getMatrices()).y-projectedY;
 
                 float mousePos = Math.clamp(MouseUtil.getMousePos().y - projectedY, 0, HUE_SLIDER_RECT.height);
-                // skeet draws the hsl slider upside down, so 1-percent
+
+                // skeet draws the hue slider upside down, so 1-percent
                 ColourRenderer.hsb[0] = 1-Math.clamp(mousePos / projectedH, 0, 1);
 
                 float[] hsbValues = Color.RGBtoHSB(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), null);
@@ -179,6 +180,8 @@ public class ColourRenderer extends SubModuleRenderer {
 
                 float hue = ColourRenderer.hsb[0] == -1 ? Color.RGBtoHSB(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), null)[0] : ColourRenderer.hsb[0];
                 ColourRenderer.hsb[1] = Math.clamp(mousePosX / projectedWH.x, 0, 1);
+
+                // darkness = 0, so the further in the mouse is, the lower the number should be, as darkness is drawn at the bottom
                 ColourRenderer.hsb[2] = 1-Math.clamp(mousePosY / projectedWH.y, 0, 1);
 
                 Color newColour = Color.getHSBColor(hue, ColourRenderer.hsb[1], ColourRenderer.hsb[2]);

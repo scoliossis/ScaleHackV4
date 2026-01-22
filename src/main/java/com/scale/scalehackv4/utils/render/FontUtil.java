@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Random;
 
 // straight ripped from https://github.com/scoliossis/ScaleHackOpenSrc which isnt great
+// todo: yeah rewrite most of this.
 public class FontUtil {
     private static Fonts currentFont;
 
@@ -111,6 +112,10 @@ public class FontUtil {
     }
 
     public static float drawStringFade(String string, float startX, float startY, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow) {
+        return drawStringFade(string, startX, startY, fontSize, colour, fadeSpeed, fadeSpread, dropShadow, false);
+    }
+
+    public static float drawStringFade(String string, float startX, float startY, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow, boolean queue) {
         if (string.isEmpty()) return 0;
         Color[] inputColour = colour;
 
@@ -227,7 +232,7 @@ public class FontUtil {
             }
 
             return true;
-        });
+        }, queue);
 
         // todo:
         /*
@@ -249,6 +254,10 @@ public class FontUtil {
 
     public static float drawString(String string, float x, float y, int size, Color colour, boolean dropShadow) {
         return drawStringFade(string, x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow);
+    }
+
+    public static float drawString(String string, float x, float y, int size, Color colour, boolean dropShadow, boolean queue) {
+        return drawStringFade(string, x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow, queue);
     }
 
     public static Random fontRandom = new Random();

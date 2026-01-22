@@ -4,6 +4,7 @@ import com.scale.scalehackv4.modules.SubModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.screens.clickgui.components.submodules.BooleanRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.submodules.ColourRenderer;
+import com.scale.scalehackv4.screens.clickgui.components.submodules.EnumRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.submodules.SliderRenderer;
 import org.joml.Matrix3x2fStack;
 
@@ -28,6 +29,9 @@ public abstract class SubModuleRenderer {
         }
         else if (subModule.getField().getType() == Color.class) {
             renderer = new ColourRenderer();
+        }
+        else if (subModule.getField().getType().isEnum()) {
+            renderer = new EnumRenderer();
         }
         else {
             renderer = new SliderRenderer();

@@ -42,6 +42,15 @@ public class HudModule extends Module {
     public static double smolslider = 0.01;
 
     @RegisterSubModule(
+            name = "Enumeration"
+    )
+    public static Enum anEnum = Enum.test3;
+
+    public enum Enum {
+        test, test2, test3, more, iNeedMore, uh_idk
+    }
+
+    @RegisterSubModule(
             name = "mid slider"
     )
     public static float midslider = 1;

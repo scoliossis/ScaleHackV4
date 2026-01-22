@@ -101,4 +101,16 @@ public class Render2dUtil extends RenderUtil {
             return true;
         }, queue);
     }
+
+    public static void drawPoints(int[] xCoords, int[] yCoords, Color color, boolean queue) {
+        Matrix3x2f matrices = getMatrices();
+
+        drawVertexes(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLE_FAN, (vertices) -> {
+            for (int i = 0; i < xCoords.length; i++) {
+                vertices.vertex(matrices, xCoords[i], yCoords[i]).color(color.getRGB());
+            }
+
+            return true;
+        }, queue);
+    }
 }
