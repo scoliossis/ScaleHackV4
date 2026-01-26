@@ -13,6 +13,8 @@ public abstract class Module {
     public int y = 0;
     public int height = 0;
 
+    public double scrolledAmount = 0;
+
     @Getter private final ArrayList<SubModule> children = new ArrayList<>();
 
     @Getter private boolean enabled = false;

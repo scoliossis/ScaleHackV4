@@ -19,7 +19,7 @@ import java.awt.*;
 public class EnumRenderer extends SubModuleRenderer {
     private static final int ENUM_GAP = 3;
 
-    private static final Rectangle ENUM_RECTANGLE = new Rectangle(SubModuleRenderer.MIDDLE_PADDING, 10, SubModuleRenderer.MIDDLE_WIDTH, 12);
+    private static final Rectangle ENUM_RECTANGLE = new Rectangle(SubModuleRenderer.MIDDLE_PADDING, 8, SubModuleRenderer.MIDDLE_WIDTH, 12);
 
     @Override
     public void render(SubModule subModule, Matrix3x2fStack matrices) {
@@ -40,14 +40,14 @@ public class EnumRenderer extends SubModuleRenderer {
 
         matrices.popMatrix();
 
-        matrices.translate(0, ENUM_RECTANGLE.height+ENUM_GAP);
-
         if (SubModuleRenderer.activeSubModule != subModule) return;
 
         DrawContext drawContext = RenderUtil.getDrawContext();
         ScreenRect scissor = drawContext.scissorStack.peekLast();
 
         matrices.pushMatrix();
+        matrices.translate(0, ENUM_RECTANGLE.height+ENUM_GAP);
+
         drawContext.disableScissor();
 
         for (Enum<?> value : moduleValue.getDeclaringClass().getEnumConstants()) {
@@ -64,7 +64,7 @@ public class EnumRenderer extends SubModuleRenderer {
 
     @Override
     public boolean handleClick(SubModule subModule) {
-        boolean hoveringEnum = MouseUtil.isMouseInBounds(ENUM_RECTANGLE.x, ENUM_RECTANGLE.y-ENUM_RECTANGLE.height-ENUM_GAP+1, ENUM_RECTANGLE.width, ENUM_RECTANGLE.height,  RenderUtil.getDrawContext());
+        boolean hoveringEnum = MouseUtil.isMouseInBounds(ENUM_RECTANGLE, true);
         if (SubModuleRenderer.activeSubModule != subModule && hoveringEnum) {
             SubModuleRenderer.activeSubModule = subModule;
 
@@ -73,10 +73,12 @@ public class EnumRenderer extends SubModuleRenderer {
         else if (SubModuleRenderer.activeSubModule == subModule) {
             SubModuleRenderer.activeSubModule = null;
 
-            if (!MouseUtil.isMouseInBounds(ENUM_RECTANGLE.x, 0, ENUM_RECTANGLE.width, C.res().getHeight(), RenderUtil.getDrawContext(), false)) return false;
+            int rectY = ENUM_RECTANGLE.y+ENUM_RECTANGLE.height+ENUM_GAP;
 
-            float projectedY = RenderUtil.projectPos(new Vector2f(0, ENUM_RECTANGLE.y), Render2dUtil.getMatrices()).y;
-            float projectedH = RenderUtil.projectPos(new Vector2f(0, ENUM_RECTANGLE.y+ENUM_RECTANGLE.height), Render2dUtil.getMatrices()).y-projectedY;
+            if (!MouseUtil.isMouseInBounds(ENUM_RECTANGLE.x, rectY, ENUM_RECTANGLE.width, C.res().getHeight(), RenderUtil.getDrawContext(), false)) return false;
+
+            float projectedY = RenderUtil.projectPos(new Vector2f(0, rectY), Render2dUtil.getMatrices()).y;
+            float projectedH = RenderUtil.projectPos(new Vector2f(0, rectY+ENUM_RECTANGLE.height), Render2dUtil.getMatrices()).y-projectedY;
 
             int enumOrdinal = (int) ((MouseUtil.getMousePos().y - projectedY) / projectedH);
             Enum<?>[] values = ((Enum<?>) subModule.get()).getDeclaringClass().getEnumConstants();
@@ -94,5 +96,10 @@ public class EnumRenderer extends SubModuleRenderer {
     @Override
     public boolean handleMouseDown(SubModule subModule) {
         return false;
+    }
+
+    @Override
+    public int getHeight() {
+        return ENUM_RECTANGLE.y + ENUM_RECTANGLE.height+ENUM_GAP;
     }
 }

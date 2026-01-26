@@ -66,4 +66,26 @@ public class SubModule {
                 || this.getField().getType() == long.class
                 || this.getField().getType() == int.class;
     }
+
+    public boolean isVisible() {
+        if (this.parent != null) {
+            if (!this.parent.isVisible()) return false;
+
+            if (this.parent.getField().getType() == boolean.class) {
+                return (boolean) this.parent.get();
+            }
+            else if (this.parent.getField().getType().isEnum()) {
+                String parentEnumValue = ((Enum<?>) this.parent.get()).name();
+                for (String parentMode : this.annotation.modeParentString()) {
+                    if (parentEnumValue.equalsIgnoreCase(parentMode)) return true;
+                }
+                return false;
+            }
+            else {
+                System.err.println("the parent is evil " + this.parent.annotation.name() + " " + this.annotation.name());
+                return true;
+            }
+        }
+        else return true;
+    }
 }

@@ -51,7 +51,9 @@ public class HudModule extends Module {
     }
 
     @RegisterSubModule(
-            name = "mid slider"
+            name = "mid slider",
+            parent = "Enumeration",
+            modeParentString = {"test2", "iNeedMore"}
     )
     public static float midslider = 1;
 

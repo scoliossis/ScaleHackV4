@@ -43,14 +43,14 @@ public class SliderRenderer extends SubModuleRenderer {
         FontUtil.drawString(valueString, Math.clamp(sliderWidth - (valueWidth/2), 0, SubModuleRenderer.MIDDLE_WIDTH-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         matrices.popMatrix();
-
-        matrices.translate(0, fontHeight);
     }
 
     @Override
     public boolean handleClick(SubModule subModule) {
-        int sliderHeight = (FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE)/2)+3+(ModuleRenderer.SUBMODULE_Y_GAP/2);
-        int sliderY = -sliderHeight/2 + 2;
+        int fontHeight = FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE);
+
+        int sliderHeight = (fontHeight/2)+3+(ModuleRenderer.SUBMODULE_Y_GAP/2);
+        int sliderY = -sliderHeight/2 + fontHeight + 1;
 
         if (MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, sliderY, SubModuleRenderer.MIDDLE_WIDTH+1, sliderHeight, RenderUtil.getDrawContext())) {
             SubModuleRenderer.activeSubModule = subModule;
@@ -101,5 +101,10 @@ public class SliderRenderer extends SubModuleRenderer {
         }
 
         return false;
+    }
+
+    @Override
+    public int getHeight() {
+        return HEIGHT + FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE)-1;
     }
 }

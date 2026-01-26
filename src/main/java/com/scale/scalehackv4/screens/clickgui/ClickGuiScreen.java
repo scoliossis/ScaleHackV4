@@ -15,6 +15,7 @@ import org.joml.Matrix3x2fStack;
 
 import java.awt.*;
 
+// todo: text box + multi select + sort modules + keybinds
 public class ClickGuiScreen extends Screen {
     public ClickGuiScreen() {
         super(Text.of("Click GUI"));
@@ -30,6 +31,8 @@ public class ClickGuiScreen extends Screen {
     public static final int FONT_SIZE = 6;
 
     public static boolean leftMouseDown, mousePressed;
+
+    public static double lastMouseScroll = 0;
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
@@ -61,10 +64,17 @@ public class ClickGuiScreen extends Screen {
         Render2dUtil.renderQueued();
 
         lastMouseInput = mouseInput;
+        lastMouseScroll = 0;
     }
 
     @Override
     public boolean shouldPause() {
         return false;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        lastMouseScroll = verticalAmount;
+        return true;
     }
 }
