@@ -18,9 +18,15 @@ public class ModuleManager {
         C.REFLECTIONS.getTypesAnnotatedWith(RegisterModule.class).forEach(clazz -> {
             try {
                 RegisterModule annotation = clazz.getAnnotation(RegisterModule.class);
-                Module m = (Module) clazz.getDeclaredConstructor().newInstance();
+
+                Class<? extends Module> moduleClazz = (Class<? extends Module>) clazz;
+                Module m = moduleClazz.getDeclaredConstructor().newInstance();
                 m.setAnnotation(annotation);
                 m.setEnabled(annotation.enabledByDefault());
+
+                // dumb blehhh, but it isnt broken yet, so i wont fix it.
+                SubModule enabled = new SubModule(m, moduleClazz.getField("enabled"));
+                m.getChildren().add(enabled);
 
                 for (Field field : clazz.getDeclaredFields()) {
                     RegisterSubModule registerSubModule = field.getAnnotation(RegisterSubModule.class);
@@ -41,7 +47,6 @@ public class ModuleManager {
                         m.getChildren().add(subModule);
                     }
                 }
-
 
                 MODULES.put(clazz, m);
             } catch (Exception e) {

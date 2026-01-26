@@ -20,12 +20,18 @@ public class ModuleRenderer {
     public static final int MODULE_X_GAP = (ClickGuiScreen.WIDTH - CategoryRenderer.CATEGORY_DIAMETER - (MODULE_WIDTH*2)) / 3;
     public static final int MODULE_Y_GAP = 15;
 
+    public static final int FIRST_SUBMODULE_Y_GAP = 8;
     public static final int SUBMODULE_Y_GAP = 2;
 
     public static void renderSection(Matrix3x2fStack matrices) {
         matrices.translate(MODULE_X_GAP, 0);
 
-        List<Module> modules = ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory).stream().sorted(Comparator.comparingInt(m -> m.y)).sorted(Comparator.comparingInt(m -> m.xSide)).toList();
+        // sort array as left modules top to bottom, then right modules top to bottom
+        List<Module> modules = ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory).stream()
+                .sorted(Comparator.comparingInt(m -> m.y))
+                .sorted(Comparator.comparingInt(m -> m.xSide))
+                .toList();
+
         for (Module module : modules) {
             matrices.pushMatrix();
             drawModule(module, RenderUtil.getDrawContext(), matrices);
@@ -43,7 +49,11 @@ public class ModuleRenderer {
         int fontHeight = FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE);
         int titleX = 5;
 
-        int subModulesHeight = module.getChildren().stream().filter(SubModule::isVisible).mapToInt(e -> SUBMODULE_Y_GAP + SubModuleRenderer.getHeight(e)).sum() + 8 + SUBMODULE_Y_GAP;
+        int subModulesHeight = module.getChildren().stream()
+                .filter(SubModule::isVisible)
+                .mapToInt(e -> SUBMODULE_Y_GAP + SubModuleRenderer.getHeight(e)).sum()
+                + FIRST_SUBMODULE_Y_GAP + SUBMODULE_Y_GAP;
+
         float subModuleTranslation = (float) -(subModulesHeight * module.scrolledAmount);
 
         // outline
@@ -58,7 +68,8 @@ public class ModuleRenderer {
         context.enableScissor(1, 1, MODULE_WIDTH, moduleHeight);
 
         matrices.pushMatrix();
-        matrices.translate(SubModuleRenderer.LEFT_PADDING, 8 + subModuleTranslation);
+        matrices.translate(SubModuleRenderer.LEFT_PADDING, FIRST_SUBMODULE_Y_GAP + subModuleTranslation);
+
         for (SubModule subModule : module.getChildren()) {
             if (!subModule.isVisible()) continue;
 
@@ -76,23 +87,30 @@ public class ModuleRenderer {
         // module name
         FontUtil.drawString("§l"+moduleName, titleX, -fontHeight / 2f, ClickGuiScreen.FONT_SIZE, new Color(255, 255, 255), false);
 
-        // scroll bar
-        if (moduleHeight < subModulesHeight) {
-            float percent = (float) moduleHeight / subModulesHeight;
+        handleScrollBar(moduleHeight, subModulesHeight, module);
+    }
 
-            if (MouseUtil.isMouseInBounds(0, 0, MODULE_WIDTH, moduleHeight, RenderUtil.getDrawContext())) {
-                module.scrolledAmount -= ClickGuiScreen.lastMouseScroll * percent * 0.1;
-            }
-
-            module.scrolledAmount = Math.clamp(module.scrolledAmount, 0, 1 - percent);
-
-            int scrollBarHeight = (int) (moduleHeight * percent);
-            int scrollBarY = (int) (moduleHeight * module.scrolledAmount);
-
-            // background for scroll bar
-            Render2dUtil.drawRect(MODULE_WIDTH - 3, 0, 4, moduleHeight, new Color(60, 60, 60));
-
-            Render2dUtil.drawRect(MODULE_WIDTH - 2, scrollBarY, 2, scrollBarHeight, new Color(130, 130, 130));
+    private static void handleScrollBar(int moduleHeight, int subModulesHeight, Module module) {
+        if (moduleHeight >= subModulesHeight) {
+            // just in case! im sure its possible to have this return with a large number.
+            module.scrolledAmount = 0;
+            return;
         }
+
+        float possibleScrollRatio = (float) moduleHeight / subModulesHeight;
+
+        if (MouseUtil.isMouseInBounds(0, 0, MODULE_WIDTH, moduleHeight, RenderUtil.getDrawContext())) {
+            module.scrolledAmount -= ClickGuiScreen.lastMouseScroll * possibleScrollRatio * 0.1;
+        }
+
+        module.scrolledAmount = Math.clamp(module.scrolledAmount, 0, 1 - possibleScrollRatio);
+
+        int scrollBarHeight = (int) (moduleHeight * possibleScrollRatio);
+        int scrollBarY = (int) (moduleHeight * module.scrolledAmount);
+
+        // background for scroll bar
+        Render2dUtil.drawRect(MODULE_WIDTH - 3, 0, 4, moduleHeight, new Color(60, 60, 60));
+
+        Render2dUtil.drawRect(MODULE_WIDTH - 2, scrollBarY, 2, scrollBarHeight, new Color(130, 130, 130));
     }
 }

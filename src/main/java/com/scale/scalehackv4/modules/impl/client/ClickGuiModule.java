@@ -51,6 +51,6 @@ public class ClickGuiModule extends Module {
 
     @Override
     public void onDisable() {
-
+        C.mc.setScreen(null);
     }
 }

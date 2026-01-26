@@ -17,7 +17,9 @@ public abstract class Module {
 
     @Getter private final ArrayList<SubModule> children = new ArrayList<>();
 
-    @Getter private boolean enabled = false;
+    @RegisterSubModule(name = "Enabled")
+    @Getter public boolean enabled = false;
+
     public void setEnabled(boolean enabled) {
         if (enabled != this.enabled) {
             if (enabled) {
