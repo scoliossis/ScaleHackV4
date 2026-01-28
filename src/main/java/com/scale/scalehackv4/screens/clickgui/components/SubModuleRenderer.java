@@ -20,7 +20,7 @@ public abstract class SubModuleRenderer {
     public static final int MIDDLE_PADDING = 10;
     public static final int MIDDLE_WIDTH = (ModuleRenderer.MODULE_WIDTH / 7) * 4;
 
-    public static final int RIGHT_PADDING = 30;
+    public static final int RIGHT_PADDING = 40;
 
     public static SubModule activeSubModule;
 

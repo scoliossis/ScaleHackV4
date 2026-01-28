@@ -18,6 +18,9 @@ public class SubModule {
 
     private final RegisterSubModule annotation;
 
+    // todo: make hashmap of keybinds
+    @Setter @Getter private int keybind = -1;
+
     public SubModule(Module parentModule, Field field) {
         this.parentModule = parentModule;
         this.field = field;

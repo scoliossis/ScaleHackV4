@@ -32,7 +32,7 @@ public class ColourRenderer extends SubModuleRenderer {
 
     private static final int COLOUR_BOX_X = SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.MIDDLE_WIDTH+SubModuleRenderer.RIGHT_PADDING;
 
-    private static final Rectangle SHOWCASE_SQUARE = new Rectangle(COLOUR_BOX_X, 0, SMALL_BOX_WIDTH, SMALL_BOX_HEIGHT);
+    private static final Rectangle SHOWCASE_SQUARE = new Rectangle(COLOUR_BOX_X - SMALL_BOX_WIDTH, 0, SMALL_BOX_WIDTH, SMALL_BOX_HEIGHT);
 
     private static final Rectangle POP_UP_SQUARE = new Rectangle(SHOWCASE_SQUARE.x, ModuleRenderer.SUBMODULE_Y_GAP, BIG_BOX_WIDTH, BIG_BOX_HEIGHT);
 

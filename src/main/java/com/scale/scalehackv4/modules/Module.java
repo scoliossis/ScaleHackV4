@@ -17,7 +17,7 @@ public abstract class Module {
 
     @Getter private final ArrayList<SubModule> children = new ArrayList<>();
 
-    @RegisterSubModule(name = "Enabled")
+    @RegisterSubModule(name = "Enabled", hasKeybind = true)
     @Getter public boolean enabled = false;
 
     public void setEnabled(boolean enabled) {

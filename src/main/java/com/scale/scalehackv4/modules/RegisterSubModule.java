@@ -8,6 +8,7 @@ public @interface RegisterSubModule {
     String name();
     String parent() default "";
     String[] modeParentString() default "";
+    boolean hasKeybind() default false;
 
     double min() default 0;
     double max() default 1;

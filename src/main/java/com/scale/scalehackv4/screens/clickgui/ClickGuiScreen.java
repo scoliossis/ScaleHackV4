@@ -4,11 +4,13 @@ import com.scale.scalehackv4.bridge.MouseBridge;
 import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import com.scale.scalehackv4.screens.clickgui.components.CategoryRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
+import com.scale.scalehackv4.screens.clickgui.components.SubModuleRenderer;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.input.MouseInput;
 import net.minecraft.text.Text;
 import org.joml.Matrix3x2fStack;
@@ -76,5 +78,17 @@ public class ClickGuiScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         lastMouseScroll = verticalAmount;
         return true;
+    }
+
+    @Override
+    public boolean keyPressed(KeyInput input) {
+        if (SubModuleRenderer.activeSubModule != null && SubModuleRenderer.activeSubModule.getAnnotation().hasKeybind()) {
+            int key = input.isEscape() ? -1 : input.getKeycode();
+            SubModuleRenderer.activeSubModule.setKeybind(key);
+            SubModuleRenderer.activeSubModule = null;
+            return true;
+        }
+
+        return super.keyPressed(input);
     }
 }
