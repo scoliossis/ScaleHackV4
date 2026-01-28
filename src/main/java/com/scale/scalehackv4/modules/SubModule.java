@@ -57,6 +57,10 @@ public class SubModule {
                 return;
             }
 
+            if (field.getDeclaringClass() == Module.class) {
+                parentModule.setEnabled((Boolean) value);
+            }
+
             field.set(parentModule, value);
         } catch (IllegalAccessException e) {
             e.printStackTrace();

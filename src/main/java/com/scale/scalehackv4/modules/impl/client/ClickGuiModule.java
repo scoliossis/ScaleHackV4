@@ -18,6 +18,14 @@ public class ClickGuiModule extends Module {
     )
     public static Color guiColour = new Color(0x7B9818);
 
+    @RegisterSubModule(name = "Colour Box Type")
+    public static ColourBoxType colourBoxType = ColourBoxType.Normal;
+
+    public enum ColourBoxType {
+        Normal,
+        Anime_Girl
+    }
+
     private static final ClickGuiScreen GUI = new ClickGuiScreen();
 
     private static boolean enabled = false;

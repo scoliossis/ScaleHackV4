@@ -33,7 +33,7 @@ public class EnumRenderer extends SubModuleRenderer {
         float textY = ENUM_RECTANGLE.height/2f - fontHeight/2f;
 
         Render2dUtil.drawRect(ENUM_RECTANGLE.x, ENUM_RECTANGLE.y, ENUM_RECTANGLE.width, ENUM_RECTANGLE.height, new Color(40,40,40));
-        FontUtil.drawString(moduleValue.name(), ENUM_RECTANGLE.x+3, ENUM_RECTANGLE.y+textY, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        FontUtil.drawString(fixValueName(moduleValue.name()), ENUM_RECTANGLE.x+3, ENUM_RECTANGLE.y+textY, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         matrices.translate(ENUM_RECTANGLE.x+SubModuleRenderer.MIDDLE_WIDTH - 10, ENUM_RECTANGLE.y+(ENUM_RECTANGLE.height/2f)-1);
         Render2dUtil.drawPoints(new int[] {0, 4, 2}, new int[] {0, 0, 2}, Color.WHITE, false);
@@ -54,7 +54,7 @@ public class EnumRenderer extends SubModuleRenderer {
             boolean hovered = MouseUtil.isMouseInBounds(ENUM_RECTANGLE, false);
 
             Render2dUtil.drawRect(ENUM_RECTANGLE.x, ENUM_RECTANGLE.y, ENUM_RECTANGLE.width, ENUM_RECTANGLE.height, hovered ? new Color(20,20,20) : new Color(40,40,40), true);
-            FontUtil.drawString(value.name(),  ENUM_RECTANGLE.x+3,  ENUM_RECTANGLE.y+textY, ClickGuiScreen.FONT_SIZE, moduleValue == value ? ClickGuiModule.guiColour : Color.WHITE, false, true);
+            FontUtil.drawString(fixValueName(value.name()),  ENUM_RECTANGLE.x+3,  ENUM_RECTANGLE.y+textY, ClickGuiScreen.FONT_SIZE, moduleValue == value ? ClickGuiModule.guiColour : Color.WHITE, false, true);
             matrices.translate(0, ENUM_RECTANGLE.height);
         }
 
@@ -101,5 +101,9 @@ public class EnumRenderer extends SubModuleRenderer {
     @Override
     public int getHeight() {
         return ENUM_RECTANGLE.y + ENUM_RECTANGLE.height+ENUM_GAP;
+    }
+
+    private static String fixValueName(String value) {
+        return (value.startsWith("_") ? value.substring(1) : value).replace("_", " ");
     }
 }
