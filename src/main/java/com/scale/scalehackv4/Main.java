@@ -14,6 +14,7 @@ public class Main implements ModInitializer {
 
     public static final String BASE_FOLDER_PATH = MOD_ID + "/";
     public static final String CONFIG_PATH = BASE_FOLDER_PATH + "/configs/";
+    public static final String BASE_CONFIG = "default";
     public static final String ALTS_PATH = BASE_FOLDER_PATH + "/alts";
     public static final String OTHER_PATH = BASE_FOLDER_PATH + "/other";
 

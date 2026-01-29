@@ -258,6 +258,13 @@ public class ColourRenderer extends SubModuleRenderer {
         return true;
     }
 
+    @Override
+    public void handleMouseRelease(SubModule subModule) {
+        if (SubModuleRenderer.activeSubModule == subModule) {
+            selectedPart = null;
+        }
+    }
+
     private static final float[] ANIME_GIRL_MOUSE_POS = new float[] {0, 0};
 
     private static final BufferedImage ANIME_GIRL = getAnimeGirl();

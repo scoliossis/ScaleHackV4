@@ -6,7 +6,6 @@ import com.scale.scalehackv4.screens.clickgui.components.CategoryRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.SubModuleRenderer;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.KeyboardUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
@@ -36,7 +35,7 @@ public class ClickGuiScreen extends Screen {
 
     public static final int FONT_SIZE = 6;
 
-    public static boolean leftMouseDown, mousePressed;
+    public static boolean leftMouseDown, mousePressed, mouseReleased;
 
     public static double lastMouseScroll = 0;
 
@@ -45,6 +44,7 @@ public class ClickGuiScreen extends Screen {
         MouseInput mouseInput = MouseBridge.from(C.mc.mouse).bridge$getActiveButton();
         leftMouseDown = mouseInput != null && mouseInput.button() == 0;
         mousePressed = mouseInput != null && (lastMouseInput == null || lastMouseInput.button() != 0) && leftMouseDown;
+        mouseReleased = mouseInput == null && (lastMouseInput != null && lastMouseInput.button() == 0);
 
         RenderUtil.setDrawContext(context);
 
@@ -88,7 +88,7 @@ public class ClickGuiScreen extends Screen {
     public boolean keyPressed(KeyInput input) {
         if (SubModuleRenderer.activeSubModule != null && SubModuleRenderer.activeSubModule.getAnnotation().hasKeybind()) {
             int key = input.isEscape() ? -1 : input.getKeycode();
-            KeyboardUtil.setKeybind(SubModuleRenderer.activeSubModule, key);
+            SubModuleRenderer.activeSubModule.setKeybind(key);
             SubModuleRenderer.activeSubModule = null;
             return true;
         }

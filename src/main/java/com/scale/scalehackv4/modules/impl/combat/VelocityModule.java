@@ -13,7 +13,7 @@ import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
         category = Category.COMBAT
 )
 public class VelocityModule extends Module {
-    private final Event cancelVelocity = new PacketEvent.Received(null, (params -> {
+    private final Event cancelVelocity = new PacketEvent.Received(this, (params -> {
         if (params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket) {
             return true;
         }

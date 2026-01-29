@@ -9,8 +9,6 @@ import com.scale.scalehackv4.screens.clickgui.components.submodules.SliderRender
 import org.joml.Matrix3x2fStack;
 
 import java.awt.*;
-import java.lang.reflect.Type;
-import java.util.HashMap;
 
 public abstract class SubModuleRenderer {
     public static final int HEIGHT = 10;
@@ -24,14 +22,13 @@ public abstract class SubModuleRenderer {
 
     public static SubModule activeSubModule;
 
-    public static HashMap<Type, SubModuleRenderer> renderers = new HashMap<>();
-
     public static void handle(SubModule subModule, Matrix3x2fStack matrices) {
         SubModuleRenderer renderer = getRenderer(subModule);
 
         renderer.render(subModule, matrices);
         if (ClickGuiScreen.mousePressed) ClickGuiScreen.mousePressed = !renderer.handleClick(subModule);
         if (ClickGuiScreen.leftMouseDown) ClickGuiScreen.leftMouseDown = !renderer.handleMouseDown(subModule);
+        if (ClickGuiScreen.mouseReleased) renderer.handleMouseRelease(subModule);
 
         matrices.translate(0, renderer.getHeight());
     }
@@ -41,6 +38,8 @@ public abstract class SubModuleRenderer {
     /// return whether to cancel the clicking for other modules drawn below.
     public abstract boolean handleClick(SubModule subModule);
     public abstract boolean handleMouseDown(SubModule subModule);
+    public void handleMouseRelease(SubModule subModule) {}
+
     public int getHeight() {
         return HEIGHT;
     }

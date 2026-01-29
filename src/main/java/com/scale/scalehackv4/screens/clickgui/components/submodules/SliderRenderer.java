@@ -67,9 +67,6 @@ public class SliderRenderer extends SubModuleRenderer {
         boolean hoveringAdd = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING + SubModuleRenderer.MIDDLE_WIDTH + 2, sliderY, addWidth, sliderHeight, RenderUtil.getDrawContext());
 
         if (hoveringMinus || hoveringAdd) {
-            // weird, this shouldnt be needed, ig i did smth wrong.
-            SubModuleRenderer.activeSubModule = null;
-
             double increment = (subModule.getField().getType() == long.class || subModule.getField().getType() == int.class)
                     ? Math.ceil(subModule.getAnnotation().increment())
                     : subModule.getAnnotation().increment();
@@ -101,6 +98,13 @@ public class SliderRenderer extends SubModuleRenderer {
         }
 
         return false;
+    }
+
+    @Override
+    public void handleMouseRelease(SubModule subModule) {
+        if (SubModuleRenderer.activeSubModule == subModule) {
+            SubModuleRenderer.activeSubModule = null;
+        }
     }
 
     @Override

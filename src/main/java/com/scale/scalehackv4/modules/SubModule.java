@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.modules;
 
+import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import lombok.Getter;
 import lombok.Setter;
@@ -19,7 +20,15 @@ public class SubModule {
     private final RegisterSubModule annotation;
 
     // todo: make hashmap of keybinds
-    @Setter @Getter private int keybind = -1;
+    @Getter private int keybind = -1;
+
+    public void setKeybind(int keybind) {
+        ModuleManager.KEYBINDS.computeIfAbsent(this.getKeybind(), e -> new ArrayList<>()).remove(this);
+        ModuleManager.KEYBINDS.computeIfAbsent(keybind, e -> new ArrayList<>()).add(this);
+
+        this.keybind = keybind;
+        ModuleManager.saveConfig(Main.BASE_CONFIG);
+    }
 
     public SubModule(Module parentModule, Field field) {
         this.parentModule = parentModule;

@@ -1,15 +1,27 @@
 package com.scale.scalehackv4.modules;
 
+import com.google.gson.internal.LinkedTreeMap;
+import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
+import lombok.AllArgsConstructor;
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 import me.xdrop.fuzzywuzzy.model.ExtractedResult;
+import org.apache.commons.io.FileUtils;
 
+import java.awt.*;
+import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 
 public class ModuleManager {
     private static final HashMap<Class<?>, Module> MODULES = new HashMap<>();
@@ -65,6 +77,7 @@ public class ModuleManager {
             }
         });
 
+        loadConfig(Main.BASE_CONFIG);
         loadGuiPositions();
     }
 
@@ -107,4 +120,169 @@ public class ModuleManager {
     public static List<Module> getModulesByCategory(Category category) {
         return ModuleManager.MODULES.values().stream().filter(e -> e.getAnnotation().category() == category).toList();
     }
+
+    // -------------- from https://github.com/scoliossis/ScaleHackOpenSrc ---------------------
+    public static void openConfigFolder() {
+        try {
+            Files.createDirectories(Paths.get(Main.CONFIG_PATH));
+            Desktop.getDesktop().open(new File(Main.CONFIG_PATH));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static List<File> getConfigFiles(String folderPath) {
+        return Arrays.asList(Objects.requireNonNull(Paths.get(Main.CONFIG_PATH + folderPath).toFile().listFiles()));
+    }
+
+
+    // god bless https://github.com/google/gson/blob/main/UserGuide.md
+    public static void saveConfig(String configName) {
+        if (!C.isInGame()) return;
+
+        HashMap<String, LinkedTreeMap<String, Object>> moduleJSON = new HashMap<>();
+
+        List<Module> modules = getModules();
+
+        for (Module m : modules) saveModule(moduleJSON, m);
+
+        saveConfig(Main.CONFIG_PATH, configName, C.gson.toJson(moduleJSON));
+    }
+
+    private static void saveModule(HashMap<String, LinkedTreeMap<String, Object>> moduleJSON, Module module) {
+        LinkedTreeMap<String, Object> subModules = new LinkedTreeMap<>();
+
+        for (SubModule sm : module.getChildren()) {
+            Object value = sm.getField().getType() == boolean.class ? new BooleanModule((Boolean) sm.get(), sm.getKeybind()) : sm.get();
+            subModules.put(sm.getAnnotation().name(), value);
+        }
+
+        moduleJSON.put(module.getAnnotation().name(), subModules);
+    }
+
+    public static String saveModule(Module module) {
+        HashMap<String, LinkedTreeMap<String, Object>> moduleJSON = new HashMap<>();
+
+        saveModule(moduleJSON, module);
+
+        return C.gson.toJson(moduleJSON);
+    }
+
+    public static void saveModule(Module module, String configName) {
+        saveConfig(Main.CONFIG_PATH + module.getAnnotation().name() + "/", configName, saveModule(module));
+    }
+
+    public static void saveConfig(String filePath, String fileName, String JSON) {
+        try {
+            Files.createDirectories(Paths.get(filePath));
+            Files.write(Paths.get(filePath + fileName + ".cfg"), JSON.getBytes());
+        } catch (IOException e) {
+            System.err.println("Failed to save config: " + e.getMessage());
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static boolean loadConfig(String configName) {
+        String configFileText = readConfig(configName);
+        if (configFileText == null) return false;
+
+        for (Module m : MODULES.values()) loadModule(m, configFileText);
+
+        return true;
+    }
+
+
+    public static boolean loadKeybinds(String configName) {
+        String configFileText = readConfig(configName);
+        if (configFileText == null) return false;
+
+        HashMap<String, LinkedTreeMap<String, Object>> modulesJSON = C.gson.fromJson(configFileText, HashMap.class);
+
+        for (Module m : MODULES.values()) {
+            LinkedTreeMap<String, Object> subModules = modulesJSON.get(m.getAnnotation().name());
+
+            for (SubModule sm : m.getChildren()) {
+                if (modulesJSON.containsKey(m.getAnnotation().name())) {
+                    if (!sm.getAnnotation().hasKeybind()) continue;
+
+                    Object value = subModules.get(sm.getAnnotation().name());
+                    LinkedTreeMap<String, Object> booleanMap = (LinkedTreeMap<String, Object>) value;
+
+                    loadKeybind(sm, booleanMap);
+                }
+            }
+        }
+
+        return true;
+    }
+
+
+    public static void loadModule(Module module, String configFileText) {
+        HashMap<String, LinkedTreeMap<String, Object>> modulesJSON = C.gson.fromJson(configFileText, HashMap.class);
+
+        if (!modulesJSON.containsKey(module.getAnnotation().name())) {
+            System.out.println("Warning: " + module.getAnnotation().name() + " module not found, defaulting to " + module.getAnnotation().enabledByDefault());
+            module.setEnabled(module.getAnnotation().enabledByDefault());
+        }
+        else {
+            LinkedTreeMap<String, Object> subModules = modulesJSON.get(module.getAnnotation().name());
+
+            for (SubModule subModule : module.getChildren()) {
+                if (!subModules.containsKey(subModule.getAnnotation().name())) {
+                    // todo: fix defaulting values
+                    System.out.println("Module has no config: " + subModule.getAnnotation().name() + " submodule of " + module.getAnnotation().name() + " not found, defaulting to " + subModule.get());
+                    continue;
+                }
+
+                Object value = subModules.get(subModule.getAnnotation().name());
+
+                if (subModule.getField().getType().isEnum()) {
+                    Enum<?>[] enumConstants = (Enum<?>[]) subModule.getField().getType().getEnumConstants();
+                    for (Enum<?> enumConstant : enumConstants)
+                        if (enumConstant.name().equals(value)) subModule.set(enumConstant);
+                }
+                else if (subModule.getField().getType().equals(Color.class)) {
+                    LinkedTreeMap<String, Object> colorMap = (LinkedTreeMap<String, Object>) value;
+                    Color rgb = new Color((int) Double.parseDouble(colorMap.get("rgb").toString()));
+                    int alpha = (int) Double.parseDouble(colorMap.get("a").toString());
+
+                    subModule.set(new Color(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), alpha));
+                }
+                else if (subModule.getField().getType() == boolean.class) {
+                    LinkedTreeMap<String, Object> booleanMap = (LinkedTreeMap<String, Object>) value;
+                    subModule.set(booleanMap.get("enabled").equals("true"));
+                    loadKeybind(subModule, booleanMap);
+                }
+                else {
+                    subModule.set(value);
+                }
+            }
+        }
+    }
+
+    private static void loadKeybind(SubModule subModule, LinkedTreeMap<String, Object> subModules) {
+        subModule.setKeybind((int) Double.parseDouble(subModules.get("keybind").toString()));
+    }
+
+
+    public static String readConfig(String configName) {
+        try {
+            File configFile = new File(Main.CONFIG_PATH + configName + ".cfg");
+            if (!Files.exists(configFile.toPath())) {
+                ChatUtil.prefixMessage("&cConfig file does not exist: &f" + configName);
+                return null;
+            }
+            return FileUtils.readFileToString(configFile);
+        } catch (IOException e) {
+            ChatUtil.prefixMessage("&cFailed to read config: " + e.getMessage());
+            return null;
+        }
+    }
+
+    @AllArgsConstructor
+    private static class BooleanModule {
+        public boolean enabled;
+        public int keybind;
+    }
+
 }

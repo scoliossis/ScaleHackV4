@@ -27,6 +27,7 @@ import java.awt.*;
         enabledByDefault = true,
         category = Category.RENDER
 )
+// todo: hide capes
 public class ModelModifierModule extends Module {
     @RegisterSubModule(name = "Self")
     public static boolean self = true;
