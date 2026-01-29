@@ -32,7 +32,6 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // i need lombok its so cute
@@ -40,10 +39,15 @@ dependencies {
     annotationProcessor "org.projectlombok:lombok:1.18.32"
 
     // need reflections for modules, prob is a better way, I just can't think of one rn +1mb :sob:
-    modImplementation "org.reflections:reflections:0.10.2"
+    implementation "org.reflections:reflections:0.10.2"
+    include "org.reflections:reflections:0.10.2"
+    // reflections needs this.
+    implementation "org.javassist:javassist:3.30.2-GA"
+    include "org.javassist:javassist:3.30.2-GA"
 
     // need for commands and any other searching things, long live fuzzysearch
-    modImplementation "me.xdrop:fuzzywuzzy:1.4.0"
+    implementation "me.xdrop:fuzzywuzzy:1.4.0"
+    include "me.xdrop:fuzzywuzzy:1.4.0"
 }
 
 processResources {
@@ -76,10 +80,6 @@ java {
     if (JavaVersion.current() < javaVersion) {
         toolchain.languageVersion = JavaLanguageVersion.of(targetJavaVersion)
     }
-    // Loom will automatically attach sourcesJar to a RemapSourcesJar task and to the "build" task
-    // if it is present.
-    // If you remove this line, sources will not be generated.
-    withSourcesJar()
 }
 
 jar {
