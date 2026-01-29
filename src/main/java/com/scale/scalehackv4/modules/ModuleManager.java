@@ -14,6 +14,8 @@ import java.util.List;
 public class ModuleManager {
     private static final HashMap<Class<?>, Module> MODULES = new HashMap<>();
 
+    public static final HashMap<Integer, List<SubModule>> KEYBINDS = new HashMap<>();
+
     public static void init() {
         C.REFLECTIONS.getTypesAnnotatedWith(RegisterModule.class).forEach(clazz -> {
             try {

@@ -67,19 +67,19 @@ public class CommandManager {
         return commands.get(results.getFirst().getIndex());
     }
 
-    public static void handleTab(TextFieldWidget textField, CompletableFuture<Suggestions> pendingSuggestions) {
+    public static boolean handleTab(TextFieldWidget textField, CompletableFuture<Suggestions> pendingSuggestions) {
+        pendingSuggestions.join().getList().clear();
+
         String text = textField.getText().substring(0, textField.getCursor());
 
-        if (!text.startsWith(String.valueOf(prefix))) return;
-
-        pendingSuggestions.join().getList().clear();
+        if (!text.startsWith(String.valueOf(prefix))) return false;
 
         if (text.length() == 1) {
             for (Command command : commands) {
                 addCommand(command.name(), StringRange.at(1), pendingSuggestions);
             }
 
-            return;
+            return true;
         }
 
         int space = text.indexOf(' ');
@@ -89,15 +89,17 @@ public class CommandManager {
                 addCommand(commands.get(result.getIndex()).name(), StringRange.between(1, textField.getCursor()), pendingSuggestions);
             }
 
-            return;
+            return true;
         }
 
         String commandName = text.substring(1, space);
 
         Command command = getCommand(commandName);
-        if (command == null) return;
+        if (command == null) return true;
 
         command.handleTab(text.substring(space+1), space+1, pendingSuggestions);
+
+        return true;
     }
 
     public static void addCommand(String command, StringRange range, CompletableFuture<Suggestions> pendingSuggestions) {

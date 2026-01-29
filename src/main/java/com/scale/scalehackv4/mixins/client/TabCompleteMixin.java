@@ -16,15 +16,17 @@ import java.util.concurrent.CompletableFuture;
 
 @Mixin(ChatInputSuggestor.class)
 public abstract class TabCompleteMixin{
-    @Shadow
-    private @Nullable CompletableFuture<Suggestions> pendingSuggestions;
-
+    @Shadow private @Nullable CompletableFuture<Suggestions> pendingSuggestions;
     @Shadow @Final TextFieldWidget textField;
+    @Shadow private ChatInputSuggestor.SuggestionWindow window;
 
-    @Inject(method = "refresh", at = @At(value = "TAIL"))
+    @Inject(method = "refresh", at = @At(value = "HEAD"), cancellable = true)
     public void listSuggestions(CallbackInfo ci) {
         if (this.pendingSuggestions == null) return;
 
-        CommandManager.handleTab(this.textField, this.pendingSuggestions);
+        if (CommandManager.handleTab(this.textField, this.pendingSuggestions)) {
+            this.window = null;
+            ci.cancel();
+        }
     }
 }

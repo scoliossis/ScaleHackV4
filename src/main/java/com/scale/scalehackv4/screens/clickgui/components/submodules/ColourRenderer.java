@@ -169,7 +169,7 @@ public class ColourRenderer extends SubModuleRenderer {
         else if (MouseUtil.isMouseInBounds(OPACITY_SLIDER_RECT, false)) selectedPart = Part.OPACITY;
         else selectedPart = null;
 
-        return false;
+        return selectedPart != null;
     }
 
     @Override

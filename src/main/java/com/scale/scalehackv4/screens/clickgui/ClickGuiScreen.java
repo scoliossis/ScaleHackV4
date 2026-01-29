@@ -6,6 +6,7 @@ import com.scale.scalehackv4.screens.clickgui.components.CategoryRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.SubModuleRenderer;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.KeyboardUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
@@ -17,7 +18,10 @@ import org.joml.Matrix3x2fStack;
 
 import java.awt.*;
 
-// todo: text box + multi select + sort modules + keybinds
+// todo: text options
+//  multi select
+//  min-max sliders
+//  moving/resizing modules
 public class ClickGuiScreen extends Screen {
     public ClickGuiScreen() {
         super(Text.of("Click GUI"));
@@ -84,7 +88,7 @@ public class ClickGuiScreen extends Screen {
     public boolean keyPressed(KeyInput input) {
         if (SubModuleRenderer.activeSubModule != null && SubModuleRenderer.activeSubModule.getAnnotation().hasKeybind()) {
             int key = input.isEscape() ? -1 : input.getKeycode();
-            SubModuleRenderer.activeSubModule.setKeybind(key);
+            KeyboardUtil.setKeybind(SubModuleRenderer.activeSubModule, key);
             SubModuleRenderer.activeSubModule = null;
             return true;
         }
