@@ -35,7 +35,7 @@ public class BooleanRenderer extends SubModuleRenderer {
 
         String keybindString = getKeybindString(subModule);
         int keybindWidth = FontUtil.getStringWidth(keybindString, ClickGuiScreen.FONT_SIZE);
-        int textX = SubModuleRenderer.MIDDLE_WIDTH + SubModuleRenderer.RIGHT_PADDING - keybindWidth;
+        int textX = SubModuleRenderer.getMiddleWidth(subModule) + SubModuleRenderer.getRightPadding(subModule) - keybindWidth;
         Color keybindColour = (subModule.getKeybind() == -1 && subModule != SubModuleRenderer.activeSubModule) ? ClickGuiScreen.OUTLINE_COLOUR : new Color(150, 150, 150);
 
         FontUtil.drawString(keybindString, textX, -2, ClickGuiScreen.FONT_SIZE, keybindColour, false);
@@ -45,7 +45,7 @@ public class BooleanRenderer extends SubModuleRenderer {
     public boolean handleClick(SubModule subModule) {
         // handle clicking the keybind
         int keybindWidth = FontUtil.getStringWidth(getKeybindString(subModule), ClickGuiScreen.FONT_SIZE);
-        Rectangle keybindRect = new Rectangle(SubModuleRenderer.LEFT_PADDING+SubModuleRenderer.MIDDLE_WIDTH + SubModuleRenderer.RIGHT_PADDING - keybindWidth, -2, keybindWidth, FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE));
+        Rectangle keybindRect = new Rectangle(SubModuleRenderer.LEFT_PADDING+SubModuleRenderer.getMiddleWidth(subModule) + SubModuleRenderer.getRightPadding(subModule) - keybindWidth, -2, keybindWidth, FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE));
         if (MouseUtil.isMouseInBounds(keybindRect, true)) {
             SubModuleRenderer.activeSubModule = subModule;
             return true;
@@ -57,7 +57,7 @@ public class BooleanRenderer extends SubModuleRenderer {
         if (MouseUtil.isMouseInBounds(
                 0,
                 -2,
-                SubModuleRenderer.LEFT_PADDING + SubModuleRenderer.MIDDLE_PADDING + SubModuleRenderer.MIDDLE_WIDTH,
+                SubModuleRenderer.LEFT_PADDING + SubModuleRenderer.MIDDLE_PADDING + SubModuleRenderer.getMiddleWidth(subModule),
                 FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE),
                 RenderUtil.getDrawContext())
         ) {

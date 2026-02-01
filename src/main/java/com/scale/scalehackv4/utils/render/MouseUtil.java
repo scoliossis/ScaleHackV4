@@ -30,6 +30,9 @@ public class MouseUtil {
     public static boolean isMouseInBounds(int x, int y, int width, int height, DrawContext drawContext) {
         return isMouseInBounds(x, y, width, height, drawContext, true);
     }
+    public static boolean isMouseInBounds(int x, int y, int width, int height, boolean scissor) {
+        return isMouseInBounds(x, y, width, height, RenderUtil.getDrawContext(), scissor);
+    }
 
     public static boolean isMouseInBounds(int x, int y, int width, int height, DrawContext drawContext, boolean scissor) {
         Matrix3x2fStack matrices = drawContext.getMatrices();

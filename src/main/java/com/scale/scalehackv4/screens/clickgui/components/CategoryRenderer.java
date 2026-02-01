@@ -34,7 +34,7 @@ public class CategoryRenderer {
         }
         matrices.popMatrix();
 
-        matrices.translate(CATEGORY_DIAMETER, 0);
+        matrices.translate(CATEGORY_DIAMETER+1, 0);
     }
 
     private static void renderCategory(Category category, Matrix3x2fStack matrices) {

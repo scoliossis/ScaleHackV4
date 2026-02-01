@@ -14,11 +14,15 @@ public abstract class SubModuleRenderer {
     public static final int HEIGHT = 10;
 
     public static final int LEFT_PADDING = 10;
-
     public static final int MIDDLE_PADDING = 10;
-    public static final int MIDDLE_WIDTH = (ModuleRenderer.MODULE_WIDTH / 7) * 4;
 
-    public static final int RIGHT_PADDING = 40;
+    public static int getMiddleWidth(SubModule module) {
+        return (int) (module.getParentModule().width / 1.7f);
+    }
+
+    public static int getRightPadding(SubModule module) {
+        return module.getParentModule().width - LEFT_PADDING - MIDDLE_PADDING - getMiddleWidth(module) - 4;
+    }
 
     public static SubModule activeSubModule;
 

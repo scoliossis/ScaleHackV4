@@ -17,6 +17,7 @@ import java.awt.*;
 public class SliderRenderer extends SubModuleRenderer {
     @Override
     public void render(SubModule subModule, Matrix3x2fStack matrices) {
+        int rectWidth = SubModuleRenderer.getMiddleWidth(subModule);
         int fontHeight = FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE)-1;
         double value = Double.parseDouble(subModule.get().toString());
         String valueString = "§l" + value;
@@ -30,17 +31,17 @@ public class SliderRenderer extends SubModuleRenderer {
         matrices.translate(0, fontHeight);
 
         FontUtil.drawString("-", -FontUtil.getStringWidth("-", ClickGuiScreen.FONT_SIZE) - 2, -3, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
-        FontUtil.drawString("+", SubModuleRenderer.MIDDLE_WIDTH + 2, -3, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        FontUtil.drawString("+", rectWidth + 2, -3, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         double range = subModule.getAnnotation().max() - subModule.getAnnotation().min();
         double percent = (value - subModule.getAnnotation().min()) / range;
 
-        int sliderWidth = (int) (percent * SubModuleRenderer.MIDDLE_WIDTH);
+        int sliderWidth = (int) (percent * rectWidth);
 
-        Render2dUtil.drawRect(sliderWidth, 0, SubModuleRenderer.MIDDLE_WIDTH-sliderWidth, 2, ClickGuiScreen.OUTLINE_COLOUR);
+        Render2dUtil.drawRect(sliderWidth, 0, rectWidth-sliderWidth, 2, ClickGuiScreen.OUTLINE_COLOUR);
         Render2dUtil.drawRect(0, 0, sliderWidth, 2, ClickGuiModule.guiColour);
 
-        FontUtil.drawString(valueString, Math.clamp(sliderWidth - (valueWidth/2), 0, SubModuleRenderer.MIDDLE_WIDTH-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        FontUtil.drawString(valueString, Math.clamp(sliderWidth - (valueWidth/2), 0, rectWidth-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         matrices.popMatrix();
     }
@@ -52,7 +53,7 @@ public class SliderRenderer extends SubModuleRenderer {
         int sliderHeight = (fontHeight/2)+3+(ModuleRenderer.SUBMODULE_Y_GAP/2);
         int sliderY = -sliderHeight/2 + fontHeight + 1;
 
-        if (MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, sliderY, SubModuleRenderer.MIDDLE_WIDTH+1, sliderHeight, RenderUtil.getDrawContext())) {
+        if (MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, sliderY, SubModuleRenderer.getMiddleWidth(subModule)+1, sliderHeight, RenderUtil.getDrawContext())) {
             SubModuleRenderer.activeSubModule = subModule;
             return true;
         }
@@ -64,7 +65,7 @@ public class SliderRenderer extends SubModuleRenderer {
         int minusWidth = FontUtil.getStringWidth("-", ClickGuiScreen.FONT_SIZE);
 
         boolean hoveringMinus = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING-minusWidth - 2, sliderY, minusWidth, sliderHeight, RenderUtil.getDrawContext());
-        boolean hoveringAdd = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING + SubModuleRenderer.MIDDLE_WIDTH + 2, sliderY, addWidth, sliderHeight, RenderUtil.getDrawContext());
+        boolean hoveringAdd = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING + SubModuleRenderer.getMiddleWidth(subModule) + 2, sliderY, addWidth, sliderHeight, RenderUtil.getDrawContext());
 
         if (hoveringMinus || hoveringAdd) {
             double increment = (subModule.getField().getType() == long.class || subModule.getField().getType() == int.class)
@@ -85,7 +86,7 @@ public class SliderRenderer extends SubModuleRenderer {
     public boolean handleMouseDown(SubModule subModule) {
         if (SubModuleRenderer.activeSubModule == subModule) {
             float projectedX = RenderUtil.projectPos(new Vector2f(SubModuleRenderer.MIDDLE_PADDING, 0), Render2dUtil.getMatrices()).x;
-            float projectedW = RenderUtil.projectPos(new Vector2f(SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.MIDDLE_WIDTH, 0), Render2dUtil.getMatrices()).x-projectedX;
+            float projectedW = RenderUtil.projectPos(new Vector2f(SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.getMiddleWidth(subModule), 0), Render2dUtil.getMatrices()).x-projectedX;
 
             double range = subModule.getAnnotation().max() - subModule.getAnnotation().min();
             // percent doesnt need to be clamped cause i handle that in the set method, well done scale.

@@ -36,9 +36,7 @@ public class ColourRenderer extends SubModuleRenderer {
     private static final int BIG_BOX_WIDTH = (COLOUR_BOX_GAP_SIZE*3)+COLOUR_BOX_DIAMETER+HSB_SLIDER_WIDTH;
     private static final int BIG_BOX_HEIGHT = (COLOUR_BOX_GAP_SIZE*3)+COLOUR_BOX_DIAMETER+OPACITY_SLIDER_HEIGHT;
 
-    private static final int COLOUR_BOX_X = SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.MIDDLE_WIDTH+SubModuleRenderer.RIGHT_PADDING;
-
-    private static final Rectangle SHOWCASE_SQUARE = new Rectangle(COLOUR_BOX_X - SMALL_BOX_WIDTH, 0, SMALL_BOX_WIDTH, SMALL_BOX_HEIGHT);
+    private static final Rectangle SHOWCASE_SQUARE = new Rectangle(-SMALL_BOX_WIDTH-1, 0, SMALL_BOX_WIDTH, SMALL_BOX_HEIGHT);
 
     private static final Rectangle POP_UP_SQUARE = new Rectangle(SHOWCASE_SQUARE.x, SHOWCASE_SQUARE.height + ModuleRenderer.SUBMODULE_Y_GAP, BIG_BOX_WIDTH, BIG_BOX_HEIGHT);
 
@@ -70,9 +68,15 @@ public class ColourRenderer extends SubModuleRenderer {
 
         FontUtil.drawString(subModule.getAnnotation().name(), SubModuleRenderer.MIDDLE_PADDING, -2, ClickGuiScreen.FONT_SIZE, Color.WHITE, true);
 
+        matrices.pushMatrix();
+        matrices.translate(SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.getMiddleWidth(subModule)+SubModuleRenderer.getRightPadding(subModule), 0);
+
         Render2dUtil.drawRect(SHOWCASE_SQUARE.x, SHOWCASE_SQUARE.y, SHOWCASE_SQUARE.width, SHOWCASE_SQUARE.height, moduleValue);
 
-        if (SubModuleRenderer.activeSubModule != subModule) return;
+        if (SubModuleRenderer.activeSubModule != subModule) {
+            matrices.popMatrix();
+            return;
+        }
 
         if (hsb[0] == -1) hsb = Color.RGBtoHSB(moduleRGB.getRed(), moduleRGB.getGreen(), moduleRGB.getBlue(), null);
 
@@ -90,6 +94,7 @@ public class ColourRenderer extends SubModuleRenderer {
         drawOpacitySlider(moduleValue, moduleRGB);
 
         drawContext.scissorStack.push(scissor);
+        matrices.popMatrix();
     }
 
     private static void drawSaturationBrightnessPicker(Color hueColour, Color moduleRGB) {
@@ -146,7 +151,7 @@ public class ColourRenderer extends SubModuleRenderer {
     @Override
     public boolean handleClick(SubModule subModule) {
         // handle clicking the kawaii little small square
-        boolean isMouseOverModule = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, 1, SubModuleRenderer.MIDDLE_WIDTH+SubModuleRenderer.RIGHT_PADDING+SMALL_BOX_WIDTH+2, SMALL_BOX_HEIGHT+2, RenderUtil.getDrawContext());
+        boolean isMouseOverModule = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, 1, SubModuleRenderer.getMiddleWidth(subModule)+SubModuleRenderer.getRightPadding(subModule)+SMALL_BOX_WIDTH+2, SMALL_BOX_HEIGHT+2, RenderUtil.getDrawContext());
         if (SubModuleRenderer.activeSubModule != subModule && isMouseOverModule) {
             selectedPart = null;
             ColourRenderer.hsb[0] = -1;
@@ -157,9 +162,15 @@ public class ColourRenderer extends SubModuleRenderer {
 
         if (SubModuleRenderer.activeSubModule != subModule) return false;
 
+        // dumb blehh
+        Matrix3x2fStack matrices = RenderUtil.getDrawContext().getMatrices();
+        matrices.pushMatrix();
+        matrices.translate(SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.getMiddleWidth(subModule)+SubModuleRenderer.getRightPadding(subModule), 0);
+
         // we have escaped the box. bad.
         if (!MouseUtil.isMouseInBounds(POP_UP_SQUARE, false)) {
             SubModuleRenderer.activeSubModule = null;
+            matrices.popMatrix();
             return false;
         }
 
@@ -169,6 +180,7 @@ public class ColourRenderer extends SubModuleRenderer {
         else if (MouseUtil.isMouseInBounds(OPACITY_SLIDER_RECT, false)) selectedPart = Part.OPACITY;
         else selectedPart = null;
 
+        matrices.popMatrix();
         return selectedPart != null;
     }
 
@@ -177,6 +189,10 @@ public class ColourRenderer extends SubModuleRenderer {
         if (SubModuleRenderer.activeSubModule != subModule || selectedPart == null) return false;
 
         Color moduleValue = (Color) subModule.get();
+
+        Matrix3x2fStack matrices = RenderUtil.getDrawContext().getMatrices();
+        matrices.pushMatrix();
+        matrices.translate(SubModuleRenderer.MIDDLE_PADDING+SubModuleRenderer.getMiddleWidth(subModule)+SubModuleRenderer.getRightPadding(subModule), 0);
 
         switch (selectedPart) {
             case OPACITY -> {
@@ -254,6 +270,8 @@ public class ColourRenderer extends SubModuleRenderer {
                 }
             }
         }
+
+        matrices.popMatrix();
 
         return true;
     }

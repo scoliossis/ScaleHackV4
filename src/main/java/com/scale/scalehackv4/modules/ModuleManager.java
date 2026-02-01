@@ -86,12 +86,25 @@ public class ModuleManager {
             List<Module> categoryModules = getModulesByCategory(category);
             int modules = categoryModules.size();
 
-            for (int i = 0; i < modules; i++) {
-                categoryModules.get(i).xSide = i % 2;
-                categoryModules.get(i).y = i / 2;
+            if (modules == 0) continue;
 
-                int sideModules = i % 2 == 0 ? (int) Math.ceil((double) modules / 2) : modules / 2;
-                categoryModules.get(i).height = (ClickGuiScreen.HEIGHT / sideModules) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / sideModules);
+            int squareWidth = (int) Math.round(Math.sqrt(modules));
+            int squareHeight = (int) Math.ceil(Math.sqrt(modules));
+
+            int moduleWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / squareWidth) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / squareWidth);
+            int moduleHeight = (ClickGuiScreen.HEIGHT / squareHeight) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / squareHeight);
+
+            for (int i = 0; i < modules; i++) {
+                Module module = categoryModules.get(i);
+
+                int xOrdinal = i % squareWidth;
+                int yOrdinal = i / squareWidth;
+
+                module.x = (xOrdinal * moduleWidth) + ((xOrdinal+1) * ModuleRenderer.MODULE_X_GAP);
+                module.y = (yOrdinal * moduleHeight) + ((yOrdinal+1) * ModuleRenderer.MODULE_Y_GAP);
+
+                module.width = moduleWidth;
+                module.height = moduleHeight;
             }
         }
         // todo: impl saving and loading gui positions

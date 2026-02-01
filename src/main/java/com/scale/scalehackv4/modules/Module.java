@@ -10,8 +10,9 @@ import java.util.ArrayList;
 public abstract class Module {
     @Getter @Setter private RegisterModule annotation;
 
-    public int xSide = 0;
+    public int x = 0;
     public int y = 0;
+    public int width = 0;
     public int height = 0;
 
     public double scrolledAmount = 0;
