@@ -25,7 +25,7 @@ public abstract class TabCompleteMixin{
         if (this.pendingSuggestions == null) return;
 
         if (CommandManager.handleTab(this.textField, this.pendingSuggestions)) {
-            this.window = null;
+            if (this.textField.getText().endsWith(" ")) this.window = null;
             ci.cancel();
         }
     }

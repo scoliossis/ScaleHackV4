@@ -17,24 +17,24 @@ public class MouseUtil {
         return isMouseInBounds(rectangle.x, rectangle.y, rectangle.width, rectangle.height, RenderUtil.getDrawContext(), scissor);
     }
 
-    public static boolean isMouseInBounds(int x, int y, int x2, int y2, Mouse mouse) {
+    public static boolean isMouseInBounds(float x, float y, float x2, float y2, Mouse mouse) {
         Vector2f mousePos = getMousePos();
 
         return mousePos.x >= x && mousePos.x <= x2 && mousePos.y >= y && mousePos.y <= y2;
     }
 
-    public static boolean isMouseInBounds(int x, int y, int width, int height) {
+    public static boolean isMouseInBounds(float x, float y, float width, float height) {
         return isMouseInBounds(x, y, x+width, y+height, C.mc.mouse);
     }
 
-    public static boolean isMouseInBounds(int x, int y, int width, int height, DrawContext drawContext) {
+    public static boolean isMouseInBounds(float x, float y, float width, float height, DrawContext drawContext) {
         return isMouseInBounds(x, y, width, height, drawContext, true);
     }
-    public static boolean isMouseInBounds(int x, int y, int width, int height, boolean scissor) {
+    public static boolean isMouseInBounds(float x, float y, float width, float height, boolean scissor) {
         return isMouseInBounds(x, y, width, height, RenderUtil.getDrawContext(), scissor);
     }
 
-    public static boolean isMouseInBounds(int x, int y, int width, int height, DrawContext drawContext, boolean scissor) {
+    public static boolean isMouseInBounds(float x, float y, float width, float height, DrawContext drawContext, boolean scissor) {
         Matrix3x2fStack matrices = drawContext.getMatrices();
 
         Vector2f xy = RenderUtil.projectPos(new Vector2f(x, y), matrices);
@@ -43,7 +43,7 @@ public class MouseUtil {
         Vector2f mousePos = getMousePos();
         if (scissor && !drawContext.scissorContains((int) mousePos.x, (int) mousePos.y)) return false;
 
-        return isMouseInBounds((int) xy.x, (int) xy.y, (int) wh.x, (int) wh.y, C.mc.mouse);
+        return isMouseInBounds(xy.x, xy.y, wh.x, wh.y, C.mc.mouse);
     }
 
 }

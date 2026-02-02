@@ -32,8 +32,15 @@ public class DraggableRenderer {
     private final static String DRAGGABLES_PATH = Main.OTHER_PATH + "/";
     private final static String draggablesFile = "draggables.cfg";
 
+    private static MouseInput lastInput = null;
+
     // more gibberish code i hate everything
     public final Event drawDraggables = new RenderTickEvent(null, (e) -> {
+        MouseInput mouseInput = MouseBridge.from(C.mc.mouse).bridge$getActiveButton();
+
+        boolean mousePressed = lastInput == null && mouseInput != null && mouseInput.button() == 0;
+        lastInput = mouseInput;
+
         for (Draggable draggable : draggables) {
             if (!shouldRender(draggable)) continue;
 
@@ -46,9 +53,9 @@ public class DraggableRenderer {
 
             int[] size = draggable.render();
 
-            if (canDrag()) {
+            if (canDrag(mouseInput)) {
                 if (dragging == null) {
-                    if (MouseUtil.isMouseInBounds(renderX, renderY, size[0], size[1])) {
+                    if (MouseUtil.isMouseInBounds(renderX, renderY, size[0], size[1]) && mousePressed) {
                         dragging = draggable;
                     }
                 }
@@ -69,15 +76,13 @@ public class DraggableRenderer {
     public final Event onDrag = new MouseDraggedEvent(null, (e) -> {
         if (dragging == null) return false;
 
-        // i couldnt tell you why the number is 2x bigger than it should be
-        dragging.x += e.deltaX / C.res().getWidth() / 2;
-        dragging.y += e.deltaY / C.res().getHeight() / 2;
+        dragging.x += e.deltaX / C.res().getWidth();
+        dragging.y += e.deltaY / C.res().getHeight();
 
         return false;
     });
 
-    private static boolean canDrag() {
-        MouseInput mouseInput = MouseBridge.from(C.mc.mouse).bridge$getActiveButton();
+    private static boolean canDrag(MouseInput mouseInput) {
         return C.mc.currentScreen != null && mouseInput != null && mouseInput.button() == 0;
     }
 

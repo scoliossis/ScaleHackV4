@@ -12,12 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Mouse.class)
 public class MouseDraggedEventMixin {
     @Shadow
-    private double cursorDeltaX;
-
-    @Shadow
-    private double cursorDeltaY;
-
-    @Shadow
     private double x;
 
     @Shadow
@@ -25,6 +19,9 @@ public class MouseDraggedEventMixin {
 
     @Inject(method = "onCursorPos", at = @At(value = "FIELD", target = "Lnet/minecraft/client/Mouse;cursorDeltaY:D", shift = At.Shift.AFTER))
     public void onCursorPos(long window, double x, double y, CallbackInfo ci) {
-        Bus.post(MouseDraggedEvent.class, new MouseDraggedEvent.Params(x - this.x, y - this.y));
+        // i couldnt tell you why these numbers are 2x bigger than they should be
+        double dx = (x - this.x) / 2; double dy = (y - this.y) / 2;
+
+        Bus.post(MouseDraggedEvent.class, new MouseDraggedEvent.Params(dx, dy));
     }
 }

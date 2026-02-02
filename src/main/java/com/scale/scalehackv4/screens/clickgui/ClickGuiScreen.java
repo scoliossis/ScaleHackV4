@@ -1,7 +1,6 @@
 package com.scale.scalehackv4.screens.clickgui;
 
 import com.scale.scalehackv4.bridge.MouseBridge;
-import com.scale.scalehackv4.modules.ModuleManager;
 import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import com.scale.scalehackv4.screens.clickgui.components.CategoryRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
@@ -42,8 +41,6 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
-        ModuleManager.loadGuiPositions();
-
         MouseInput mouseInput = MouseBridge.from(C.mc.mouse).bridge$getActiveButton();
         leftMouseDown = mouseInput != null && mouseInput.button() == 0;
         mousePressed = mouseInput != null && (lastMouseInput == null || lastMouseInput.button() != 0) && leftMouseDown;

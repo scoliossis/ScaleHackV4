@@ -263,7 +263,7 @@ public class ModuleManager {
                 }
                 else if (subModule.getField().getType() == boolean.class) {
                     LinkedTreeMap<String, Object> booleanMap = (LinkedTreeMap<String, Object>) value;
-                    subModule.set(booleanMap.get("enabled").equals("true"));
+                    subModule.set(booleanMap.get("enabled").toString().equals("true"));
                     loadKeybind(subModule, booleanMap);
                 }
                 else {
