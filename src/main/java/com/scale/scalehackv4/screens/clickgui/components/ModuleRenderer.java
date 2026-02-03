@@ -4,7 +4,9 @@ import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.ModuleManager;
 import com.scale.scalehackv4.modules.SubModule;
+import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
+import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
@@ -15,6 +17,7 @@ import org.joml.Vector2f;
 import org.joml.Vector2i;
 
 import java.awt.*;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -130,14 +133,19 @@ public class ModuleRenderer {
         Render2dUtil.drawRect(module.width - 2, scrollBarY, 2, scrollBarHeight, new Color(130, 130, 130));
     }
 
+    private static Vector2f CLICK_OFFSET = new Vector2f(0, 0);
+
     private static boolean handleClick(Module module) {
         int fontHeight = FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE);
         if (MouseUtil.isMouseInBounds(module.x, module.y - fontHeight/2f, module.width, fontHeight, RenderUtil.getDrawContext())) {
+            Vector2f guiPos = new Vector2f(((float) ClickGuiModule.guiRenderer.x * C.res().getScaledWidth()) + CategoryRenderer.CATEGORY_DIAMETER, (float) ClickGuiModule.guiRenderer.y * C.res().getScaledHeight());
+            CLICK_OFFSET = MouseUtil.getMousePos().sub(guiPos).sub(new Vector2f(module.x, module.y + fontHeight/2f));
             activeModule = module;
             draggingModule = true;
             return true;
         }
-        else if (MouseUtil.isMouseInBounds(module.x + module.width - 3, module.y + module.height - 3, 3, 3, RenderUtil.getDrawContext())) {
+        else if (MouseUtil.isMouseInBounds(module.x + module.width - 3, module.y + module.height - 3, 5, 5, RenderUtil.getDrawContext())) {
+            CLICK_OFFSET = new Vector2f(3, 3);
             activeModule = module;
             return true;
         }
@@ -145,12 +153,14 @@ public class ModuleRenderer {
     }
 
     private static boolean handleActiveModule() {
+        VALID_GRID = getValidGrid();
+
         if (activeModule == null) return false;
 
         Vector2f mousePos = MouseUtil.getMousePos();
         Vector2f projectedPos = RenderUtil.projectPos(MouseUtil.getMousePos(), RenderUtil.getDrawContext().getMatrices());
 
-        Vector2f relativeMousePos = new Vector2f(mousePos.x - (projectedPos.x - mousePos.x), mousePos.y - (projectedPos.y - mousePos.y));
+        Vector2f relativeMousePos = new Vector2f(mousePos.x - (projectedPos.x - mousePos.x), mousePos.y - (projectedPos.y - mousePos.y)).sub(CLICK_OFFSET);
 
         if (draggingModule) handleDraggingModule(relativeMousePos);
         else handleResizingModule(relativeMousePos);
@@ -160,10 +170,11 @@ public class ModuleRenderer {
 
     private static void handleDraggingModule(Vector2f relativeMousePos) {
         Vector2i newPos = new Vector2i(
-                (int) (MathUtil.toNearest(relativeMousePos.x - activeModule.width / 2f, activeModule.width + MODULE_X_GAP) + MODULE_X_GAP),
-                (int) (MathUtil.toNearest(relativeMousePos.y - activeModule.height / 2f, activeModule.height + MODULE_Y_GAP) + MODULE_Y_GAP)
+                (MathUtil.toNearest((int) (relativeMousePos.x), VALID_GRID[0])),
+                (MathUtil.toNearest((int) (relativeMousePos.y), VALID_GRID[1]))
         );
 
+        /*
         for (Module module : ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory)) {
             if (module == activeModule) continue;
 
@@ -174,12 +185,53 @@ public class ModuleRenderer {
                 break;
             }
         }
+         */
 
         activeModule.x = newPos.x;
         activeModule.y = newPos.y;
     }
 
     private static void handleResizingModule(Vector2f relativeMousePos) {
+        Vector2i newSize = new Vector2i(
+                MathUtil.toNearest((int) (relativeMousePos.x - activeModule.x), VALID_GRID[2]),
+                MathUtil.toNearest((int) (relativeMousePos.y - activeModule.y), VALID_GRID[3])
+        );
 
+        activeModule.width = newSize.x;
+        activeModule.height = newSize.y;
+    }
+
+    private static final int MAX_MODULES = 4;
+
+    private static int[][] VALID_GRID = getValidGrid();
+
+    private static int[][] getValidGrid() {
+        // urm actually, this is memory inefficient!!! the size should be 4+3+2+1, not (4*4)+1!!! 7*32 bits wasted, awful coder.
+        int[][] grid = new int[4][MAX_MODULES*MAX_MODULES + 1];
+
+        for (int[] ints : grid) {
+            // halfed to stop integer overflow
+            Arrays.fill(ints, Integer.MAX_VALUE/2);
+        }
+
+        grid[0][0] = ModuleRenderer.MODULE_X_GAP;
+        grid[1][0] = ModuleRenderer.MODULE_Y_GAP;
+
+        for (int i = 1; i <= MAX_MODULES; i++) {
+            int validWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / i) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / i);
+            int validHeight = (ClickGuiScreen.HEIGHT / i) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / i);
+
+            for (int j = 1; j <= i; j++) {
+                int index = (j-1) + ((i-1)*MAX_MODULES) + 1;
+                if (j < i) {
+                    grid[0][index] = (validWidth * j) + ((j+1) * ModuleRenderer.MODULE_X_GAP);
+                    grid[1][index] = (validHeight * j) + ((j+1) * ModuleRenderer.MODULE_Y_GAP);
+                }
+                grid[2][index] = validWidth * j;
+                grid[3][index] = validHeight * j;
+            }
+        }
+
+        return grid;
     }
 }

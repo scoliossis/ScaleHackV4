@@ -42,4 +42,14 @@ public class MathUtil {
     public static double toNearest(double num, double nearest) {
         return Math.round(num / nearest) * nearest;
     }
+
+    public static int toNearest(int num, int[] array) {
+        int nearest = array[0];
+
+        for (int n : array) {
+            if (Math.abs(n - num) < Math.abs(nearest - num)) nearest = n;
+        }
+
+        return nearest;
+    }
 }

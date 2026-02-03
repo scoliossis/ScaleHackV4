@@ -76,8 +76,8 @@ public class DraggableRenderer {
     public final Event onDrag = new MouseDraggedEvent(null, (e) -> {
         if (dragging == null) return false;
 
-        dragging.x += e.deltaX / C.res().getWidth();
-        dragging.y += e.deltaY / C.res().getHeight();
+        dragging.x = Math.clamp(dragging.x + (e.deltaX / C.res().getWidth()), 0, 1);
+        dragging.y = Math.clamp(dragging.y + (e.deltaY / C.res().getHeight()), 0, 1);
 
         return false;
     });
