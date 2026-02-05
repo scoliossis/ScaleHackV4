@@ -1,8 +1,11 @@
 package com.scale.scalehackv4.modules.impl.render;
 
-import com.scale.scalehackv4.modules.*;
+import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
+import com.scale.scalehackv4.modules.RegisterModule;
+import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.ModelUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
@@ -54,7 +57,7 @@ public class ModelModifierModule extends Module {
     }
 
     public static boolean shouldChangeModel() {
-        return ModuleManager.getModule(ModelModifierModule.class).isEnabled();
+        return ModuleUtil.getModule(ModelModifierModule.class).isEnabled();
     }
 
     public static boolean isValidTarget(int entityId) {

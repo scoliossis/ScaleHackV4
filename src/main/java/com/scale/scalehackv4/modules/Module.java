@@ -2,6 +2,7 @@ package com.scale.scalehackv4.modules;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -25,7 +26,7 @@ public abstract class Module {
     public void setEnabled(boolean enabled) {
         if (enabled != this.enabled) {
             this.enabled = enabled;
-            ModuleManager.saveConfig(Main.BASE_CONFIG);
+            ModuleUtil.saveConfig(Main.BASE_CONFIG);
 
             if (enabled) {
                 // todo: notifications
@@ -37,6 +38,10 @@ public abstract class Module {
                 onDisable();
             }
         }
+    }
+
+    public String arrayListExtraInfo() {
+        return "";
     }
 
     public abstract void onEnable();

@@ -2,12 +2,12 @@ package com.scale.scalehackv4.screens.clickgui.components;
 
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.ModuleManager;
 import com.scale.scalehackv4.modules.SubModule;
 import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.MathUtil;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
@@ -30,6 +30,9 @@ public class ModuleRenderer {
     public static final int FIRST_SUBMODULE_Y_GAP = 8;
     public static final int SUBMODULE_Y_GAP = 2;
 
+    private static final int MAX_MODULES = 4;
+    private static int[][] VALID_GRID = getValidGrid();
+
     private static boolean draggingModule = false;
     private static Module activeModule;
 
@@ -37,14 +40,17 @@ public class ModuleRenderer {
         matrices.translate(0, 0);
 
         // sort array as left modules top to bottom, then right modules top to bottom
-        List<Module> modules = ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory).stream()
+        List<Module> modules = ModuleUtil.getModulesByCategory(CategoryRenderer.selectedCategory).stream()
                 .sorted(Comparator.comparingInt(m -> m.y))
                 .sorted(Comparator.comparingInt(m -> m.x))
                 .toList();
 
         if (ClickGuiScreen.mouseReleased) {
-            activeModule = null;
-            draggingModule = false;
+            if (activeModule != null) {
+                activeModule = null;
+                draggingModule = false;
+                ModuleUtil.saveGuiPositions();
+            }
         }
         ClickGuiScreen.leftMouseDown &= !handleActiveModule();
 
@@ -180,7 +186,7 @@ public class ModuleRenderer {
                 Math.min(newPos.y, ClickGuiScreen.HEIGHT - MODULE_Y_GAP - activeModule.height)
         );
 
-        for (Module module : ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory)) {
+        for (Module module : ModuleUtil.getModulesByCategory(CategoryRenderer.selectedCategory)) {
             if (module == activeModule) continue;
 
             if (Math.abs(newPos.x - module.x) < 10 && Math.abs(newPos.y - module.y) < 10) {
@@ -216,7 +222,7 @@ public class ModuleRenderer {
                 Math.min(newSize.y, ClickGuiScreen.HEIGHT - MODULE_Y_GAP - activeModule.y)
         );
 
-        for (Module module : ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory)) {
+        for (Module module : ModuleUtil.getModulesByCategory(CategoryRenderer.selectedCategory)) {
             if (module == activeModule) continue;
 
             boolean intersectsX = activeModule.x <= module.x + module.width && activeModule.x + fixedSize.x >= module.x;
@@ -233,10 +239,7 @@ public class ModuleRenderer {
         activeModule.height = fixedSize.y;
     }
 
-    private static final int MAX_MODULES = 4;
-
-    private static int[][] VALID_GRID = getValidGrid();
-
+    // im dont really like this block of code :(
     private static int[][] getValidGrid() {
         // urm actually, this is memory inefficient!!! the size should be 4+3+2+1, not (4*4)+1!!! 7*32 bits wasted, awful coder.
         int[][] grid = new int[4][MAX_MODULES*MAX_MODULES + 1];

@@ -2,6 +2,7 @@ package com.scale.scalehackv4.modules;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.client.MathUtil;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -23,11 +24,11 @@ public class SubModule {
     @Getter private int keybind = -1;
 
     public void setKeybind(int keybind) {
-        ModuleManager.KEYBINDS.computeIfAbsent(this.getKeybind(), e -> new ArrayList<>()).remove(this);
-        ModuleManager.KEYBINDS.computeIfAbsent(keybind, e -> new ArrayList<>()).add(this);
+        ModuleUtil.KEYBINDS.computeIfAbsent(this.getKeybind(), e -> new ArrayList<>()).remove(this);
+        ModuleUtil.KEYBINDS.computeIfAbsent(keybind, e -> new ArrayList<>()).add(this);
 
         this.keybind = keybind;
-        ModuleManager.saveConfig(Main.BASE_CONFIG);
+        ModuleUtil.saveConfig(Main.BASE_CONFIG);
     }
 
     public SubModule(Module parentModule, Field field) {

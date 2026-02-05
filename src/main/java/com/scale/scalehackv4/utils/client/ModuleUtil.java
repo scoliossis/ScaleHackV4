@@ -1,12 +1,13 @@
-package com.scale.scalehackv4.modules;
+package com.scale.scalehackv4.utils.client;
 
 import com.google.gson.internal.LinkedTreeMap;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.modules.*;
+import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.ChatUtil;
 import lombok.AllArgsConstructor;
 import me.xdrop.fuzzywuzzy.FuzzySearch;
 import me.xdrop.fuzzywuzzy.model.ExtractedResult;
@@ -18,12 +19,10 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
-import java.util.Objects;
 
-public class ModuleManager {
+public class ModuleUtil {
     private static final HashMap<Class<?>, Module> MODULES = new HashMap<>();
 
     public static final HashMap<Integer, List<SubModule>> KEYBINDS = new HashMap<>();
@@ -32,15 +31,28 @@ public class ModuleManager {
         C.REFLECTIONS.getTypesAnnotatedWith(RegisterModule.class).forEach(clazz -> {
             try {
                 RegisterModule annotation = clazz.getAnnotation(RegisterModule.class);
-
                 Class<? extends Module> moduleClazz = (Class<? extends Module>) clazz;
-                Module m = moduleClazz.getDeclaredConstructor().newInstance();
-                m.setAnnotation(annotation);
-                m.setEnabled(annotation.enabledByDefault());
 
-                // dumb blehhh, but it isnt broken yet, so i wont fix it.
-                SubModule enabled = new SubModule(m, moduleClazz.getField("enabled"));
-                m.getChildren().add(enabled);
+                if (annotation == null) {
+                    annotation = clazz.getSuperclass().getAnnotation(RegisterModule.class);
+                    moduleClazz = (Class<? extends Module>) clazz.getSuperclass();
+                }
+
+                Module m;
+                if (MODULES.containsKey(moduleClazz)) {
+                    clazz.getDeclaredConstructor().newInstance();
+                    m = MODULES.get(moduleClazz);
+                }
+                else {
+                    m = moduleClazz.getDeclaredConstructor().newInstance();
+
+                    m.setAnnotation(annotation);
+                    m.setEnabled(annotation.enabledByDefault());
+
+                    // dumb blehhh, but it isnt broken yet, so i wont fix it.
+                    SubModule enabled = new SubModule(m, moduleClazz.getField("enabled"));
+                    m.getChildren().add(enabled);
+                }
 
                 for (Field field : clazz.getDeclaredFields()) {
                     RegisterSubModule registerSubModule = field.getAnnotation(RegisterSubModule.class);
@@ -62,7 +74,7 @@ public class ModuleManager {
                     }
                 }
 
-                MODULES.put(clazz, m);
+                MODULES.put(moduleClazz, m);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -81,7 +93,44 @@ public class ModuleManager {
         loadGuiPositions();
     }
 
+    private static final String GUI_POSITIONS_FILE = "GUI_POSITIONS";
+
+    // gson time!! hip hip hooray!!
+    public static void saveGuiPositions() {
+        HashMap<String, Rectangle> positions = new HashMap<>();
+        for (Module module : getModules()) {
+            Rectangle rect = new Rectangle(module.x, module.y, module.width, module.height);
+            positions.put(module.getAnnotation().name(), rect);
+        }
+
+        saveConfig(Main.CONFIG_PATH, GUI_POSITIONS_FILE, C.gson.toJson(positions));
+    }
+
     public static void loadGuiPositions() {
+        String configFileText = readConfig(GUI_POSITIONS_FILE);
+
+        if (configFileText != null) {
+            boolean failed = false;
+            HashMap<String, LinkedTreeMap<String, Object>> positions = C.gson.fromJson(configFileText, HashMap.class);
+            for (Module module : getModules()) {
+                LinkedTreeMap<String, Object> rect = positions.get(module.getAnnotation().name());
+
+                if (rect != null) {
+                    module.x = getInt("x", rect);
+                    module.y = getInt("y", rect);
+                    module.width = getInt("width", rect);
+                    module.height = getInt("height", rect);
+                }
+                else {
+                    // todo: maybe try slotting it in, instead of giving up and resetting positions
+                    failed = true;
+                    break;
+                }
+            }
+
+            if (!failed) return;
+        }
+
         for (Category category : Category.values()) {
             List<Module> categoryModules = getModulesByCategory(category);
             int modules = categoryModules.size();
@@ -110,12 +159,16 @@ public class ModuleManager {
         // todo: impl saving and loading gui positions
     }
 
+    public static boolean isEnabled(Class<?> clazz) {
+        return getModule(clazz).isEnabled();
+    }
+
     public static Module getModule(Class<?> clazz) {
         return MODULES.get(clazz);
     }
 
     public static List<Module> getModules() {
-        return ModuleManager.MODULES.values().stream().toList();
+        return new ArrayList<>(ModuleUtil.MODULES.values());
     }
 
     public static List<ExtractedResult> getModules(String text, int closeness) {
@@ -131,7 +184,7 @@ public class ModuleManager {
 
 
     public static List<Module> getModulesByCategory(Category category) {
-        return ModuleManager.MODULES.values().stream().filter(e -> e.getAnnotation().category() == category).toList();
+        return ModuleUtil.MODULES.values().stream().filter(e -> e.getAnnotation().category() == category).toList();
     }
 
     // -------------- from https://github.com/scoliossis/ScaleHackOpenSrc ---------------------
@@ -256,8 +309,8 @@ public class ModuleManager {
                 }
                 else if (subModule.getField().getType().equals(Color.class)) {
                     LinkedTreeMap<String, Object> colorMap = (LinkedTreeMap<String, Object>) value;
-                    Color rgb = new Color((int) Double.parseDouble(colorMap.get("rgb").toString()));
-                    int alpha = (int) Double.parseDouble(colorMap.get("a").toString());
+                    Color rgb = new Color(getInt("rgb", colorMap));
+                    int alpha = getInt("a", colorMap);
 
                     subModule.set(new Color(rgb.getRed(), rgb.getGreen(), rgb.getBlue(), alpha));
                 }
@@ -273,8 +326,12 @@ public class ModuleManager {
         }
     }
 
+    private static int getInt(String key, LinkedTreeMap<String, Object> map) {
+        return (int) Double.parseDouble(map.get(key).toString());
+    }
+
     private static void loadKeybind(SubModule subModule, LinkedTreeMap<String, Object> subModules) {
-        subModule.setKeybind((int) Double.parseDouble(subModules.get("keybind").toString()));
+        subModule.setKeybind(getInt("keybind", subModules));
     }
 
 
@@ -297,5 +354,4 @@ public class ModuleManager {
         public boolean enabled;
         public int keybind;
     }
-
 }

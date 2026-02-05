@@ -5,7 +5,7 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.scale.scalehackv4.commands.Command;
 import com.scale.scalehackv4.commands.CommandManager;
 import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.ModuleManager;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import me.xdrop.fuzzywuzzy.model.ExtractedResult;
 
 import java.util.List;
@@ -21,7 +21,7 @@ public class ToggleCommand extends Command {
     public boolean handleCommand(String text) {
         if (text.isEmpty()) return false;
 
-        Module module = ModuleManager.getModule(text, CommandManager.moduleFuzzySearchLimit);
+        Module module = ModuleUtil.getModule(text, CommandManager.moduleFuzzySearchLimit);
         if (module == null) return false;
 
         module.setEnabled(!module.isEnabled());
@@ -31,7 +31,7 @@ public class ToggleCommand extends Command {
 
     @Override
     public void handleTab(String text, int pos, CompletableFuture<Suggestions> pendingSuggestions) {
-        List<Module> modules = ModuleManager.getModules();
+        List<Module> modules = ModuleUtil.getModules();
 
         if (text.isEmpty()) {
             for (Module module : modules) {
@@ -43,7 +43,7 @@ public class ToggleCommand extends Command {
 
         StringRange range = StringRange.between(pos, pos+text.length());
 
-        for (ExtractedResult module : ModuleManager.getModules(text, CommandManager.moduleFuzzySearchLimit)) {
+        for (ExtractedResult module : ModuleUtil.getModules(text, CommandManager.moduleFuzzySearchLimit)) {
             CommandManager.addCommand(modules.get(module.getIndex()).getAnnotation().name(), range, pendingSuggestions);
         }
     }

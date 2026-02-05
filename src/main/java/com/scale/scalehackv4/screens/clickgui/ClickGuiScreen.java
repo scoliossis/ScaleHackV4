@@ -20,7 +20,7 @@ import java.awt.*;
 // todo: text options
 //  multi select
 //  min-max sliders
-//  moving/resizing modules
+//  resizing the whole gui
 public class ClickGuiScreen extends Screen {
     public ClickGuiScreen() {
         super(Text.of("Click GUI"));

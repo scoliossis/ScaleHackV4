@@ -10,7 +10,7 @@ import org.joml.Matrix3x2fStack;
 import java.awt.*;
 
 public class CategoryRenderer {
-    public static Category selectedCategory = Category.CLIENT;
+    public static Category selectedCategory = Category.COMBAT;
 
     public static final int CATEGORY_DIAMETER = 48;
     private static final int HALF_CATEGORY_DIAMETER = CATEGORY_DIAMETER/2;

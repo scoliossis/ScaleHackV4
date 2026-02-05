@@ -1,9 +1,12 @@
 package com.scale.scalehackv4.modules.impl.client;
 
-import com.scale.scalehackv4.modules.*;
+import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
+import com.scale.scalehackv4.modules.RegisterModule;
+import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
 
 import java.awt.*;
@@ -39,7 +42,7 @@ public class ClickGuiModule extends Module {
                 }
 
                 if (!(C.mc.currentScreen instanceof ClickGuiScreen)) {
-                    ModuleManager.getModule(ClickGuiModule.class).setEnabled(false);
+                    ModuleUtil.getModule(ClickGuiModule.class).setEnabled(false);
                     return new int[] {0, 0};
                 }
 
@@ -47,7 +50,7 @@ public class ClickGuiModule extends Module {
 
                 return new int[] {(int) ((ClickGuiScreen.WIDTH + 4) * scaleFactor), (int) (6*scaleFactor)};
             },
-            e -> ModuleManager.getModule(ClickGuiModule.class).isEnabled(),
+            e -> ModuleUtil.getModule(ClickGuiModule.class).isEnabled(),
             e -> true
     );
 
@@ -60,5 +63,14 @@ public class ClickGuiModule extends Module {
     @Override
     public void onDisable() {
         C.mc.setScreen(null);
+    }
+
+    @Override
+    public String arrayListExtraInfo() {
+        if (colourBoxType == ColourBoxType.Anime_Girl) {
+            return "Official Kawaii Anime Girl Edition 2025 bypass sigma sigma boy";
+        } else {
+            return "Skeet";
+        }
     }
 }
