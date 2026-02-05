@@ -30,7 +30,7 @@ public abstract class SubModuleRenderer {
         SubModuleRenderer renderer = getRenderer(subModule);
 
         renderer.render(subModule, matrices);
-        if (ClickGuiScreen.mousePressed) ClickGuiScreen.mousePressed = !renderer.handleClick(subModule);
+        if (ClickGuiScreen.mousePressed && renderer.handleClick(subModule)) ClickGuiScreen.mousePressed = false;
         if (ClickGuiScreen.leftMouseDown) ClickGuiScreen.leftMouseDown = !renderer.handleMouseDown(subModule);
         if (ClickGuiScreen.mouseReleased) renderer.handleMouseRelease(subModule);
 

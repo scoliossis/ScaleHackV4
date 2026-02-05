@@ -34,6 +34,8 @@ public class DraggableRenderer {
 
     private static MouseInput lastInput = null;
 
+    public static boolean overrideDrag = false;
+
     // more gibberish code i hate everything
     public final Event drawDraggables = new RenderTickEvent(null, (e) -> {
         MouseInput mouseInput = MouseBridge.from(C.mc.mouse).bridge$getActiveButton();
@@ -53,13 +55,14 @@ public class DraggableRenderer {
 
             int[] size = draggable.render();
 
-            if (canDrag(mouseInput)) {
+            if (!overrideDrag && canDrag(mouseInput)) {
                 if (dragging == null) {
                     if (MouseUtil.isMouseInBounds(renderX, renderY, size[0], size[1]) && mousePressed) {
                         dragging = draggable;
                     }
                 }
                 else if (dragging == draggable) {
+                    // todo: change this to smth else, not sure what yet.
                     Render2dUtil.drawRect(0, 0, size[0], size[1], new Color(206, 192, 253, 100));
                 }
             }
@@ -71,6 +74,7 @@ public class DraggableRenderer {
             matrices.popMatrix();
         }
 
+        overrideDrag = false;
         return false;
     });
     public final Event onDrag = new MouseDraggedEvent(null, (e) -> {

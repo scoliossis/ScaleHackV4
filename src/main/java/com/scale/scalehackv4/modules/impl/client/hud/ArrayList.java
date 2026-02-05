@@ -28,6 +28,8 @@ public class ArrayList extends HudModule {
     @RegisterSubModule(name = "Show Mode", parent = "Array List")
     public static boolean showMode = true;
 
+    private static final Color[] TRANS = new Color[] {new Color(91, 206, 250), new Color(245, 169, 184), new Color(255, 255, 255), new Color(245, 169, 184)};
+
     public final Draggable arrayListDraggable = new Draggable(
             "Array List",
             () -> {
@@ -40,13 +42,16 @@ public class ArrayList extends HudModule {
 
                 int height = FontUtil.getFontHeight(fontSize) + yGap;
 
+                int maxWidth = FontUtil.getStringWidth(getModuleName(modules.getFirst()), fontSize);
+                int totalHeight = height*modules.size();
+
                 for (int i = 0; i < modules.size(); i++) {
                     Module module = modules.get(i);
 
-                    FontUtil.drawString(getModuleName(module), 0, height*i, fontSize, Color.WHITE, false);
+                    FontUtil.drawString(getModuleName(module), 0, height*i, fontSize, TRANS[i % TRANS.length], true);
                 }
 
-                return new int[] {FontUtil.getStringWidth(getModuleName(modules.getFirst()), fontSize), height*modules.size()};
+                return new int[] {maxWidth, totalHeight};
             },
             e -> ModuleUtil.isEnabled(HudModule.class) && arrayList,
             e -> true

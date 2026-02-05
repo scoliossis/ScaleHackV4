@@ -64,6 +64,7 @@ public class SubModule {
                 else if (field.getType() == long.class) field.set(parentModule, (long) doubleValue);
                 else field.set(parentModule, (int) doubleValue);
 
+                ModuleUtil.saveConfig(Main.BASE_CONFIG);
                 return;
             }
 
@@ -72,6 +73,7 @@ public class SubModule {
             }
 
             field.set(parentModule, value);
+            ModuleUtil.saveConfig(Main.BASE_CONFIG);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }

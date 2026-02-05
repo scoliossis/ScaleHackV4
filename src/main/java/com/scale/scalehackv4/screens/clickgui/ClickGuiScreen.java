@@ -6,6 +6,8 @@ import com.scale.scalehackv4.screens.clickgui.components.CategoryRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.ModuleRenderer;
 import com.scale.scalehackv4.screens.clickgui.components.SubModuleRenderer;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.render.DraggableRenderer;
+import com.scale.scalehackv4.utils.render.MouseUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.DrawContext;
@@ -50,11 +52,10 @@ public class ClickGuiScreen extends Screen {
 
         Matrix3x2fStack matrices = context.getMatrices();
 
+        Rectangle RECTANGLE = new Rectangle((int) ((ClickGuiModule.guiRenderer.x * context.getScaledWindowWidth()) + 2), (int) ((ClickGuiModule.guiRenderer.y * context.getScaledWindowHeight()) + 3), WIDTH, HEIGHT);
+
         matrices.pushMatrix();
-        matrices.translate(
-                (float) (ClickGuiModule.guiRenderer.x * context.getScaledWindowWidth()) + 2,
-                (float) (ClickGuiModule.guiRenderer.y * context.getScaledWindowHeight()) + 3
-        );
+        matrices.translate(RECTANGLE.x, RECTANGLE.y);
         matrices.scale(2f / C.res().getScaleFactor());
 
         // wow drawing the whole background in one function call, $wag money
@@ -71,6 +72,10 @@ public class ClickGuiScreen extends Screen {
 
         lastMouseInput = mouseInput;
         lastMouseScroll = 0;
+
+        if (MouseUtil.isMouseInBounds(RECTANGLE, true)) {
+            DraggableRenderer.overrideDrag = true;
+        }
     }
 
     @Override

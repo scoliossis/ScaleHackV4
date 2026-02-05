@@ -62,7 +62,7 @@ public class ModuleRenderer {
     }
 
     private static void drawModule(Module module, Matrix3x2fStack matrices) {
-        if (ClickGuiScreen.mousePressed) ClickGuiScreen.mousePressed = !handleClick(module);
+        if (ClickGuiScreen.mousePressed && handleClick(module)) ClickGuiScreen.mousePressed = false;
 
         // everyone, get ready, positions people!
         matrices.translate(module.x, module.y);

@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.texture.TextureSetup;
+import net.minecraft.util.Formatting;
 import org.joml.Matrix3x2f;
 
 import java.awt.*;
@@ -148,9 +149,10 @@ public class FontUtil {
                     String colourCodeString = string.substring(i + 1, i + 2);
                     char colourCode = colourCodeString.charAt(0);
                     if (COLOUR_CODES.contains(colourCodeString)) {
-                        // todo:
-                        //Color colourCodeColour = new Color(C.mc.fontRendererObj.getColorCode(colourCode));
-                        Color colourCodeColour = Color.WHITE;
+                        Formatting formatting = Formatting.byCode(colourCode);
+                        if (formatting == null || formatting.getColorValue() == null) continue;
+
+                        Color colourCodeColour = new Color(formatting.getColorValue());
                         for (int j = 0; j < colour.length; j++)
                             colour[j] = new Color(colourCodeColour.getRed(), colourCodeColour.getGreen(), colourCodeColour.getBlue(), colour[j].getAlpha());
                         randomStyle = boldStyle = strikethroughStyle = underlineStyle = italicStyle = false;
