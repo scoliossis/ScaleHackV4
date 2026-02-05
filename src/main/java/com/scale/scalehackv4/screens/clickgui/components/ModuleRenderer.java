@@ -74,9 +74,10 @@ public class ModuleRenderer {
         float subModuleTranslation = (float) -(subModulesHeight * module.scrolledAmount);
 
         // outline
-        Render2dUtil.drawRect(-1, -1, titleX-1, module.height+2, ClickGuiScreen.OUTLINE_COLOUR);
-        Render2dUtil.drawRect(titleX+2+moduleNameWidth, -1, module.width-titleX-1-moduleNameWidth, module.height+2, ClickGuiScreen.OUTLINE_COLOUR);
-        Render2dUtil.drawRect(-1, module.height, module.width+2, 1, ClickGuiScreen.OUTLINE_COLOUR);
+        Color outlineColour = activeModule == module ? ClickGuiModule.guiColour : ClickGuiScreen.OUTLINE_COLOUR;
+        Render2dUtil.drawRect(-1, -1, titleX-1, module.height+2, outlineColour);
+        Render2dUtil.drawRect(titleX+2+moduleNameWidth, -1, module.width-titleX-1-moduleNameWidth, module.height+2, outlineColour);
+        Render2dUtil.drawRect(-1, module.height, module.width+2, 1, outlineColour);
 
         // interior crocodile alligator
         Render2dUtil.drawRect(0, 0, module.width, module.height, new Color(22, 22, 22));
@@ -128,7 +129,7 @@ public class ModuleRenderer {
         int scrollBarY = (int) (moduleHeight * module.scrolledAmount);
 
         // background for scroll bar
-        Render2dUtil.drawRect(module.width - 3, 0, 4, moduleHeight, new Color(60, 60, 60));
+        Render2dUtil.drawRect(module.width - 3, 0, 3, moduleHeight, new Color(60, 60, 60));
 
         Render2dUtil.drawRect(module.width - 2, scrollBarY, 2, scrollBarHeight, new Color(130, 130, 130));
     }
@@ -174,21 +175,34 @@ public class ModuleRenderer {
                 (MathUtil.toNearest((int) (relativeMousePos.y), VALID_GRID[1]))
         );
 
-        /*
+        Vector2i fixedPos = new Vector2i(
+                Math.min(newPos.x, MODULES_SECTION_WIDTH - MODULE_X_GAP - activeModule.width),
+                Math.min(newPos.y, ClickGuiScreen.HEIGHT - MODULE_Y_GAP - activeModule.height)
+        );
+
         for (Module module : ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory)) {
             if (module == activeModule) continue;
 
-            // todo: check if its in the box at all, fix size accordingly
-            if (module.x == newPos.x && module.y == newPos.y) {
-                module.x = activeModule.x;
-                module.y = activeModule.y;
-                break;
+            if (Math.abs(newPos.x - module.x) < 10 && Math.abs(newPos.y - module.y) < 10) {
+                // swap wowowow
+                Rectangle temp = new Rectangle(module.x, module.y, module.width, module.height);
+                module.x = activeModule.x; module.y = activeModule.y; module.width = activeModule.width; module.height = activeModule.height;
+                activeModule.x = temp.x; activeModule.y = temp.y; activeModule.width = temp.width; activeModule.height = temp.height;
+
+                return;
+            }
+
+            boolean intersectsX = newPos.x + activeModule.width >= module.x && newPos.x <= module.x + module.width;
+            boolean intersectsY = newPos.y + activeModule.height >= module.y && newPos.y <= module.y + module.height;
+
+            if (intersectsX && intersectsY) {
+                fixedPos.x = activeModule.x;
+                fixedPos.y = activeModule.y;
             }
         }
-         */
 
-        activeModule.x = newPos.x;
-        activeModule.y = newPos.y;
+        activeModule.x = fixedPos.x;
+        activeModule.y = fixedPos.y;
     }
 
     private static void handleResizingModule(Vector2f relativeMousePos) {
@@ -197,8 +211,26 @@ public class ModuleRenderer {
                 MathUtil.toNearest((int) (relativeMousePos.y - activeModule.y), VALID_GRID[3])
         );
 
-        activeModule.width = newSize.x;
-        activeModule.height = newSize.y;
+        Vector2i fixedSize = new Vector2i(
+                Math.min(newSize.x, MODULES_SECTION_WIDTH - MODULE_X_GAP - activeModule.x),
+                Math.min(newSize.y, ClickGuiScreen.HEIGHT - MODULE_Y_GAP - activeModule.y)
+        );
+
+        for (Module module : ModuleManager.getModulesByCategory(CategoryRenderer.selectedCategory)) {
+            if (module == activeModule) continue;
+
+            boolean intersectsX = activeModule.x <= module.x + module.width && activeModule.x + fixedSize.x >= module.x;
+            boolean intersectsY = activeModule.y <= module.y + module.height && activeModule.y + fixedSize.y >= module.y;
+
+            if (intersectsX && intersectsY) {
+                fixedSize.x = activeModule.width;
+                fixedSize.y = activeModule.height;
+                break;
+            }
+        }
+
+        activeModule.width = fixedSize.x;
+        activeModule.height = fixedSize.y;
     }
 
     private static final int MAX_MODULES = 4;
@@ -214,18 +246,18 @@ public class ModuleRenderer {
             Arrays.fill(ints, Integer.MAX_VALUE/2);
         }
 
-        grid[0][0] = ModuleRenderer.MODULE_X_GAP;
-        grid[1][0] = ModuleRenderer.MODULE_Y_GAP;
+        grid[0][0] = MODULE_X_GAP;
+        grid[1][0] = MODULE_Y_GAP;
 
         for (int i = 1; i <= MAX_MODULES; i++) {
-            int validWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / i) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / i);
-            int validHeight = (ClickGuiScreen.HEIGHT / i) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / i);
+            int validWidth = (MODULES_SECTION_WIDTH / i) - MODULE_X_GAP - (MODULE_X_GAP / i);
+            int validHeight = (ClickGuiScreen.HEIGHT / i) - MODULE_Y_GAP - (MODULE_Y_GAP / i);
 
             for (int j = 1; j <= i; j++) {
                 int index = (j-1) + ((i-1)*MAX_MODULES) + 1;
                 if (j < i) {
-                    grid[0][index] = (validWidth * j) + ((j+1) * ModuleRenderer.MODULE_X_GAP);
-                    grid[1][index] = (validHeight * j) + ((j+1) * ModuleRenderer.MODULE_Y_GAP);
+                    grid[0][index] = (validWidth * j) + ((j+1) * MODULE_X_GAP);
+                    grid[1][index] = (validHeight * j) + ((j+1) * MODULE_Y_GAP);
                 }
                 grid[2][index] = validWidth * j;
                 grid[3][index] = validHeight * j;

@@ -5,7 +5,7 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 
 @RegisterModule(
-        name = "module wowowow omg",
+        name = "ig bruh...",
         enabledByDefault = true,
         category = Category.CLIENT
 )

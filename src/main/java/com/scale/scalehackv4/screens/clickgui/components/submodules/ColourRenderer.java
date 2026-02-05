@@ -156,6 +156,10 @@ public class ColourRenderer extends SubModuleRenderer {
             selectedPart = null;
             ColourRenderer.hsb[0] = -1;
             SubModuleRenderer.activeSubModule = subModule;
+            if (ClickGuiModule.colourBoxType == ClickGuiModule.ColourBoxType.Anime_Girl) {
+                ANIME_GIRL_MOUSE_POS = guessPictureMousePos(ANIME_GIRL, (Color) subModule.get());
+                System.out.println(ANIME_GIRL_MOUSE_POS[0] + ", " + ANIME_GIRL_MOUSE_POS[1]);
+            }
 
             return true;
         }
@@ -276,6 +280,32 @@ public class ColourRenderer extends SubModuleRenderer {
         return true;
     }
 
+    // i hate these huge chunks of uncommented code, but like, what do i really comment here.
+    private static float[] guessPictureMousePos(BufferedImage image, Color colour) {
+        float[] hsb = Color.RGBtoHSB(colour.getRed(), colour.getGreen(), colour.getBlue(), null);
+
+        float[] closestPos = new float[] {0, 0};
+        int closestDistance = Integer.MAX_VALUE;
+
+        for (int x = 0; x < image.getWidth(); x++) {
+            for (int y = 0; y < image.getHeight(); y++) {
+                Color pixelColour = new Color(image.getRGB(x, y));
+                float[] hsbPixelColour = Color.RGBtoHSB(pixelColour.getRed(), pixelColour.getGreen(), pixelColour.getBlue(), null);
+                Color adjustedColour = Color.getHSBColor(hsbPixelColour[0], hsbPixelColour[1], hsb[2]);
+
+                int distance = Math.abs(colour.getRed() - adjustedColour.getRed()) + Math.abs(colour.getGreen() - adjustedColour.getGreen()) + Math.abs(colour.getBlue() - adjustedColour.getBlue());
+
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestPos[0] = x / (float) image.getWidth();
+                    closestPos[1] = y / (float) image.getHeight();
+                }
+            }
+        }
+
+        return closestPos;
+    }
+
     @Override
     public void handleMouseRelease(SubModule subModule) {
         if (SubModuleRenderer.activeSubModule == subModule) {
@@ -283,7 +313,7 @@ public class ColourRenderer extends SubModuleRenderer {
         }
     }
 
-    private static final float[] ANIME_GIRL_MOUSE_POS = new float[] {0, 0};
+    private static float[] ANIME_GIRL_MOUSE_POS = new float[] {0, 0};
 
     private static final BufferedImage ANIME_GIRL = getAnimeGirl();
 
