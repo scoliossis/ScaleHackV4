@@ -17,7 +17,8 @@ public class CapeRendererMixin {
             at = @At("HEAD"),
             cancellable = true)
     public void render(MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, PlayerEntityRenderState playerEntityRenderState, float f, float g, CallbackInfo ci) {
-        if (ModelModifierModule.shouldHideCape())
-            ci.cancel();
+        if (!ModelModifierModule.shouldHideCape() || !ModelModifierModule.isValidTarget(playerEntityRenderState.id)) return;
+
+        ci.cancel();
     }
 }
