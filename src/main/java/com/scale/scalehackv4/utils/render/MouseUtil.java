@@ -19,8 +19,9 @@ public class MouseUtil {
 
     public static boolean isMouseInBounds(float x, float y, float x2, float y2, Mouse mouse) {
         Vector2f mousePos = getMousePos();
+        Rectangle rect = new Rectangle((int) Math.min(x, x2), (int) Math.min(y, y2), (int) Math.max(x, x2), (int) Math.max(y, y2));
 
-        return mousePos.x >= x && mousePos.x <= x2 && mousePos.y >= y && mousePos.y <= y2;
+        return mousePos.x >= rect.x && mousePos.x <= rect.width && mousePos.y >= rect.y && mousePos.y <= rect.height;
     }
 
     public static boolean isMouseInBounds(float x, float y, float width, float height) {

@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.client.hud;
+package com.scale.scalehackv4.modules.impl.client.Hud;
 
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterSubModule;
@@ -48,14 +48,24 @@ public class ArrayList extends HudModule {
                 for (int i = 0; i < modules.size(); i++) {
                     Module module = modules.get(i);
 
-                    FontUtil.drawString(getModuleName(module), 0, height*i, fontSize, TRANS[i % TRANS.length], true);
+                    int x = isRightToLeft() ? -FontUtil.getStringWidth(getModuleName(module), fontSize) : 0;
+                    int y = isBottomToTop() ? -(height*(i+1)) : height*i ;
+                    FontUtil.drawString(getModuleName(module), x, y, fontSize, TRANS[i % TRANS.length], true);
                 }
 
-                return new int[] {maxWidth, totalHeight};
+                return new int[] {isRightToLeft() ? -maxWidth : maxWidth, isBottomToTop() ? -totalHeight : totalHeight};
             },
             e -> ModuleUtil.isEnabled(HudModule.class) && arrayList,
             e -> true
     );
+
+    private boolean isRightToLeft() {
+        return arrayListDraggable.x > 0.5;
+    }
+
+    private boolean isBottomToTop() {
+        return arrayListDraggable.y > 0.5;
+    }
 
     private static String getModuleName(Module module) {
         String name = module.getAnnotation().name();

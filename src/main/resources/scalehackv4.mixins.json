@@ -13,6 +13,7 @@
     "client.ChatReceivedMixin",
     "client.ChatSentMixin",
     "client.KeyPressMixin",
+    "player.FastPlaceMixin",
     "render.MouseBridgeMixin",
     "render.MouseDraggedEventMixin",
     "render.PartialTicksMixin",
@@ -22,7 +23,8 @@
     "render.ModelModifier.HandMixin",
     "render.ModelModifier.HeldItemMixin",
     "render.ModelModifier.HelmetRendererMixin",
-    "render.ModelModifier.ModelModifierMixin"
+    "render.ModelModifier.ModelModifierMixin",
+    "render.NoRender.PotionEffectsGuiMixin"
   ],
   "mixins": [
     "client.PacketEventMixin",

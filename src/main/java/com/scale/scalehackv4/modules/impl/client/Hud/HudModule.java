@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.client.hud;
+package com.scale.scalehackv4.modules.impl.client.Hud;
 
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
