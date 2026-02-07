@@ -156,7 +156,6 @@ public class ModuleUtil {
                 module.height = moduleHeight;
             }
         }
-        // todo: impl saving and loading gui positions
     }
 
     public static boolean isEnabled(Class<?> clazz) {

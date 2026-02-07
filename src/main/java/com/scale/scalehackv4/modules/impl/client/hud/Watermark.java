@@ -1,12 +1,17 @@
 package com.scale.scalehackv4.modules.impl.client.hud;
 
 import com.scale.scalehackv4.Main;
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.PacketEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
+import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
+import net.minecraft.network.packet.c2s.play.ClientStatusC2SPacket;
+import net.minecraft.network.packet.s2c.play.StatisticsS2CPacket;
 
 import java.awt.*;
 
@@ -20,13 +25,15 @@ public class Watermark extends HudModule {
     private static final int GAMESENSE_FONT_SIZE = 10;
     private static final int TEXT_INDENT_X = 2;
 
+    // long because people who live on mars deserve to use this too <3
+    private static long currentPing = 0;
+
     public final Draggable watermarkDraggable = new Draggable(
             "Watermark",
             () -> {
-                String server = C.mc.isInSingleplayer() ? "singleplayer" : C.mc.getServer() != null ? C.mc.getServer().getServerIp() : "unknown";
-                long ping = C.mc.getCurrentServerEntry() != null ? C.mc.getCurrentServerEntry().ping : 0;
+                String server = C.mc.isInSingleplayer() ? "singleplayer" : C.mc.getCurrentServerEntry() != null ? C.mc.getCurrentServerEntry().address : "unknown";
 
-                String remainingHudText = " | " + C.mc.getCurrentFps() + "fps | " + server + " | " + ping + "ms";
+                String remainingHudText = " | " + C.mc.getCurrentFps() + "fps | " + server + " | " + currentPing + "ms";
 
                 int clientNameWidth = FontUtil.getStringWidth(CLIENT_NAME, GAMESENSE_FONT_SIZE);
                 int gamesenseWidth = FontUtil.getStringWidth(GAMESENSE_TAG, GAMESENSE_FONT_SIZE);
@@ -52,4 +59,21 @@ public class Watermark extends HudModule {
             e -> ModuleUtil.isEnabled(HudModule.class) && watermark,
             e -> true
     );
+
+    private static long lastPingTime = 0;
+
+    private final Event receivePing = new PacketEvent.Received(ModuleUtil.getModule(HudModule.class), (params -> {
+        if (!watermark) return false;
+
+        if (params.packet instanceof StatisticsS2CPacket) {
+            currentPing = System.currentTimeMillis() - lastPingTime;
+        }
+
+        if (System.currentTimeMillis()-lastPingTime > Math.max(500, currentPing*2)) {
+            lastPingTime = System.currentTimeMillis();
+            PacketUtil.sendPacket(new ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS));
+        }
+
+        return false;
+    }));
 }

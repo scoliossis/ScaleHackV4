@@ -29,10 +29,10 @@ public abstract class ModelModifierMixin<T extends LivingEntity, S extends Livin
     protected M model;
 
     @Shadow
-    protected abstract int getMixColor(S state);
+    protected abstract @Nullable RenderLayer getRenderLayer(S state, boolean showBody, boolean translucent, boolean showOutline);
 
     @Shadow
-    protected abstract @Nullable RenderLayer getRenderLayer(S state, boolean showBody, boolean translucent, boolean showOutline);
+    protected abstract boolean isVisible(S state);
 
     protected ModelModifierMixin(EntityRendererFactory.Context context) {
         super(context);
@@ -42,10 +42,22 @@ public abstract class ModelModifierMixin<T extends LivingEntity, S extends Livin
             method = "render(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;Lnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/command/OrderedRenderCommandQueue;Lnet/minecraft/client/render/state/CameraRenderState;)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;getRenderLayer(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;ZZZ)Lnet/minecraft/client/render/RenderLayer;")
     )
-    public @Nullable RenderLayer render(LivingEntityRenderer instance, S state, boolean showBody, boolean translucent, boolean showOutline, S livingEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState) {
+    public @Nullable RenderLayer render(LivingEntityRenderer<?,?,?> instance, S state, boolean showBody, boolean translucent, boolean showOutline, S livingEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState) {
         if (ModelModifierModule.shouldChangeModel() && livingEntityRenderState.entityType == EntityType.PLAYER && ModelModifierModule.isValidTarget(((PlayerEntityRenderState) livingEntityRenderState).id)) {
             Render3dUtil.tickRender(matrixStack, null, null);
-            ModelModifierModule.drawRayman(this.model, new Color(this.getMixColor(livingEntityRenderState)));
+            this.model.setAngles(livingEntityRenderState);
+
+            boolean bl = this.isVisible(livingEntityRenderState);
+            boolean bl2 = !bl && !livingEntityRenderState.invisibleToPlayer;
+
+            Color j = bl2 ? new Color(255,255,255,15) : new Color(255,255,255);
+
+            // minecraft does this somewhere, but i cannot find where for the life of me,
+            // in theory i should search anything referencing OverlayTexture, but im lazy
+            Color overlayColour = livingEntityRenderState.hurt ? new Color(255, 0, 0, 50) : null;
+            Color outlineColour = livingEntityRenderState.hasOutline() ? new Color(livingEntityRenderState.outlineColor) : null;
+
+            ModelModifierModule.drawRayman(this.model, j, overlayColour, outlineColour);
             Render3dUtil.finishTickRender();
             return null;
         }

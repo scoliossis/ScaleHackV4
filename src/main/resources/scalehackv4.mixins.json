@@ -18,8 +18,10 @@
     "render.PartialTicksMixin",
     "render.RenderTickEventMixin",
     "render.ModelModifier.ArmorRendererMixin",
+    "render.ModelModifier.CapeRendererMixin",
     "render.ModelModifier.HandMixin",
     "render.ModelModifier.HeldItemMixin",
+    "render.ModelModifier.HelmetRendererMixin",
     "render.ModelModifier.ModelModifierMixin"
   ],
   "mixins": [

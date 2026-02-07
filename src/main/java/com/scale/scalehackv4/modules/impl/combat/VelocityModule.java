@@ -9,7 +9,6 @@ import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 
 @RegisterModule(
         name = "Velocity",
-        enabledByDefault = true,
         category = Category.COMBAT
 )
 public class VelocityModule extends Module {

@@ -47,7 +47,8 @@ public class Render3dUtil extends RenderUtil {
 
             RenderLayer layer = RenderLayer.of(
                     Main.MOD_NAME + "3d" + LAYERS.size(),
-                    RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode)).layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
+                    RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode))
+                            .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
                             .build()
             );
 
@@ -70,7 +71,8 @@ public class Render3dUtil extends RenderUtil {
 
             RenderLayer layer = RenderLayer.of(
                     Main.MOD_NAME + "textured3d" + TEXTURED_LAYERS.size(),
-                    RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode)).layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
+                    RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode))
+                            .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
                             .texture("Sampler0", texture)
                             .build()
             );
@@ -149,6 +151,32 @@ public class Render3dUtil extends RenderUtil {
             vertexConsumer
                     .vertex(entry, face.vertex().vertex3().x, face.vertex().vertex3().y, face.vertex().vertex3().z)
                     .texture(face.textureCoordinates().vertex3().x, 1-face.textureCoordinates().vertex3().y)
+                    .color(colour.getRGB());
+        }
+
+        vertexConsumers.drawCurrentLayer();
+    }
+
+    // blehhh, similar to the one above, but just not quite >.<
+    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour, boolean wireframe) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, wireframe ? VertexFormat.DrawMode.DEBUG_LINES : VertexFormat.DrawMode.TRIANGLES));
+
+        MatrixStack.Entry entry = getEntry();
+        entry.translate(x, y, z);
+
+        for (ModelUtil.ModelFace face : model.faces) {
+            // the v coordinates are inverted..?
+            vertexConsumer
+                    .vertex(entry, face.vertex().vertex1().x, face.vertex().vertex1().y, face.vertex().vertex1().z)
+                    .color(colour.getRGB());
+
+            if (!wireframe)
+                vertexConsumer
+                    .vertex(entry, face.vertex().vertex2().x, face.vertex().vertex2().y, face.vertex().vertex2().z)
+                    .color(colour.getRGB());
+
+            vertexConsumer
+                    .vertex(entry, face.vertex().vertex3().x, face.vertex().vertex3().y, face.vertex().vertex3().z)
                     .color(colour.getRGB());
         }
 

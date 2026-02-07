@@ -17,6 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 // based of the command manager from https://github.com/scoliossis/ScaleHackOpenSrc
@@ -68,11 +69,17 @@ public class CommandManager {
     }
 
     public static boolean handleTab(TextFieldWidget textField, CompletableFuture<Suggestions> pendingSuggestions) {
-        pendingSuggestions.join().getList().clear();
-
         String text = textField.getText().substring(0, textField.getCursor());
 
         if (!text.startsWith(String.valueOf(prefix))) return false;
+
+        try {
+            pendingSuggestions.get().getList().clear();
+        } catch (ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+            return false;
+        }
+
 
         if (text.length() == 1) {
             for (Command command : commands) {
@@ -103,7 +110,11 @@ public class CommandManager {
     }
 
     public static void addCommand(String command, StringRange range, CompletableFuture<Suggestions> pendingSuggestions) {
-        pendingSuggestions.join().getList().add(new Suggestion(range, command));
+        try {
+            pendingSuggestions.get().getList().add(new Suggestion(range, command));
+        } catch (ExecutionException | InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
     // todo: impl help command

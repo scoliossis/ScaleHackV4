@@ -45,11 +45,17 @@ public class ModelModifierModule extends Module {
     @RegisterSubModule(name = "Hide Helmet", parent = "Hide Armor")
     public static boolean hideHelmet = false;
 
+    @RegisterSubModule(name = "Hide Capes")
+    public static boolean hideCapes = true;
+
     public static boolean shouldHideHelmet() {
         return shouldChangeModel() && hideHelmet && hideArmor;
     }
     public static boolean shouldHideArmor() {
         return shouldChangeModel() && hideArmor;
+    }
+    public static boolean shouldHideCape() {
+        return shouldChangeModel() && hideCapes;
     }
 
     public static boolean shouldChangeHand() {
@@ -88,13 +94,13 @@ public class ModelModifierModule extends Module {
     // todo: figure out where this number is from, idk how i came to this
     private static final float SCALE = 2;
 
-    public static void drawRayman(EntityModel<?> model, Color color) {
+    public static void drawRayman(EntityModel<?> model, Color color, Color overlayColour, Color outlineColour) {
         MatrixStack matrices = Render3dUtil.getMatrices();
         matrices.push();
 
         ModelModifierModule.entityModel = model;
         ModelModifierModule.matrices = matrices;
-        ModelModifierModule.color = color;
+        ModelModifierModule.colours = new Color[]{color, overlayColour, outlineColour};
 
         doTranslations();
 
@@ -122,14 +128,22 @@ public class ModelModifierModule extends Module {
 
     private static EntityModel<?> entityModel;
     private static MatrixStack matrices;
-    private static Color color;
+    private static Color[] colours;
 
     private static void drawPart(String part, ModelUtil.Model objModel, Vec3f pivot) {
         ModelPart modelPart = entityModel.getChildPart(part);
 
         matrices.push();
         matrices.multiply(new Quaternionf().rotationZYX(-modelPart.roll, -modelPart.yaw, modelPart.pitch), pivot.x, pivot.y, pivot.z);
-        Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, color);
+
+        Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, colours[0]);
+        if (colours[1] != null) {
+            Render3dUtil.drawModel(0, 0, 0, objModel, colours[1], false);
+        }
+        if (colours[2] != null) {
+            // todo: show through walls + this doesnt look good.
+            Render3dUtil.drawModel(0, 0, 0, objModel, colours[2], true);
+        }
         matrices.pop();
     }
 
