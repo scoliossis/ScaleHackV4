@@ -59,6 +59,7 @@ public class ModuleUtil {
 
                     if (registerSubModule != null) {
                         SubModule subModule = new SubModule(m, field);
+                        subModule.setKeybind(subModule.getKeybind());
 
                         if (!registerSubModule.parent().isEmpty()) {
                             // todo: children have to be below parents in the file, fix later if needed <3
@@ -112,48 +113,50 @@ public class ModuleUtil {
         if (configFileText != null) {
             boolean failed = false;
             HashMap<String, LinkedTreeMap<String, Object>> positions = C.gson.fromJson(configFileText, HashMap.class);
-            for (Module module : getModules()) {
-                LinkedTreeMap<String, Object> rect = positions.get(module.getAnnotation().name());
 
-                if (rect != null) {
-                    module.x = getInt("x", rect);
-                    module.y = getInt("y", rect);
-                    module.width = getInt("width", rect);
-                    module.height = getInt("height", rect);
+            for (Category category : Category.values()) {
+                List<Module> categoryModules = getModulesByCategory(category);
+
+                for (Module module : categoryModules) {
+                    LinkedTreeMap<String, Object> rect = positions.get(module.getAnnotation().name());
+
+                    if (rect != null) {
+                        module.x = getInt("x", rect);
+                        module.y = getInt("y", rect);
+                        module.width = getInt("width", rect);
+                        module.height = getInt("height", rect);
+                    } else {
+                        // if 1 module fails, just reset all the positions. how intuitive.
+                        int modules = categoryModules.size();
+
+                        // sorted to be in the same order as before, just different sizes.
+                        categoryModules = categoryModules.stream()
+                                .sorted(Comparator.comparingInt(m -> m.y))
+                                .sorted(Comparator.comparingInt(m -> m.x))
+                                .toList();
+
+                        int squareWidth = (int) Math.round(Math.sqrt(modules));
+                        int squareHeight = (int) Math.ceil(Math.sqrt(modules));
+
+                        int moduleWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / squareWidth) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / squareWidth);
+                        int moduleHeight = (ClickGuiScreen.HEIGHT / squareHeight) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / squareHeight);
+
+                        for (int i = 0; i < modules; i++) {
+                            Module m = categoryModules.get(i);
+
+                            int xOrdinal = i % squareWidth;
+                            int yOrdinal = i / squareWidth;
+
+                            m.x = (xOrdinal * moduleWidth) + ((xOrdinal+1) * ModuleRenderer.MODULE_X_GAP);
+                            m.y = (yOrdinal * moduleHeight) + ((yOrdinal+1) * ModuleRenderer.MODULE_Y_GAP);
+
+                            m.width = moduleWidth;
+                            m.height = moduleHeight;
+                        }
+
+                        break;
+                    }
                 }
-                else {
-                    // todo: maybe try slotting it in, instead of giving up and resetting positions
-                    failed = true;
-                    break;
-                }
-            }
-
-            if (!failed) return;
-        }
-
-        for (Category category : Category.values()) {
-            List<Module> categoryModules = getModulesByCategory(category);
-            int modules = categoryModules.size();
-
-            if (modules == 0) continue;
-
-            int squareWidth = (int) Math.round(Math.sqrt(modules));
-            int squareHeight = (int) Math.ceil(Math.sqrt(modules));
-
-            int moduleWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / squareWidth) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / squareWidth);
-            int moduleHeight = (ClickGuiScreen.HEIGHT / squareHeight) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / squareHeight);
-
-            for (int i = 0; i < modules; i++) {
-                Module module = categoryModules.get(i);
-
-                int xOrdinal = i % squareWidth;
-                int yOrdinal = i / squareWidth;
-
-                module.x = (xOrdinal * moduleWidth) + ((xOrdinal+1) * ModuleRenderer.MODULE_X_GAP);
-                module.y = (yOrdinal * moduleHeight) + ((yOrdinal+1) * ModuleRenderer.MODULE_Y_GAP);
-
-                module.width = moduleWidth;
-                module.height = moduleHeight;
             }
         }
     }

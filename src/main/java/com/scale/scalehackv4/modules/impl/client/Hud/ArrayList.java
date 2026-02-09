@@ -5,8 +5,8 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.FontUtil;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 
-import java.awt.*;
 import java.util.Comparator;
 import java.util.List;
 
@@ -28,8 +28,6 @@ public class ArrayList extends HudModule {
     @RegisterSubModule(name = "Show Mode", parent = "Array List")
     public static boolean showMode = true;
 
-    private static final Color[] TRANS = new Color[] {new Color(91, 206, 250), new Color(245, 169, 184), new Color(255, 255, 255), new Color(245, 169, 184)};
-
     public final Draggable arrayListDraggable = new Draggable(
             "Array List",
             () -> {
@@ -50,7 +48,7 @@ public class ArrayList extends HudModule {
 
                     int x = isRightToLeft() ? -FontUtil.getStringWidth(getModuleName(module), fontSize) : 0;
                     int y = isBottomToTop() ? -(height*(i+1)) : height*i ;
-                    FontUtil.drawString(getModuleName(module), x, y, fontSize, TRANS[i % TRANS.length], true);
+                    FontUtil.drawString(getModuleName(module), x, y, fontSize, RenderUtil.TRANS[i % RenderUtil.TRANS.length], true);
                 }
 
                 return new int[] {isRightToLeft() ? -maxWidth : maxWidth, isBottomToTop() ? -totalHeight : totalHeight};

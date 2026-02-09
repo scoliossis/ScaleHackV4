@@ -8,12 +8,14 @@ import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
+import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 
 @RegisterModule(
         name = "Click GUI",
-        category = Category.CLIENT
+        category = Category.CLIENT,
+        defaultKeybind = GLFW.GLFW_KEY_RIGHT_SHIFT
 )
 public class ClickGuiModule extends Module {
     @RegisterSubModule(

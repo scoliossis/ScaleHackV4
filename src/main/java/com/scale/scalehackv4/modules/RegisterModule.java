@@ -8,4 +8,5 @@ public @interface RegisterModule {
     String name();
     Category category();
     boolean enabledByDefault() default false;
+    int defaultKeybind() default -1;
 }

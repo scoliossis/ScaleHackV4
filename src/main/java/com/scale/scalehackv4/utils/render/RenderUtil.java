@@ -22,6 +22,7 @@ import org.joml.Matrix3x2f;
 import org.joml.Vector2f;
 import org.jspecify.annotations.Nullable;
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.HashMap;
 import java.util.Queue;
@@ -34,6 +35,8 @@ public class RenderUtil {
     @Setter @Getter protected static DrawContext drawContext;
 
     private static final Queue<SimpleGuiElementRenderState> RENDER_QUEUE = new ConcurrentLinkedQueue<>();
+
+    public static final Color[] TRANS = new Color[] {new Color(91, 206, 250), new Color(245, 169, 184), new Color(255, 255, 255), new Color(245, 169, 184)};
 
     protected static RenderPipeline getRenderPipeline(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode) {
         HashMap<VertexFormat.DrawMode, RenderPipeline> pipelineMap = PIPELINES.get(vertexFormat);

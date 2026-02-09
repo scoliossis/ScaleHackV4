@@ -20,7 +20,6 @@ public class SubModule {
 
     private final RegisterSubModule annotation;
 
-    // todo: make hashmap of keybinds
     @Getter private int keybind = -1;
 
     public void setKeybind(int keybind) {
