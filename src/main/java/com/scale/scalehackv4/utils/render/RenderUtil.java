@@ -59,7 +59,7 @@ public class RenderUtil {
         return pipelineMap.get(drawMode);
     }
 
-    protected static RenderPipeline.Snippet getRenderPipelineSnippet(VertexFormat vertexFormat) {
+    public static RenderPipeline.Snippet getRenderPipelineSnippet(VertexFormat vertexFormat) {
         RenderPipeline.Snippet base = RenderPipeline.builder(RenderPipelines.TRANSFORMS_AND_PROJECTION_SNIPPET)
                 .withCull(false)
                 .withBlend(BlendFunction.TRANSLUCENT)

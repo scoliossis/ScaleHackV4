@@ -15,6 +15,8 @@ import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.util.Colors;
+import net.minecraft.util.math.ColorHelper;
 import org.jspecify.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,6 +36,9 @@ public abstract class ModelModifierMixin<T extends LivingEntity, S extends Livin
     @Shadow
     protected abstract boolean isVisible(S state);
 
+    @Shadow
+    protected abstract int getMixColor(S state);
+
     protected ModelModifierMixin(EntityRendererFactory.Context context) {
         super(context);
     }
@@ -48,16 +53,16 @@ public abstract class ModelModifierMixin<T extends LivingEntity, S extends Livin
             this.model.setAngles(livingEntityRenderState);
 
             boolean bl = this.isVisible(livingEntityRenderState);
-            boolean bl2 = !bl && !livingEntityRenderState.invisibleToPlayer;
+            //boolean bl2 = !bl && !livingEntityRenderState.invisibleToPlayer;
 
-            Color j = bl2 ? new Color(255,255,255,15) : new Color(255,255,255);
-
+            int j = !bl ? 654311423 : Colors.WHITE;
+            Color colour = new Color(ColorHelper.mix(j, this.getMixColor(livingEntityRenderState)), true);
             // minecraft does this somewhere, but i cannot find where for the life of me,
             // in theory i should search anything referencing OverlayTexture, but im lazy
             Color overlayColour = livingEntityRenderState.hurt ? new Color(255, 0, 0, 50) : null;
             Color outlineColour = livingEntityRenderState.hasOutline() ? new Color(livingEntityRenderState.outlineColor) : null;
 
-            ModelModifierModule.drawRayman(this.model, j, overlayColour, outlineColour);
+            ModelModifierModule.drawRayman(this.model, colour, overlayColour, outlineColour);
             Render3dUtil.finishTickRender();
             return null;
         }

@@ -158,20 +158,23 @@ public class Render3dUtil extends RenderUtil {
     }
 
     // blehhh, similar to the one above, but just not quite >.<
-    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour, boolean wireframe) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, wireframe ? VertexFormat.DrawMode.DEBUG_LINES : VertexFormat.DrawMode.TRIANGLES));
+    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour) {
+        drawModel(x, y, z, model, colour, getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES));
+    }
+
+    // ditto
+    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour, RenderLayer layer) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(layer);
 
         MatrixStack.Entry entry = getEntry();
         entry.translate(x, y, z);
 
         for (ModelUtil.ModelFace face : model.faces) {
-            // the v coordinates are inverted..?
             vertexConsumer
                     .vertex(entry, face.vertex().vertex1().x, face.vertex().vertex1().y, face.vertex().vertex1().z)
                     .color(colour.getRGB());
 
-            if (!wireframe)
-                vertexConsumer
+            vertexConsumer
                     .vertex(entry, face.vertex().vertex2().x, face.vertex().vertex2().y, face.vertex().vertex2().z)
                     .color(colour.getRGB());
 

@@ -1,5 +1,9 @@
 package com.scale.scalehackv4.modules.impl.render;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
+import com.mojang.blaze3d.vertex.VertexFormat;
+import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
@@ -9,9 +13,11 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.ModelUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 import com.scale.scalehackv4.utils.render.Vec3f;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.model.ModelPart;
-import net.minecraft.client.render.OverlayTexture;
+import net.minecraft.client.render.*;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;
 import net.minecraft.client.render.entity.model.EntityModel;
 import net.minecraft.client.render.entity.model.EntityModelPartNames;
@@ -20,6 +26,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -130,20 +137,55 @@ public class ModelModifierModule extends Module {
     private static MatrixStack matrices;
     private static Color[] colours;
 
+    private static final RenderLayer OUTLINE_LAYER = RenderLayer.of(
+            Main.MOD_ID + "glowpipeline3d",
+            RenderSetup.builder(
+                            RenderPipelines.register(
+                                    RenderPipeline.builder(RenderUtil.getRenderPipelineSnippet(VertexFormats.POSITION_COLOR))
+                                            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES)
+                                            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                                            .withLocation(Main.MOD_ID + "glowpipeline2d")
+                                            .build()
+                            )
+                    )
+                    .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
+                    .build()
+    );
+
     private static void drawPart(String part, ModelUtil.Model objModel, Vec3f pivot) {
         ModelPart modelPart = entityModel.getChildPart(part);
 
         matrices.push();
         matrices.multiply(new Quaternionf().rotationZYX(-modelPart.roll, -modelPart.yaw, modelPart.pitch), pivot.x, pivot.y, pivot.z);
 
+        if (colours[2] != null) drawGlow(objModel);
         Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, colours[0]);
-        if (colours[1] != null) {
-            Render3dUtil.drawModel(0, 0, 0, objModel, colours[1], false);
-        }
-        if (colours[2] != null) {
-            // todo: show through walls + this doesnt look good.
-            Render3dUtil.drawModel(0, 0, 0, objModel, colours[2], true);
-        }
+        if (colours[1] != null) Render3dUtil.drawModel(0, 0, 0, objModel, colours[1]);
+
+        matrices.pop();
+    }
+
+    private static void drawGlow(ModelUtil.Model objModel) {
+        Vec3d modelCenter = new Vec3d(
+                (objModel.box.maxX + objModel.box.minX) / 2,
+                (objModel.box.maxY + objModel.box.minY) / 2,
+                (objModel.box.maxZ + objModel.box.minZ) / 2
+        );
+
+        // black outline
+        matrices.push();
+        matrices.translate(modelCenter.x, modelCenter.y, modelCenter.z);
+        matrices.scale(1.2f, 1.2f, 1.2f);
+        matrices.translate(-modelCenter.x, -modelCenter.y, -modelCenter.z);
+        Render3dUtil.drawModel(0, 0, 0, objModel, new Color(0,0,0), OUTLINE_LAYER);
+        matrices.pop();
+
+        // coloured outline
+        matrices.push();
+        matrices.translate(modelCenter.x, modelCenter.y, modelCenter.z);
+        matrices.scale(1.1f, 1.1f, 1.1f);
+        matrices.translate(-modelCenter.x, -modelCenter.y, -modelCenter.z);
+        Render3dUtil.drawModel(0, 0, 0, objModel, colours[2], OUTLINE_LAYER);
         matrices.pop();
     }
 
