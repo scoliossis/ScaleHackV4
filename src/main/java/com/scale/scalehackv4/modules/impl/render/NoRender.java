@@ -11,6 +11,7 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
         enabledByDefault = true,
         category = Category.RENDER
 )
+// todo: nausea, blindness, fire, grass, notifications
 public class NoRender extends Module {
     @RegisterSubModule(name = "Potions Overlay")
     public static boolean hidePotionEffectsGUI = true;

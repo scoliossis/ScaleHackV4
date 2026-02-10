@@ -14,10 +14,14 @@
     "client.ChatSentMixin",
     "client.KeyPressMixin",
     "player.FastPlaceMixin",
+    "player.RotationEventMixin",
     "render.MouseBridgeMixin",
     "render.MouseDraggedEventMixin",
     "render.PartialTicksMixin",
     "render.RenderTickEventMixin",
+    "render.freelook.FakePlayerSetterMixin",
+    "render.freelook.FixMovementMixin",
+    "render.freelook.FreemoveMixin",
     "render.ModelModifier.ArmorRendererMixin",
     "render.ModelModifier.CapeRendererMixin",
     "render.ModelModifier.HandMixin",
@@ -29,6 +33,7 @@
   "mixins": [
     "client.PacketEventMixin",
     "client.TabCompleteMixin",
+    "player.PlayerUpdateEventMixin",
     "render.RenderWorldEventMixin"
   ]
 }

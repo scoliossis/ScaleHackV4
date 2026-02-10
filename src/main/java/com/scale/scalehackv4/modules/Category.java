@@ -14,5 +14,5 @@ public enum Category {
     CLIENT(Identifier.of("scalehackv4", "clickgui/client.png")),
     CONFIGS(Identifier.of("scalehackv4", "clickgui/configs.png"));
 
-    public Identifier texture;
+    public final Identifier texture;
 }

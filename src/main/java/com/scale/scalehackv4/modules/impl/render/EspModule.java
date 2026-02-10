@@ -6,7 +6,6 @@ import com.scale.scalehackv4.modules.RegisterModule;
 
 @RegisterModule(
         name = "ESP",
-        enabledByDefault = true,
         category = Category.RENDER
 )
 public class EspModule extends Module {
