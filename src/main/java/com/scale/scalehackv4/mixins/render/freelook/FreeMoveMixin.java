@@ -14,8 +14,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPlayerEntity.class)
-public abstract class FreemoveMixin extends AbstractClientPlayerEntity {
-    public FreemoveMixin(ClientWorld world, GameProfile profile) {
+public abstract class FreeMoveMixin extends AbstractClientPlayerEntity {
+    public FreeMoveMixin(ClientWorld world, GameProfile profile) {
         super(world, profile);
     }
 
@@ -29,8 +29,10 @@ public abstract class FreemoveMixin extends AbstractClientPlayerEntity {
         float forward = (C.mc.options.forwardKey.isPressed() ? 1 : 0) + (C.mc.options.backKey.isPressed() ? -1 : 0);
         float strafe = (C.mc.options.leftKey.isPressed() ? 1 : 0) + (C.mc.options.rightKey.isPressed() ? -1 : 0);
 
-        double x = forward * Math.sin(Math.toRadians(-this.getYaw())) + strafe * Math.cos(Math.toRadians(-this.getYaw()));
-        double z = forward * Math.cos(Math.toRadians(-this.getYaw())) - strafe * Math.sin(Math.toRadians(-this.getYaw()));
+        float yaw = Freelook.renderRotation == null ? this.getYaw() : Freelook.renderRotation.yaw;
+
+        double x = forward * Math.sin(Math.toRadians(-yaw)) + strafe * Math.cos(Math.toRadians(-yaw));
+        double z = forward * Math.cos(Math.toRadians(-yaw)) - strafe * Math.sin(Math.toRadians(-yaw));
 
         Vec3d pos = Freelook.renderPos == null ? this.getEntityPos() : Freelook.renderPos;
         Freelook.renderPos = pos.add(x, up, z);

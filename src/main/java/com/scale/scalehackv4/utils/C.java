@@ -35,6 +35,6 @@ public class C {
     }
 
     public static boolean isInGame() {
-        return w() != null;
+        return w() != null && p() != null;
     }
 }

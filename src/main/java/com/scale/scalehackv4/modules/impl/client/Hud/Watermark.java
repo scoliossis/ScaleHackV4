@@ -66,7 +66,8 @@ public class Watermark extends HudModule {
         if (!watermark) return false;
 
         if (params.packet instanceof StatisticsS2CPacket) {
-            currentPing = System.currentTimeMillis() - lastPingTime;
+            // divide by 2 because half the time is spent sending, half the time is spent receiving, in theory.
+            currentPing = (System.currentTimeMillis() - lastPingTime) / 2;
         }
 
         if (System.currentTimeMillis()-lastPingTime > Math.max(500, currentPing*2)) {

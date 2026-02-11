@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.Setter;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.state.CameraRenderState;
+import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
@@ -16,7 +17,7 @@ import java.util.HashMap;
 
 public class Render3dUtil extends RenderUtil {
     @Getter private static MatrixStack matrices;
-    private static VertexConsumerProvider.Immediate vertexConsumers;
+    private static VertexConsumerProvider.Immediate vertexConsumers = VertexConsumerProvider.immediate(BufferAllocator.fixedSized(0));
 
     @Setter @Getter private static RenderTickCounter tickCounter = new RenderTickCounter.Dynamic(0,0, FloatUnaryOperator.negation());
 

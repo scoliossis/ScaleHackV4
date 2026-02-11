@@ -14,6 +14,7 @@ import net.minecraft.client.input.MouseInput;
 import org.apache.commons.io.FileUtils;
 import org.joml.Matrix3x2fStack;
 
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
@@ -61,7 +62,7 @@ public class DraggableRenderer {
                     }
                 }
                 else if (dragging == draggable) {
-                    Render2dUtil.drawRect(0, 0, size[0], size[1], RenderUtil.TRANS[1]);
+                    Render2dUtil.drawRect(0, 0, size[0], size[1], new Color(93, 229, 255,100));
                 }
             }
             else if (dragging != null) {
