@@ -1,7 +1,6 @@
 package com.scale.scalehackv4.modules;
 
 import com.scale.scalehackv4.Main;
-import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import lombok.Getter;
 import lombok.Setter;
@@ -20,7 +19,9 @@ public abstract class Module {
 
     @Getter private final ArrayList<SubModule> children = new ArrayList<>();
 
-    @RegisterSubModule(name = "Enabled", hasKeybind = true)
+    public static final String ENABLED_STRING = "Enabled";
+
+    @RegisterSubModule(name = ENABLED_STRING, hasKeybind = true)
     @Getter public boolean enabled = false;
 
     public void setEnabled(boolean enabled) {
@@ -29,12 +30,9 @@ public abstract class Module {
             ModuleUtil.saveConfig(Main.BASE_CONFIG);
 
             if (enabled) {
-                // todo: notifications
-                ChatUtil.prefixMessage("&aEnabled &f" + this.annotation.name());
                 onEnable();
             }
             else {
-                ChatUtil.prefixMessage("&cDisabled &f" + this.annotation.name());
                 onDisable();
             }
         }

@@ -16,7 +16,7 @@ import net.minecraft.util.math.Vec3d;
         name = "Freelook",
         category = Category.RENDER
 )
-// todo: impl blocking interation
+// todo: impl blocking interaction
 public class Freelook extends Module {
     @RegisterSubModule(name = "Lock Rotation", hasKeybind = true)
     public static boolean lockRotation = true;

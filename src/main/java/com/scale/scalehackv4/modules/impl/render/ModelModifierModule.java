@@ -214,13 +214,19 @@ public class ModelModifierModule extends Module {
         }
     }
 
-    public static void drawHand() {
+    public static void drawHand(boolean rightHand) {
         MatrixStack matrices = Render3dUtil.getMatrices();
         matrices.push();
 
         matrices.scale(SCALE,SCALE,SCALE);
-        matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, -0.2f, 0.1f), -0.3f, 0.35f, -0.1f);
-        Render3dUtil.drawModel(0, 0, 0, RAYMAN.leftArm, RAYMAN.texture, Color.WHITE);
+        if (rightHand) {
+            matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, -0.2f, 0.1f), -0.3f, 0.35f, -0.1f);
+            Render3dUtil.drawModel(0, 0, 0, RAYMAN.leftArm, RAYMAN.texture, Color.WHITE);
+        }
+        else {
+            matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, 0f, -0.1f), 0.3f, 0.35f, -0.1f);
+            Render3dUtil.drawModel(0, 0, 0, RAYMAN.rightArm, RAYMAN.texture, Color.WHITE);
+        }
         matrices.pop();
     }
 
