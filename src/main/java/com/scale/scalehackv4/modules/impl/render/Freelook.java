@@ -65,13 +65,19 @@ public class Freelook extends Module {
     @Override
     public void onDisable() {
         if (C.isInGame()) {
-            if (realPos != null) C.p().setPos(realPos.x, realPos.y, realPos.z);
-            if (realRotation != null) {
-                C.p().setYaw(realRotation.yaw);
-                C.p().setPitch(realRotation.pitch);
+            if (realPos != null && !isPositionLocked()) {
+                if (C.isInGame()) {
+                    C.p().setPos(realPos.x, realPos.y, realPos.z);
+                }
+                renderPos = lastRenderPos = lastRealPos = realPos = null;
+            }
+            if (realRotation != null && !isRotationLocked()) {
+                if (C.isInGame()) {
+                    C.p().setYaw(realRotation.yaw);
+                    C.p().setPitch(realRotation.pitch);
+                }
+                renderRotation = lastRenderRotation = lastRealRotation = realRotation = null;
             }
         }
-        renderPos = lastRenderPos = lastRealPos = realPos = null;
-        renderRotation = lastRenderRotation = lastRealRotation = realRotation = null;
     }
 }
