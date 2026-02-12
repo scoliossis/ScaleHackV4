@@ -9,7 +9,6 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
-import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.math.Vec3d;
 
 @RegisterModule(
@@ -34,9 +33,17 @@ public class Freelook extends Module {
     public static Vec3d realPos = null;
     public static Vec3d renderPos = null;
 
+    public static Vec3d lastRealPos = null;
+    public static Vec3d lastRenderPos = null;
+
+
     public static Rotation realRotation = null;
     public static Rotation renderRotation = null;
 
+    public static Rotation lastRealRotation = null;
+    public static Rotation lastRenderRotation = null;
+
+    // on the packet event, cause this event is posted to a lot a ig, move later
     private final Event acceptPositionPacket = new PacketEvent.Received(this, (params -> {
         if (!C.isInGame()) return false;
 
@@ -45,17 +52,6 @@ public class Freelook extends Module {
         }
         if ((!isPositionLocked() && realPos != null) || (!isRotationLocked() && realRotation != null)) {
             onDisable();
-        }
-
-        // you recieve these packets somewhere in the render thread, freecam assumes all movement happens during the tick function
-        if (params.packet instanceof PlayerPositionLookS2CPacket positionPacket) {
-            if (isPositionLocked()) {
-                realPos = positionPacket.change().position();
-            }
-            if (isRotationLocked()) {
-                realRotation = new Rotation(positionPacket.change().yaw(), positionPacket.change().pitch());
-            }
-            return false;
         }
 
         return false;
@@ -75,7 +71,7 @@ public class Freelook extends Module {
                 C.p().setPitch(realRotation.pitch);
             }
         }
-        renderPos = realPos = null;
-        renderRotation = realRotation = null;
+        renderPos = lastRenderPos = lastRealPos = realPos = null;
+        renderRotation = lastRenderRotation = lastRealRotation = realRotation = null;
     }
 }

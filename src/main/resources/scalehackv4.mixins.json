@@ -21,6 +21,7 @@
     "render.RenderTickEventMixin",
     "render.freelook.FakePlayerSetterMixin",
     "render.freelook.FixMovementMixin",
+    "render.freelook.FixPlayerPosOnTeleportMixin",
     "render.freelook.FreeMoveMixin",
     "render.freelook.NoClipRenderMixin",
     "render.freelook.RealPlayerRendererMixin",

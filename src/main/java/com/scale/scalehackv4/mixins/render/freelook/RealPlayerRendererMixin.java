@@ -2,7 +2,7 @@ package com.scale.scalehackv4.mixins.render.freelook;
 
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import com.scale.scalehackv4.utils.C;
-import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.render.entity.EntityRenderManager;
@@ -10,6 +10,8 @@ import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -57,9 +59,10 @@ public abstract class RealPlayerRendererMixin {
             return entityRenderState;
 
         if (Freelook.realPos != null) {
-            entityRenderState.x = Freelook.realPos.x;
-            entityRenderState.y = Freelook.realPos.y;
-            entityRenderState.z = Freelook.realPos.z;
+            Vec3d lerpedPos = MathHelper.lerp(tickProgress, Freelook.lastRealPos == null ? Freelook.realPos : Freelook.lastRealPos, Freelook.realPos);
+            entityRenderState.x = lerpedPos.x;
+            entityRenderState.y = lerpedPos.y;
+            entityRenderState.z = lerpedPos.z;
         }
         if (Freelook.realRotation != null) {
             ((PlayerEntityRenderState) entityRenderState).pitch = Freelook.realRotation.pitch;
@@ -68,9 +71,9 @@ public abstract class RealPlayerRendererMixin {
         return entityRenderState;
     }
 
-    // stops the culling of chunks
-    @Redirect(method = "updateCamera", at = @At(value = "FIELD", target = "Lnet/minecraft/client/MinecraftClient;chunkCullingEnabled:Z"))
-    private boolean updateCamera(MinecraftClient instance) {
-        return instance.chunkCullingEnabled && !Freelook.isPositionLocked();
+    // stops the culling of chunks, done weirdly to stop conflict with sodium "net.caffeinemc.mods.sodium.mixin.core.render.world.LevelRendererMixin"
+    @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isSpectator()Z"))
+    private boolean updateCamera(ClientPlayerEntity instance) {
+        return instance.isSpectator() || Freelook.isPositionLocked();
     }
 }
