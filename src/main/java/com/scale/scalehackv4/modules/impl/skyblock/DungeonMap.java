@@ -12,11 +12,17 @@ import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
+import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.ShapeContext;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.RaycastContext;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -31,11 +37,24 @@ public class DungeonMap extends Module {
     private static final ArrayList<MapDivision> MAP_DIVISIONS = new ArrayList<>();
 
     private static final int MAX_DUNGEON_DIAMETER = 190;
-    private static final int MAX_DUNGEON_CHUNKS = Math.floorDiv(MAX_DUNGEON_DIAMETER, 16);
+    private static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
     private static final int DUNGEON_BLOCKS_OFFSET = 10;
     private static final int DUNGEON_CHUNK_OFFSET = Math.ceilDiv(DUNGEON_BLOCKS_OFFSET, 16);
 
-    private record MapDivision(ChunkPos chunkPos, Direction.Axis axis) {}
+    private static final Color PLAYER_COLOUR = new Color(120, 245, 120, 255);
+
+    private static final Color CLEAR_ROOM_COLOUR = new Color(169, 104, 5);
+
+    @AllArgsConstructor
+    private enum DoorType {
+        WALL(new Color(255, 255, 255)),
+        FREE(new Color(0,0,0)),
+        WITHER(new Color(0, 0, 0)),
+        BLOOD(new Color(255, 0, 0)),;
+
+        private final Color colour;
+    }
+    private record MapDivision(ChunkPos chunkPos, Direction.Axis axis, DoorType doorType) {}
 
     private static boolean wasInDungeon = false;
 
@@ -59,7 +78,7 @@ public class DungeonMap extends Module {
     private final Event debugScanning3D = new RenderWorldEvent(this, (params -> {
         for (MapDivision chunkPos : MAP_DIVISIONS) {
             BlockPos chunkCenter = getChunkCenter(chunkPos.chunkPos());
-            Render3dUtil.drawBox(chunkCenter.getX(), chunkCenter.getY(), chunkCenter.getZ(), 1, 1, 1, new Color(223, 0, 255, 100), false);
+            Render3dUtil.drawBox(chunkCenter.getX(), chunkCenter.getY(), chunkCenter.getZ(), 1, 1, 1, chunkPos.doorType.colour, false);
         }
 
         return false;
@@ -70,23 +89,24 @@ public class DungeonMap extends Module {
     public final Draggable dungeonMap = new Draggable(
             "Dungeon Map",
             () -> {
-                Render2dUtil.drawRect(0, 0, DUNGEON_MAP_DIAMETER, DUNGEON_MAP_DIAMETER, new Color(169, 104, 5, 255));
+                Render2dUtil.drawRect(0, 0, DUNGEON_MAP_DIAMETER, DUNGEON_MAP_DIAMETER, CLEAR_ROOM_COLOUR);
                 for (MapDivision mapDivision : MAP_DIVISIONS) {
                     BlockPos chunkCenter = getChunkCenter(mapDivision.chunkPos());
+                    boolean isX = mapDivision.axis == Direction.Axis.X;
 
-                    int width = mapDivision.axis == Direction.Axis.X ? 1 : 17;
-                    int height = mapDivision.axis == Direction.Axis.Z ? 1 : 17;
+                    int width = isX ? 1 : 17;
+                    int height = !isX ? 1 : 17;
 
                     int x = pos3dTo2d(chunkCenter.getX()) - width / 2;
                     int y = pos3dTo2d(chunkCenter.getZ()) - height / 2;
 
-                    Render2dUtil.drawRect(x, y, width, height, new Color(255, 255, 255, 255));
+                    Render2dUtil.drawRect(x, y, width, height, mapDivision.doorType.colour);
                 }
 
                 int playerX = pos3dTo2d(C.p().getX());
                 int playerZ = pos3dTo2d(C.p().getZ());
 
-                Render2dUtil.drawRect(playerX-3, playerZ-3, 6, 6, new Color(120, 245, 120, 255));
+                Render2dUtil.drawRect(playerX-3, playerZ-3, 6, 6, PLAYER_COLOUR);
 
                 return new int[] {DUNGEON_MAP_DIAMETER, DUNGEON_MAP_DIAMETER};
             },
@@ -99,8 +119,8 @@ public class DungeonMap extends Module {
     }
 
     private static int pos3dTo2d(double pos) {
-        double multi = (double) DUNGEON_MAP_DIAMETER /MAX_DUNGEON_DIAMETER;
-        return (int) ((pos + (DUNGEON_BLOCKS_OFFSET+DUNGEON_MAP_DIAMETER)) * multi);
+        double multi = (double) DUNGEON_MAP_DIAMETER / MAX_DUNGEON_DIAMETER;
+        return (int) ((pos + (DUNGEON_BLOCKS_OFFSET+MAX_DUNGEON_DIAMETER)) * multi);
     }
 
     private static void getSplits() {
@@ -124,14 +144,34 @@ public class DungeonMap extends Module {
         Block centreBlock = C.w().getBlockState(chunkCenter).getBlock();
         if (centreBlock == Blocks.VOID_AIR) return false;
 
-        if (C.w().getBlockState(chunkCenter).getBlock() == Blocks.AIR) {
+        if (centreBlock == Blocks.AIR) {
+            boolean door = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 66, chunkCenter.getZ())).getBlock() == Blocks.BEDROCK;
+            BlockHitResult raycast = C.w().raycast(new RaycastContext(
+                    new Vec3d(chunkCenter.getX(), door ? 74 : 159, chunkCenter.getZ()),
+                    new Vec3d(chunkCenter.getX(), door ? 159 : 0, chunkCenter.getZ()),
+                    RaycastContext.ShapeType.COLLIDER,
+                    RaycastContext.FluidHandling.NONE,
+                    ShapeContext.absent()
+            ));
+
+            // check that there are no blocks in the line other than the door
+            if (raycast.getType() != HitResult.Type.MISS) return true;
+
             boolean north = C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.AIR;
             boolean south = C.w().getBlockState(chunkCenter.south()).getBlock() == Blocks.AIR;
             boolean east = C.w().getBlockState(chunkCenter.east()).getBlock() == Blocks.AIR;
             boolean west = C.w().getBlockState(chunkCenter.west()).getBlock() == Blocks.AIR;
 
             if ((north && south && !east && !west) || (!north && !south && east && west)) {
-                MAP_DIVISIONS.add(new MapDivision(chunkPos, north ? Direction.Axis.X : Direction.Axis.Z));
+                DoorType doorType = DoorType.WALL;
+                if (door) {
+                    Block doorBlock = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 69, chunkCenter.getZ())).getBlock();
+
+                    if (doorBlock == Blocks.AIR) doorType = DoorType.FREE;
+                    else if (doorBlock == Blocks.COAL_BLOCK) doorType = DoorType.WITHER;
+                    else if (doorBlock == Blocks.RED_TERRACOTTA) doorType = DoorType.BLOOD;
+                }
+                MAP_DIVISIONS.add(new MapDivision(chunkPos, north ? Direction.Axis.X : Direction.Axis.Z, doorType));
             }
         }
 
@@ -140,7 +180,6 @@ public class DungeonMap extends Module {
 
     @Override
     public void onEnable() {
-        // dungeons spawn with -200 as the lowest x/z and -10 as the highest
         for (int x = -MAX_DUNGEON_CHUNKS; x < -DUNGEON_CHUNK_OFFSET; x++) {
             for (int z = -MAX_DUNGEON_CHUNKS; z < -DUNGEON_CHUNK_OFFSET; z++) {
                 UNSCANNED_CHUNKS.computeIfAbsent(x, k -> new HashMap<>()).put(z, true);
@@ -150,7 +189,6 @@ public class DungeonMap extends Module {
 
     @Override
     public void onDisable() {
-        System.out.println("Dungeon map reset");
         wasInDungeon = false;
         UNSCANNED_CHUNKS.clear();
         MAP_DIVISIONS.clear();

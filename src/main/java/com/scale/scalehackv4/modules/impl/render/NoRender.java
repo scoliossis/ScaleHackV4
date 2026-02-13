@@ -16,8 +16,15 @@ public class NoRender extends Module {
     @RegisterSubModule(name = "Potions Overlay")
     public static boolean hidePotionEffectsGUI = true;
 
+    @RegisterSubModule(name = "Loading World")
+    public static boolean loadingWorld = true;
+
     public static boolean hidePotionsGUI() {
         return hidePotionEffectsGUI && ModuleUtil.isEnabled(NoRender.class);
+    }
+
+    public static boolean shouldHideLoadingWorldScreen() {
+        return loadingWorld && ModuleUtil.isEnabled(NoRender.class);
     }
 
     @Override
