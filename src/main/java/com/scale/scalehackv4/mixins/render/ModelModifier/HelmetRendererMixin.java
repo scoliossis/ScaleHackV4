@@ -6,7 +6,6 @@ import net.minecraft.client.render.entity.feature.HeadFeatureRenderer;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.EntityType;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -19,11 +18,8 @@ public class HelmetRendererMixin {
             at = @At("HEAD"),
             cancellable = true)
     public void render(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, EntityRenderState state, float limbAngle, float limbDistance, CallbackInfo ci) {
-        if (!ModelModifierModule.shouldHideHelmet() ||
-                state.entityType != EntityType.PLAYER ||
-                !ModelModifierModule.isValidTarget(((PlayerEntityRenderState) state).id)
-        ) return;
-
-        ci.cancel();
+        if (ModelModifierModule.shouldHideHelmet() && state instanceof PlayerEntityRenderState player && ModelModifierModule.isValidTarget(player.id)) {
+            ci.cancel();
+        }
     }
 }

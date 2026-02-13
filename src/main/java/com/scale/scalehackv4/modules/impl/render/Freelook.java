@@ -23,6 +23,11 @@ public class Freelook extends Module {
     @RegisterSubModule(name = "Lock Position", hasKeybind = true)
     public static boolean lockPosition = true;
 
+    @RegisterSubModule(name = "Horizontal Speed", parent = "Lock Position", min = 0.1, max = 5)
+    public static double horizontalSpeed = 1;
+    @RegisterSubModule(name = "Vertical Speed", parent = "Lock Position", min = 0.1, max = 5)
+    public static double verticalSpeed = 1;
+
     public static boolean isRotationLocked() {
         return ModuleUtil.isEnabled(Freelook.class) && lockRotation;
     }

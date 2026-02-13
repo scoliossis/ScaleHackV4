@@ -37,7 +37,6 @@ import java.awt.*;
         enabledByDefault = true,
         category = Category.RENDER
 )
-// todo: hide capes
 public class ModelModifierModule extends Module {
     @RegisterSubModule(name = "Self")
     public static boolean self = true;
@@ -114,11 +113,11 @@ public class ModelModifierModule extends Module {
         drawPart(EntityModelPartNames.HEAD, currentModel.head, Vec3f.middle(currentModel.head.box));
         drawPart(EntityModelPartNames.BODY, currentModel.body, Vec3f.middle(currentModel.body.box));
 
-        drawPart(EntityModelPartNames.LEFT_ARM, currentModel.rightArm, Vec3f.lerpBox(RAYMAN.body.box, 1, 1, 0.5f));
-        drawPart(EntityModelPartNames.RIGHT_ARM, currentModel.leftArm, Vec3f.lerpBox(RAYMAN.body.box, 0, 1, 0.5f));
+        drawPart(EntityModelPartNames.LEFT_ARM, currentModel.rightArm, Vec3f.lerpBox(currentModel.body.box, 1, 1, 0.5f));
+        drawPart(EntityModelPartNames.RIGHT_ARM, currentModel.leftArm, Vec3f.lerpBox(currentModel.body.box, 0, 1, 0.5f));
 
-        drawPart(EntityModelPartNames.LEFT_LEG, currentModel.rightLeg, Vec3f.lerpBox(RAYMAN.rightLeg.box, 1, 1, 0.5f));
-        drawPart(EntityModelPartNames.RIGHT_LEG, currentModel.leftLeg, Vec3f.lerpBox(RAYMAN.leftLeg.box, 0, 1, 0.5f));
+        drawPart(EntityModelPartNames.LEFT_LEG, currentModel.rightLeg, Vec3f.lerpBox(currentModel.rightLeg.box, 1, 1, 0.5f));
+        drawPart(EntityModelPartNames.RIGHT_LEG, currentModel.leftLeg, Vec3f.lerpBox(currentModel.leftLeg.box, 0, 1, 0.5f));
 
         matrices.pop();
     }
@@ -194,7 +193,7 @@ public class ModelModifierModule extends Module {
             matrices.push();
 
             ModelPart armModelPart = model.getChildPart(arm.equals(Arm.RIGHT) ? EntityModelPartNames.RIGHT_ARM : EntityModelPartNames.LEFT_ARM);
-            ModelUtil.Model armModel = arm.equals(Arm.LEFT) ? RAYMAN.rightArm : RAYMAN.leftArm;
+            ModelUtil.Model armModel = arm.equals(Arm.LEFT) ? currentModel.rightArm : currentModel.leftArm;
 
             Vector3f pivot = new Vector3f(
                     (float) (armModel.box.minX + armModel.box.maxX) / 2,
@@ -221,11 +220,11 @@ public class ModelModifierModule extends Module {
         matrices.scale(SCALE,SCALE,SCALE);
         if (rightHand) {
             matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, -0.2f, 0.1f), -0.3f, 0.35f, -0.1f);
-            Render3dUtil.drawModel(0, 0, 0, RAYMAN.leftArm, RAYMAN.texture, Color.WHITE);
+            Render3dUtil.drawModel(0, 0, 0, currentModel.leftArm, currentModel.texture, Color.WHITE);
         }
         else {
             matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, 0f, -0.1f), 0.3f, 0.35f, -0.1f);
-            Render3dUtil.drawModel(0, 0, 0, RAYMAN.rightArm, RAYMAN.texture, Color.WHITE);
+            Render3dUtil.drawModel(0, 0, 0, currentModel.rightArm, currentModel.texture, Color.WHITE);
         }
         matrices.pop();
     }

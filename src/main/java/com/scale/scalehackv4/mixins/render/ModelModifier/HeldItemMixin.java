@@ -11,7 +11,6 @@ import net.minecraft.client.render.entity.model.ModelWithHead;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.render.item.ItemRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.EntityType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
 import org.spongepowered.asm.mixin.Mixin;
@@ -32,10 +31,10 @@ public abstract class HeldItemMixin<S extends PlayerEntityRenderState, M extends
             cancellable = true
     )
     protected void onRenderItem(S entityState, ItemRenderState itemState, ItemStack stack, Arm arm, MatrixStack matrices, OrderedRenderCommandQueue queue, int light, CallbackInfo ci) {
-        if (!ModelModifierModule.shouldChangeModel() || entityState.entityType != EntityType.PLAYER || !ModelModifierModule.isValidTarget(entityState.id)) return;
+        if (ModelModifierModule.shouldChangeModel() && entityState instanceof PlayerEntityRenderState player && ModelModifierModule.isValidTarget(player.id)) {
+            ci.cancel();
 
-        ci.cancel();
-
-        ModelModifierModule.drawItem(this.getContextModel(), itemState, arm, matrices, queue, light, entityState.outlineColor);
+            ModelModifierModule.drawItem(this.getContextModel(), itemState, arm, matrices, queue, light, entityState.outlineColor);
+        }
     }
 }

@@ -25,9 +25,10 @@ public abstract class FreeMoveMixin extends AbstractClientPlayerEntity {
     public void tickHEAD(CallbackInfo ci) {
         if (!Freelook.isPositionLocked()) return;
 
-        float up = (C.mc.options.jumpKey.isPressed() ? 1 : 0) + (C.mc.options.sneakKey.isPressed() ? -1 : 0);
-        float forward = (C.mc.options.forwardKey.isPressed() ? 1 : 0) + (C.mc.options.backKey.isPressed() ? -1 : 0);
-        float strafe = (C.mc.options.leftKey.isPressed() ? 1 : 0) + (C.mc.options.rightKey.isPressed() ? -1 : 0);
+        double up = (C.mc.options.jumpKey.isPressed() ? Freelook.verticalSpeed : 0) + (C.mc.options.sneakKey.isPressed() ? -Freelook.verticalSpeed : 0);
+
+        double forward = (C.mc.options.forwardKey.isPressed() ? Freelook.horizontalSpeed : 0) + (C.mc.options.backKey.isPressed() ? -Freelook.horizontalSpeed : 0);
+        double strafe = (C.mc.options.leftKey.isPressed() ? Freelook.horizontalSpeed : 0) + (C.mc.options.rightKey.isPressed() ? -Freelook.horizontalSpeed : 0);
 
         float yaw = Freelook.renderRotation == null ? this.getYaw() : Freelook.renderRotation.yaw;
 

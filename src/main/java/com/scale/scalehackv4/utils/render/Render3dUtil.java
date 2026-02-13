@@ -1,10 +1,13 @@
 package com.scale.scalehackv4.utils.render;
 
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.Main;
 import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import lombok.Getter;
 import lombok.Setter;
+import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.BufferAllocator;
@@ -89,6 +92,22 @@ public class Render3dUtil extends RenderUtil {
         return layersMap.get(texture);
     }
 
+    // todo: auto generate cull and non cull versions
+    private static final RenderLayer QUADS_NO_CULL = RenderLayer.of(
+            Main.MOD_ID + "glowpipeline3d",
+            RenderSetup.builder(
+                            RenderPipelines.register(
+                                    RenderPipeline.builder(RenderUtil.getRenderPipelineSnippet(VertexFormats.POSITION_COLOR))
+                                            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+                                            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                                            .withLocation(Main.MOD_ID + "quadsnocull")
+                                            .build()
+                            )
+                    )
+                    .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
+                    .build()
+    );
+
     public static void drawSquare(float x, float y, float z, float width, float height, float depth, Color colour) {
         VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS));
 
@@ -99,8 +118,8 @@ public class Render3dUtil extends RenderUtil {
         vertexConsumers.drawCurrentLayer();
     }
 
-    public static void drawBox(float x, float y, float z, float width, float height, float depth, Color colour) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS));
+    public static void drawBox(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(cull ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS) : QUADS_NO_CULL);
 
         MatrixStack.Entry entry = getEntry();
 

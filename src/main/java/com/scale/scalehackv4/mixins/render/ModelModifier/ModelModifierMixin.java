@@ -13,7 +13,6 @@ import net.minecraft.client.render.entity.state.LivingEntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.Colors;
 import net.minecraft.util.math.ColorHelper;
@@ -48,7 +47,7 @@ public abstract class ModelModifierMixin<T extends LivingEntity, S extends Livin
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;getRenderLayer(Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;ZZZ)Lnet/minecraft/client/render/RenderLayer;")
     )
     public @Nullable RenderLayer render(LivingEntityRenderer<?,?,?> instance, S state, boolean showBody, boolean translucent, boolean showOutline, S livingEntityRenderState, MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, CameraRenderState cameraRenderState) {
-        if (ModelModifierModule.shouldChangeModel() && livingEntityRenderState.entityType == EntityType.PLAYER && ModelModifierModule.isValidTarget(((PlayerEntityRenderState) livingEntityRenderState).id)) {
+        if (ModelModifierModule.shouldChangeModel() && livingEntityRenderState instanceof PlayerEntityRenderState player && ModelModifierModule.isValidTarget(player.id)) {
             Render3dUtil.tickRender(matrixStack, null, null);
             this.model.setAngles(livingEntityRenderState);
 

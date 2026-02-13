@@ -18,6 +18,7 @@
     "render.MouseBridgeMixin",
     "render.MouseDraggedEventMixin",
     "render.PartialTicksMixin",
+    "render.RenderScoreboardEventMixin",
     "render.RenderTickEventMixin",
     "render.freelook.FakePlayerSetterMixin",
     "render.freelook.FixMovementMixin",
