@@ -7,7 +7,7 @@ import com.scale.scalehackv4.events.impl.render.RenderScoreboardEvent;
 public class AreaUtil {
     public static boolean isInDungeons() {
         for (RenderScoreboardEvent.SidebarEntry sidebarEntry : RenderScoreboardEvent.LAST_SIDEBAR) {
-            if (sidebarEntry.name().getString().matches("( )+§7⏣ §cThe Catac§[a-zA-Z0-9]§combs §7\\([MF][0-9]\\)")) {
+            if (sidebarEntry.name().getString().matches("( )+§7⏣ §cThe Catac§[a-zA-Z0-9]§combs §7\\([MFE].+")) {
                 return true;
             }
         }

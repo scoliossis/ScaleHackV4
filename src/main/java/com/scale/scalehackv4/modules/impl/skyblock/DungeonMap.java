@@ -2,7 +2,6 @@ package com.scale.scalehackv4.modules.impl.skyblock;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
-import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
@@ -11,7 +10,6 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
-import com.scale.scalehackv4.utils.render.Render3dUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
@@ -38,6 +36,9 @@ public class DungeonMap extends Module {
     private static final HashMap<Integer, HashMap<Integer, Boolean>> UNSCANNED_CHUNKS = new HashMap<>();
     private static final HashMap<Integer, HashMap<Integer, MapDivision>> MAP_DIVISIONS = new HashMap<>();
 
+    private static final ArrayList<Room> ROOMS = new ArrayList<>();
+    private static final HashMap<Integer, HashMap<Integer, Boolean>> UNASSIGNED_CHUNKS = new HashMap<>();
+
     private static final int MAX_DUNGEON_DIAMETER = 190;
     private static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
     private static final int DUNGEON_BLOCKS_OFFSET = 10;
@@ -50,8 +51,7 @@ public class DungeonMap extends Module {
     private static final int ROOM_RADIUS = 7;
     private static final int DOOR_RADIUS = 3;
 
-    private static final ArrayList<Room> ROOMS = new ArrayList<>();
-
+    private static boolean wasInDungeon = false;
 
     @AllArgsConstructor
     private enum DoorType {
@@ -77,96 +77,6 @@ public class DungeonMap extends Module {
             PUZZLE
         }
     }
-
-    private static boolean wasInDungeon = false;
-
-    // infrequently posted event
-    private final Event playerUpdateEvent = new PlayerUpdateEvent(this, (params -> {
-        if (!AreaUtil.isInDungeons()) {
-            if (wasInDungeon) onDisable();
-            return false;
-        }
-        else if (!wasInDungeon) {
-            wasInDungeon = true;
-
-            onEnable();
-        }
-
-        getSplits();
-
-        int scannedRooms = 0;
-        for (int x = -MAX_DUNGEON_CHUNKS; x < -DUNGEON_CHUNK_OFFSET; x++) {
-            for (int z = -MAX_DUNGEON_CHUNKS; z < -DUNGEON_CHUNK_OFFSET; z++) {
-                ChunkPos chunkPos = new ChunkPos(x, z);
-                if (isWall(chunkPos) || isChunkScanned(chunkPos) || isChunkUnloaded(chunkPos)) continue;
-
-                Room connectedSquares = getRoom(chunkPos);
-                if (connectedSquares == null) continue;
-
-                ROOMS.add(connectedSquares);
-                scannedRooms++;
-            }
-        }
-
-        /*
-        int totalWalls = MAP_DIVISIONS.size() + MAP_DIVISIONS.values().stream().mapToInt(HashMap::size).sum();
-        int totalRooms = ROOMS.stream().mapToInt(e -> e.squares.length).sum();
-
-        System.out.println(totalRooms + " rooms, " + scannedRooms + " scanned, " + totalWalls + " walls");
-         */
-
-        return false;
-    }));
-
-    private static Room getRoom(ChunkPos chunkPos) {
-        ArrayList<ChunkPos> connectedSquares = addSquare(chunkPos, new ArrayList<>());
-
-        return connectedSquares == null ? null : new Room(connectedSquares.toArray(ChunkPos[]::new));
-    }
-
-    private static ArrayList<ChunkPos> addSquare(ChunkPos chunkPos, ArrayList<ChunkPos> connectedSquares) {
-        if (connectedSquares == null || isChunkUnloaded(chunkPos)) return null;
-        if (isWall(chunkPos) || isChunkOutOfBounds(chunkPos) || connectedSquares.contains(chunkPos)) return connectedSquares;
-
-        connectedSquares.add(chunkPos);
-
-        // flood fill wowowowow
-        connectedSquares = addSquare(new ChunkPos(chunkPos.x+1, chunkPos.z), connectedSquares);
-        connectedSquares = addSquare(new ChunkPos(chunkPos.x-1, chunkPos.z), connectedSquares);
-
-        connectedSquares = addSquare(new ChunkPos(chunkPos.x, chunkPos.z+1), connectedSquares);
-        connectedSquares = addSquare(new ChunkPos(chunkPos.x, chunkPos.z-1), connectedSquares);
-
-        return connectedSquares;
-    }
-
-    private static boolean isWall(ChunkPos chunkPos) {
-        return MAP_DIVISIONS.getOrDefault(chunkPos.x, new HashMap<>()).getOrDefault(chunkPos.z, null) != null;
-    }
-
-    private static boolean isChunkScanned(ChunkPos chunkPos) {
-        return ROOMS.stream().anyMatch(e -> Arrays.stream(e.squares).anyMatch(cp -> cp.x == chunkPos.x && cp.z == chunkPos.z));
-    }
-
-    private static boolean isChunkOutOfBounds(ChunkPos chunkPos) {
-        return (chunkPos.x < -MAX_DUNGEON_CHUNKS || chunkPos.z < -MAX_DUNGEON_CHUNKS)
-                || (chunkPos.x >= -DUNGEON_CHUNK_OFFSET || chunkPos.z >= -DUNGEON_CHUNK_OFFSET);
-    }
-
-    private final Event debugScanning3D = new RenderWorldEvent(this, (params -> {
-        for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
-            for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
-                MapDivision chunkPos = MAP_DIVISIONS.get(x).get(z);
-
-                BlockPos chunkCenter = getChunkCenter(new ChunkPos(x, z));
-                Render3dUtil.drawBox(chunkCenter.getX(), chunkCenter.getY(), chunkCenter.getZ(), 1, 1, 1, chunkPos.doorType.colour, false);
-            }
-        }
-
-        return false;
-    }));
-
-    private static final int DUNGEON_MAP_DIAMETER = 100;
 
     public final Draggable dungeonMap = new Draggable(
             "Dungeon Map",
@@ -215,6 +125,84 @@ public class DungeonMap extends Module {
             e -> true
     );
 
+    // infrequently posted event
+    private final Event playerUpdateEvent = new PlayerUpdateEvent(this, (params -> {
+        if (!AreaUtil.isInDungeons()) {
+            if (wasInDungeon) onDisable();
+            return false;
+        }
+        else if (!wasInDungeon) {
+            wasInDungeon = true;
+
+            onEnable();
+        }
+
+        getSplits();
+
+        // make an array to stop concurrent modification exceptions
+        for (int x : UNASSIGNED_CHUNKS.keySet().toArray(Integer[]::new)) {
+            HashMap<Integer, Boolean> zChunks = UNASSIGNED_CHUNKS.get(x);
+
+            // the hashmap is modified by assignChunk, causing there to be a loop of an x that is already assigned
+            if (zChunks == null) continue;
+
+            for (int z : zChunks.keySet().toArray(Integer[]::new)) {
+                ChunkPos chunkPos = new ChunkPos(x, z);
+                // dont try and scan a chunk if its already scanned, or cant be scanned
+                if (isChunkScanned(chunkPos) || isChunkUnloaded(chunkPos)) continue;
+
+                Room room = getRoom(chunkPos);
+                if (room == null) continue;
+
+                ROOMS.add(room);
+                for (ChunkPos square : room.squares) assignChunk(square);
+            }
+        }
+
+        return false;
+    }));
+
+    private static Room getRoom(ChunkPos chunkPos) {
+        ArrayList<ChunkPos> connectedSquares = addSquare(chunkPos, new ArrayList<>());
+
+        return connectedSquares == null ? null : new Room(connectedSquares.toArray(ChunkPos[]::new));
+    }
+
+    // recursive function, flood fills to find connected squares
+    private static ArrayList<ChunkPos> addSquare(ChunkPos chunkPos, ArrayList<ChunkPos> connectedSquares) {
+        // if one of the chunks isnt loaded, we return null, cause we cant scan a room thats half loaded.
+        if (connectedSquares == null) return null;
+        if (isWall(chunkPos) || isChunkOutOfBounds(chunkPos) || connectedSquares.contains(chunkPos)) return connectedSquares;
+        // this is below to allow edges to load even if the corner chunk isnt loaded
+        if (isChunkUnloaded(chunkPos)) return null;
+
+        connectedSquares.add(chunkPos);
+
+        // flood fill wowowowow
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x+1, chunkPos.z), connectedSquares);
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x-1, chunkPos.z), connectedSquares);
+
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x, chunkPos.z+1), connectedSquares);
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x, chunkPos.z-1), connectedSquares);
+
+        return connectedSquares;
+    }
+
+    private static boolean isWall(ChunkPos chunkPos) {
+        return MAP_DIVISIONS.getOrDefault(chunkPos.x, new HashMap<>()).getOrDefault(chunkPos.z, null) != null;
+    }
+
+    private static boolean isChunkScanned(ChunkPos chunkPos) {
+        return isWall(chunkPos) || ROOMS.stream().anyMatch(e -> Arrays.stream(e.squares).anyMatch(cp -> cp.x == chunkPos.x && cp.z == chunkPos.z));
+    }
+
+    private static boolean isChunkOutOfBounds(ChunkPos chunkPos) {
+        return (chunkPos.x < -MAX_DUNGEON_CHUNKS || chunkPos.z < -MAX_DUNGEON_CHUNKS)
+                || (chunkPos.x >= -DUNGEON_CHUNK_OFFSET || chunkPos.z >= -DUNGEON_CHUNK_OFFSET);
+    }
+
+    private static final int DUNGEON_MAP_DIAMETER = 100;
+
     private static BlockPos getChunkCenter(ChunkPos chunkPos) {
         return new BlockPos((chunkPos.x * 16) + 7, 80, (chunkPos.z * 16) + 7);
     }
@@ -231,7 +219,7 @@ public class DungeonMap extends Module {
             int[] zValues = UNSCANNED_CHUNKS.get(x).keySet().stream().mapToInt(Integer::intValue).toArray();
 
             for (int z : zValues) {
-                if (canCheckSplit(new ChunkPos(x, z))) {
+                if (checkSplit(new ChunkPos(x, z))) {
                     UNSCANNED_CHUNKS.get(x).remove(z);
                     if (UNSCANNED_CHUNKS.get(x).isEmpty()) UNSCANNED_CHUNKS.remove(x);
                 }
@@ -239,7 +227,8 @@ public class DungeonMap extends Module {
         }
     }
 
-    private static boolean canCheckSplit(ChunkPos chunkPos) {
+    // checks if the centre of the chunk is a split in the map (a door)
+    private static boolean checkSplit(ChunkPos chunkPos) {
         BlockPos chunkCenter = getChunkCenter(chunkPos);
 
         Block centreBlock = C.w().getBlockState(chunkCenter).getBlock();
@@ -274,9 +263,22 @@ public class DungeonMap extends Module {
 
             MAP_DIVISIONS.computeIfAbsent(chunkPos.x, k -> new HashMap<>())
                     .put(chunkPos.z, new MapDivision(north ? Direction.Axis.X : Direction.Axis.Z, doorType));
+
+            assignChunk(chunkPos);
         }
 
         return true;
+    }
+
+    private static void assignChunk(ChunkPos chunkPos) {
+        HashMap<Integer, Boolean> zChunks = UNASSIGNED_CHUNKS.get(chunkPos.x);
+        if (zChunks == null) return;
+
+        UNASSIGNED_CHUNKS.get(chunkPos.x).remove(chunkPos.z);
+
+        if (UNASSIGNED_CHUNKS.get(chunkPos.x).isEmpty()) {
+            UNASSIGNED_CHUNKS.remove(chunkPos.x);
+        }
     }
 
     private static boolean isChunkUnloaded(ChunkPos chunkPos) {
@@ -288,6 +290,7 @@ public class DungeonMap extends Module {
         for (int x = -MAX_DUNGEON_CHUNKS; x < -DUNGEON_CHUNK_OFFSET; x++) {
             for (int z = -MAX_DUNGEON_CHUNKS; z < -DUNGEON_CHUNK_OFFSET; z++) {
                 UNSCANNED_CHUNKS.computeIfAbsent(x, k -> new HashMap<>()).put(z, true);
+                UNASSIGNED_CHUNKS.computeIfAbsent(x, k -> new HashMap<>()).put(z, true);
             }
         }
     }
