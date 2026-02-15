@@ -9,6 +9,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
+import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
@@ -26,6 +27,7 @@ import net.minecraft.world.RaycastContext;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 
 @RegisterModule(
@@ -34,7 +36,7 @@ import java.util.HashMap;
 )
 public class DungeonMap extends Module {
     private static final HashMap<Integer, HashMap<Integer, Boolean>> UNSCANNED_CHUNKS = new HashMap<>();
-    private static final ArrayList<MapDivision> MAP_DIVISIONS = new ArrayList<>();
+    private static final HashMap<Integer, HashMap<Integer, MapDivision>> MAP_DIVISIONS = new HashMap<>();
 
     private static final int MAX_DUNGEON_DIAMETER = 190;
     private static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
@@ -45,16 +47,36 @@ public class DungeonMap extends Module {
 
     private static final Color CLEAR_ROOM_COLOUR = new Color(169, 104, 5);
 
+    private static final int ROOM_RADIUS = 7;
+    private static final int DOOR_RADIUS = 3;
+
+    private static final ArrayList<Room> ROOMS = new ArrayList<>();
+
+
     @AllArgsConstructor
     private enum DoorType {
         WALL(new Color(255, 255, 255)),
-        FREE(new Color(0,0,0)),
+        FREE(CLEAR_ROOM_COLOUR),
         WITHER(new Color(0, 0, 0)),
         BLOOD(new Color(255, 0, 0)),;
 
         private final Color colour;
     }
-    private record MapDivision(ChunkPos chunkPos, Direction.Axis axis, DoorType doorType) {}
+    private record MapDivision(Direction.Axis axis, DoorType doorType) {}
+
+    @AllArgsConstructor
+    private static class Room {
+        public ChunkPos[] squares;
+
+        public enum Type {
+            MOB,
+            MINI,
+            YELLOW,
+            BLOOD,
+            FAIRY,
+            PUZZLE
+        }
+    }
 
     private static boolean wasInDungeon = false;
 
@@ -72,13 +94,73 @@ public class DungeonMap extends Module {
 
         getSplits();
 
+        int scannedRooms = 0;
+        for (int x = -MAX_DUNGEON_CHUNKS; x < -DUNGEON_CHUNK_OFFSET; x++) {
+            for (int z = -MAX_DUNGEON_CHUNKS; z < -DUNGEON_CHUNK_OFFSET; z++) {
+                ChunkPos chunkPos = new ChunkPos(x, z);
+                if (isWall(chunkPos) || isChunkScanned(chunkPos) || isChunkUnloaded(chunkPos)) continue;
+
+                Room connectedSquares = getRoom(chunkPos);
+                if (connectedSquares == null) continue;
+
+                ROOMS.add(connectedSquares);
+                scannedRooms++;
+            }
+        }
+
+        /*
+        int totalWalls = MAP_DIVISIONS.size() + MAP_DIVISIONS.values().stream().mapToInt(HashMap::size).sum();
+        int totalRooms = ROOMS.stream().mapToInt(e -> e.squares.length).sum();
+
+        System.out.println(totalRooms + " rooms, " + scannedRooms + " scanned, " + totalWalls + " walls");
+         */
+
         return false;
     }));
 
+    private static Room getRoom(ChunkPos chunkPos) {
+        ArrayList<ChunkPos> connectedSquares = addSquare(chunkPos, new ArrayList<>());
+
+        return connectedSquares == null ? null : new Room(connectedSquares.toArray(ChunkPos[]::new));
+    }
+
+    private static ArrayList<ChunkPos> addSquare(ChunkPos chunkPos, ArrayList<ChunkPos> connectedSquares) {
+        if (connectedSquares == null || isChunkUnloaded(chunkPos)) return null;
+        if (isWall(chunkPos) || isChunkOutOfBounds(chunkPos) || connectedSquares.contains(chunkPos)) return connectedSquares;
+
+        connectedSquares.add(chunkPos);
+
+        // flood fill wowowowow
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x+1, chunkPos.z), connectedSquares);
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x-1, chunkPos.z), connectedSquares);
+
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x, chunkPos.z+1), connectedSquares);
+        connectedSquares = addSquare(new ChunkPos(chunkPos.x, chunkPos.z-1), connectedSquares);
+
+        return connectedSquares;
+    }
+
+    private static boolean isWall(ChunkPos chunkPos) {
+        return MAP_DIVISIONS.getOrDefault(chunkPos.x, new HashMap<>()).getOrDefault(chunkPos.z, null) != null;
+    }
+
+    private static boolean isChunkScanned(ChunkPos chunkPos) {
+        return ROOMS.stream().anyMatch(e -> Arrays.stream(e.squares).anyMatch(cp -> cp.x == chunkPos.x && cp.z == chunkPos.z));
+    }
+
+    private static boolean isChunkOutOfBounds(ChunkPos chunkPos) {
+        return (chunkPos.x < -MAX_DUNGEON_CHUNKS || chunkPos.z < -MAX_DUNGEON_CHUNKS)
+                || (chunkPos.x >= -DUNGEON_CHUNK_OFFSET || chunkPos.z >= -DUNGEON_CHUNK_OFFSET);
+    }
+
     private final Event debugScanning3D = new RenderWorldEvent(this, (params -> {
-        for (MapDivision chunkPos : MAP_DIVISIONS) {
-            BlockPos chunkCenter = getChunkCenter(chunkPos.chunkPos());
-            Render3dUtil.drawBox(chunkCenter.getX(), chunkCenter.getY(), chunkCenter.getZ(), 1, 1, 1, chunkPos.doorType.colour, false);
+        for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
+            for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
+                MapDivision chunkPos = MAP_DIVISIONS.get(x).get(z);
+
+                BlockPos chunkCenter = getChunkCenter(new ChunkPos(x, z));
+                Render3dUtil.drawBox(chunkCenter.getX(), chunkCenter.getY(), chunkCenter.getZ(), 1, 1, 1, chunkPos.doorType.colour, false);
+            }
         }
 
         return false;
@@ -89,18 +171,37 @@ public class DungeonMap extends Module {
     public final Draggable dungeonMap = new Draggable(
             "Dungeon Map",
             () -> {
-                Render2dUtil.drawRect(0, 0, DUNGEON_MAP_DIAMETER, DUNGEON_MAP_DIAMETER, CLEAR_ROOM_COLOUR);
-                for (MapDivision mapDivision : MAP_DIVISIONS) {
-                    BlockPos chunkCenter = getChunkCenter(mapDivision.chunkPos());
-                    boolean isX = mapDivision.axis == Direction.Axis.X;
+                Render2dUtil.drawRect(-1, -1, DUNGEON_MAP_DIAMETER+1, DUNGEON_MAP_DIAMETER+1, new Color(0, 60, 255));
 
-                    int width = isX ? 1 : 17;
-                    int height = !isX ? 1 : 17;
+                for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
+                    for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
+                        MapDivision mapDivision = MAP_DIVISIONS.get(x).get(z);
 
-                    int x = pos3dTo2d(chunkCenter.getX()) - width / 2;
-                    int y = pos3dTo2d(chunkCenter.getZ()) - height / 2;
+                        if (mapDivision.doorType == DoorType.WALL) continue;
 
-                    Render2dUtil.drawRect(x, y, width, height, mapDivision.doorType.colour);
+                        BlockPos chunkCenter = getChunkCenter(new ChunkPos(x, z));
+
+                        int x2d = pos3dTo2d(chunkCenter.getX()) - DOOR_RADIUS;
+                        int y2d = pos3dTo2d(chunkCenter.getZ()) - DOOR_RADIUS;
+
+                        Render2dUtil.drawRect(x2d, y2d, DOOR_RADIUS*2, DOOR_RADIUS*2, mapDivision.doorType.colour);
+                    }
+                }
+
+                for (int i = 0; i < ROOMS.size(); i++) {
+                    Room room = ROOMS.get(i);
+                    for (int j = 0; j < room.squares.length; j++) {
+                        ChunkPos square = room.squares[j];
+                        BlockPos chunkCenter = getChunkCenter(square);
+
+                        int x = pos3dTo2d(chunkCenter.getX()) - ROOM_RADIUS;
+                        int y = pos3dTo2d(chunkCenter.getZ()) - ROOM_RADIUS;
+
+                        Render2dUtil.drawRect(x, y, ROOM_RADIUS*2, ROOM_RADIUS*2, CLEAR_ROOM_COLOUR);
+                        if (j == 0) {
+                            FontUtil.drawString("" + i, x, y, 6, Color.WHITE, true);
+                        }
+                    }
                 }
 
                 int playerX = pos3dTo2d(C.p().getX());
@@ -142,9 +243,11 @@ public class DungeonMap extends Module {
         BlockPos chunkCenter = getChunkCenter(chunkPos);
 
         Block centreBlock = C.w().getBlockState(chunkCenter).getBlock();
-        if (centreBlock == Blocks.VOID_AIR) return false;
+        if (isChunkUnloaded(chunkPos)) return false;
 
-        if (centreBlock == Blocks.AIR) {
+        boolean isStartDoor = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 69, chunkCenter.getZ())).getBlock() == Blocks.INFESTED_CHISELED_STONE_BRICKS;
+
+        if (centreBlock == Blocks.AIR || isStartDoor) {
             boolean door = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 66, chunkCenter.getZ())).getBlock() == Blocks.BEDROCK;
             BlockHitResult raycast = C.w().raycast(new RaycastContext(
                     new Vec3d(chunkCenter.getX(), door ? 74 : 159, chunkCenter.getZ()),
@@ -155,27 +258,29 @@ public class DungeonMap extends Module {
             ));
 
             // check that there are no blocks in the line other than the door
-            if (raycast.getType() != HitResult.Type.MISS) return true;
+            if (raycast.getType() != HitResult.Type.MISS && !isStartDoor) return true;
 
-            boolean north = C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.AIR;
-            boolean south = C.w().getBlockState(chunkCenter.south()).getBlock() == Blocks.AIR;
-            boolean east = C.w().getBlockState(chunkCenter.east()).getBlock() == Blocks.AIR;
-            boolean west = C.w().getBlockState(chunkCenter.west()).getBlock() == Blocks.AIR;
+            boolean north = C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.AIR
+                    || (C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.INFESTED_CHISELED_STONE_BRICKS && isStartDoor);
 
-            if ((north && south && !east && !west) || (!north && !south && east && west)) {
-                DoorType doorType = DoorType.WALL;
-                if (door) {
-                    Block doorBlock = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 69, chunkCenter.getZ())).getBlock();
+            DoorType doorType = isStartDoor ? DoorType.FREE : DoorType.WALL;
+            if (door) {
+                Block doorBlock = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 69, chunkCenter.getZ())).getBlock();
 
-                    if (doorBlock == Blocks.AIR) doorType = DoorType.FREE;
-                    else if (doorBlock == Blocks.COAL_BLOCK) doorType = DoorType.WITHER;
-                    else if (doorBlock == Blocks.RED_TERRACOTTA) doorType = DoorType.BLOOD;
-                }
-                MAP_DIVISIONS.add(new MapDivision(chunkPos, north ? Direction.Axis.X : Direction.Axis.Z, doorType));
+                if (doorBlock == Blocks.AIR) doorType = DoorType.FREE;
+                else if (doorBlock == Blocks.COAL_BLOCK) doorType = DoorType.WITHER;
+                else if (doorBlock == Blocks.RED_TERRACOTTA) doorType = DoorType.BLOOD;
             }
+
+            MAP_DIVISIONS.computeIfAbsent(chunkPos.x, k -> new HashMap<>())
+                    .put(chunkPos.z, new MapDivision(north ? Direction.Axis.X : Direction.Axis.Z, doorType));
         }
 
         return true;
+    }
+
+    private static boolean isChunkUnloaded(ChunkPos chunkPos) {
+        return C.w().getBlockState(new BlockPos(chunkPos.x * 16, 0, chunkPos.z * 16)).getBlock() == Blocks.VOID_AIR;
     }
 
     @Override
@@ -192,5 +297,6 @@ public class DungeonMap extends Module {
         wasInDungeon = false;
         UNSCANNED_CHUNKS.clear();
         MAP_DIVISIONS.clear();
+        ROOMS.clear();
     }
 }

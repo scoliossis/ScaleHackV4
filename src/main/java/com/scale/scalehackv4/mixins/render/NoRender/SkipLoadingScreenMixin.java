@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.mixins.render;
+package com.scale.scalehackv4.mixins.render.NoRender;
 
 import com.scale.scalehackv4.modules.impl.render.NoRender;
 import net.minecraft.client.world.ClientChunkLoadProgress;

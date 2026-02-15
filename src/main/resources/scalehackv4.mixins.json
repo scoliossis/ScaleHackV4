@@ -20,7 +20,6 @@
     "render.PartialTicksMixin",
     "render.RenderScoreboardEventMixin",
     "render.RenderTickEventMixin",
-    "render.SkipLoadingScreenMixin",
     "render.freelook.FakePlayerSetterMixin",
     "render.freelook.FixMovementMixin",
     "render.freelook.FixPlayerPosOnTeleportMixin",
@@ -33,7 +32,9 @@
     "render.ModelModifier.HeldItemMixin",
     "render.ModelModifier.HelmetRendererMixin",
     "render.ModelModifier.ModelModifierMixin",
-    "render.NoRender.PotionEffectsGuiMixin"
+    "render.NoRender.ExplosionParticleHiderMixin",
+    "render.NoRender.PotionEffectsGuiMixin",
+    "render.NoRender.SkipLoadingScreenMixin"
   ],
   "mixins": [
     "client.PacketEventMixin",

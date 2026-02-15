@@ -19,12 +19,18 @@ public class NoRender extends Module {
     @RegisterSubModule(name = "Loading World")
     public static boolean loadingWorld = true;
 
+    @RegisterSubModule(name = "Explosion")
+    public static boolean explosions = true;
+
     public static boolean hidePotionsGUI() {
         return hidePotionEffectsGUI && ModuleUtil.isEnabled(NoRender.class);
     }
 
     public static boolean shouldHideLoadingWorldScreen() {
         return loadingWorld && ModuleUtil.isEnabled(NoRender.class);
+    }
+    public static boolean shouldHideExplosions() {
+        return explosions && ModuleUtil.isEnabled(NoRender.class);
     }
 
     @Override
