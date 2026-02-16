@@ -111,7 +111,6 @@ public class ModuleUtil {
         String configFileText = readConfig(GUI_POSITIONS_FILE);
 
         if (configFileText != null) {
-            boolean failed = false;
             HashMap<String, LinkedTreeMap<String, Object>> positions = C.gson.fromJson(configFileText, HashMap.class);
 
             for (Category category : Category.values()) {

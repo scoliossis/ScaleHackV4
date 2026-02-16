@@ -1,5 +1,7 @@
 package com.scale.scalehackv4.modules.impl.skyblock;
 
+import com.google.gson.internal.LinkedTreeMap;
+import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.modules.Category;
@@ -13,8 +15,10 @@ import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ShapeContext;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -22,11 +26,17 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
+import org.apache.commons.io.FileUtils;
+import org.joml.Matrix3x2fStack;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @RegisterModule(
         name = "Dungeon Map",
@@ -36,7 +46,7 @@ public class DungeonMap extends Module {
     private static final HashMap<Integer, HashMap<Integer, Boolean>> UNSCANNED_CHUNKS = new HashMap<>();
     private static final HashMap<Integer, HashMap<Integer, MapDivision>> MAP_DIVISIONS = new HashMap<>();
 
-    private static final ArrayList<Room> ROOMS = new ArrayList<>();
+    public static final ArrayList<Room> ROOMS = new ArrayList<>();
     private static final HashMap<Integer, HashMap<Integer, Boolean>> UNASSIGNED_CHUNKS = new HashMap<>();
 
     private static final int MAX_DUNGEON_DIAMETER = 190;
@@ -44,14 +54,23 @@ public class DungeonMap extends Module {
     private static final int DUNGEON_BLOCKS_OFFSET = 10;
     private static final int DUNGEON_CHUNK_OFFSET = Math.ceilDiv(DUNGEON_BLOCKS_OFFSET, 16);
 
-    private static final Color PLAYER_COLOUR = new Color(120, 245, 120, 255);
-
     private static final Color CLEAR_ROOM_COLOUR = new Color(169, 104, 5);
 
+    private static final int DUNGEON_MAP_DIAMETER = 100;
     private static final int ROOM_RADIUS = 7;
     private static final int DOOR_RADIUS = 3;
 
     private static boolean wasInDungeon = false;
+
+    private static final File DUNGEON_ROOMS_FILE = new File(Main.BASE_FOLDER_PATH + "/dungeons/dungeon_rooms.json");
+
+    // blocks for the hashing algorithm to ignore because they can be in different positions randomly
+    private static final List<Block> BLACKLISTED_BLOCKS = List.of(
+            Blocks.RED_WOOL, // waterboard
+            Blocks.JUNGLE_PLANKS, // boulder
+            Blocks.BIRCH_PLANKS, // boulder
+            Blocks.POLISHED_ANDESITE // ice fill
+    );
 
     @AllArgsConstructor
     private enum DoorType {
@@ -64,24 +83,138 @@ public class DungeonMap extends Module {
     }
     private record MapDivision(Direction.Axis axis, DoorType doorType) {}
 
-    @AllArgsConstructor
-    private static class Room {
+    public static class Room {
         public ChunkPos[] squares;
+        public Direction facing;
 
+        public String name = "";
+        public int secrets = -1;
+        public Type type = Type.MOB;
+        public int[] hashes;
+
+        public Room(ChunkPos[] squares) {
+            this.squares = squares;
+            getHashes();
+            getRoom();
+        }
+
+        private void getRoom() {
+            HashMap<String, LinkedTreeMap<String, Object>> rooms = getRooms();
+
+            LinkedTreeMap<String, Object> room = rooms.get(Arrays.toString(hashes));
+            if (room == null) return;
+
+            name = (String) room.getOrDefault("name", "");
+            secrets = (int) Double.parseDouble(room.getOrDefault("secrets", -1).toString());
+            type = Type.valueOf((String) room.getOrDefault("type", "MOB"));
+        }
+
+        public void createRoom(String name, Type type, int secrets) {
+            HashMap<String, LinkedTreeMap<String, Object>> rooms = getRooms();
+
+            this.name = name;
+            this.secrets = secrets;
+            this.type = type;
+
+            LinkedTreeMap<String, Object> room = new LinkedTreeMap<>();
+            room.put("name", name);
+            room.put("type", type.name());
+            room.put("secrets", secrets);
+
+            rooms.put(Arrays.toString(hashes), room);
+
+            try {
+                Files.write(DUNGEON_ROOMS_FILE.toPath(), C.gson.toJson(rooms).getBytes());
+                System.out.println("Saved room: " + name);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private static HashMap<String, LinkedTreeMap<String, Object>> getRooms() {
+            try {
+                if (Files.exists(DUNGEON_ROOMS_FILE.toPath())) {
+                    HashMap<String, LinkedTreeMap<String, Object>> rooms = C.gson.fromJson(FileUtils.readFileToString(DUNGEON_ROOMS_FILE, Charset.defaultCharset()), HashMap.class);
+                    if (rooms != null) return rooms;
+                }
+            } catch (IOException ignored) {}
+
+            DUNGEON_ROOMS_FILE.getParentFile().mkdirs();
+            return new HashMap<>();
+        }
+
+        private void getHashes() {
+            ChunkPos[] squaresSorted = Arrays.stream(squares)
+                    .sorted(Comparator.comparingInt(e -> e.z))
+                    .sorted(Comparator.comparingInt(e -> e.x))
+                    .toArray(ChunkPos[]::new);
+
+            // gets the centre of each chunk in the room
+            int[] chunkHashes = new int[squares.length];
+            int lowestHashIndex = 0;
+            for (int i = 0; i < squares.length; i++) {
+                ChunkPos square = squaresSorted[i];
+                BlockPos middle = getChunkCenter(square);
+
+                chunkHashes[i] = hashXZ(middle.getX(), middle.getZ());
+                if (chunkHashes[i] < chunkHashes[lowestHashIndex]) lowestHashIndex = i;
+            }
+
+            // combine the hashes into a string and sort the hashes to always be the same no matter the orientation of the room
+            int roomHash = Arrays.stream(chunkHashes).sorted().mapToObj(String::valueOf).collect(Collectors.joining()).hashCode();
+
+            // arbitrary number offset, 2 just seems nice and round
+            // always offsets from the same point, meaning the result is only affected by the orientation of the room
+            BlockPos centerBlock = getChunkCenter(squaresSorted[lowestHashIndex]);
+            BlockPos offset1 = centerBlock.add(2, 0, 2);
+            BlockPos offset2 = centerBlock.add(-2, 0, -2);
+
+            this.hashes = new int[] {
+                    roomHash,
+                    // create all the possible hashes for the rotations
+                    hashXZ(offset1.getX(), offset1.getZ()),
+                    hashXZ(offset2.getX(), offset1.getZ()),
+                    hashXZ(offset2.getX(), offset2.getZ()),
+                    hashXZ(offset1.getX(), offset2.getZ())
+            };
+
+            // todo: get the direction before sorting hashes
+            this.hashes = Arrays.stream(this.hashes).sorted().toArray();
+        }
+
+        private static int hashXZ(int x, int z) {
+            String hashString = "";
+            for (int y = 0; y < 255; y++) {
+                BlockState state = C.w().getBlockState(new BlockPos(x, y, z));
+                Block block = state.getBlock();
+                // ignore non full blocks as they can sometimes not be loaded cause of render distance
+                if (state.isOpaqueFullCube() && !BLACKLISTED_BLOCKS.contains(block)) {
+                    hashString += block.getTranslationKey();
+                }
+            }
+
+            return hashString.hashCode();
+        }
+
+        @AllArgsConstructor
         public enum Type {
-            MOB,
-            MINI,
-            YELLOW,
-            BLOOD,
-            FAIRY,
-            PUZZLE
+            MOB(CLEAR_ROOM_COLOUR),
+            MINI(CLEAR_ROOM_COLOUR),
+            YELLOW(new Color(0xFFE95F)),
+            BLOOD(new Color(0xFF0202)),
+            FAIRY(new Color(0xFF00FE)),
+            PUZZLE(new Color(0x6B3AFA)),
+            SPAWN(new Color(0x257506)),
+            TRAP(new Color(0xFFA002));
+
+            public final Color colour;
         }
     }
 
     public final Draggable dungeonMap = new Draggable(
             "Dungeon Map",
             () -> {
-                Render2dUtil.drawRect(-1, -1, DUNGEON_MAP_DIAMETER+1, DUNGEON_MAP_DIAMETER+1, new Color(0, 60, 255));
+                Render2dUtil.drawRect(-1, -1, DUNGEON_MAP_DIAMETER+1, DUNGEON_MAP_DIAMETER+1, new Color(22, 22, 22, 170));
 
                 for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
                     for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
@@ -100,6 +233,7 @@ public class DungeonMap extends Module {
 
                 for (int i = 0; i < ROOMS.size(); i++) {
                     Room room = ROOMS.get(i);
+                    Rectangle highestXY = new Rectangle(Integer.MAX_VALUE, Integer.MAX_VALUE, 0, 0);
                     for (int j = 0; j < room.squares.length; j++) {
                         ChunkPos square = room.squares[j];
                         BlockPos chunkCenter = getChunkCenter(square);
@@ -107,17 +241,15 @@ public class DungeonMap extends Module {
                         int x = pos3dTo2d(chunkCenter.getX()) - ROOM_RADIUS;
                         int y = pos3dTo2d(chunkCenter.getZ()) - ROOM_RADIUS;
 
-                        Render2dUtil.drawRect(x, y, ROOM_RADIUS*2, ROOM_RADIUS*2, CLEAR_ROOM_COLOUR);
-                        if (j == 0) {
-                            FontUtil.drawString("" + i, x, y, 6, Color.WHITE, true);
-                        }
+                        Render2dUtil.drawRect(x, y, ROOM_RADIUS*2, ROOM_RADIUS*2, room.type.colour);
+
+                        highestXY.x = Math.min(highestXY.x, x);
+                        highestXY.y = Math.min(highestXY.y, y);
                     }
+                    FontUtil.drawString(room.name, highestXY.x, highestXY.y, 4, Color.WHITE, true);
                 }
 
-                int playerX = pos3dTo2d(C.p().getX());
-                int playerZ = pos3dTo2d(C.p().getZ());
-
-                Render2dUtil.drawRect(playerX-3, playerZ-3, 6, 6, PLAYER_COLOUR);
+                drawPlayer(C.p());
 
                 return new int[] {DUNGEON_MAP_DIAMETER, DUNGEON_MAP_DIAMETER};
             },
@@ -137,8 +269,16 @@ public class DungeonMap extends Module {
             onEnable();
         }
 
-        getSplits();
+        // once every 20 ticks is enough, its fast as is tho tbf
+        if (C.p().age % 20 == 0) {
+            getSplits();
+            registerRooms();
+        }
 
+        return false;
+    }));
+
+    private static void registerRooms() {
         // make an array to stop concurrent modification exceptions
         for (int x : UNASSIGNED_CHUNKS.keySet().toArray(Integer[]::new)) {
             HashMap<Integer, Boolean> zChunks = UNASSIGNED_CHUNKS.get(x);
@@ -158,9 +298,7 @@ public class DungeonMap extends Module {
                 for (ChunkPos square : room.squares) assignChunk(square);
             }
         }
-
-        return false;
-    }));
+    }
 
     private static Room getRoom(ChunkPos chunkPos) {
         ArrayList<ChunkPos> connectedSquares = addSquare(chunkPos, new ArrayList<>());
@@ -201,8 +339,6 @@ public class DungeonMap extends Module {
                 || (chunkPos.x >= -DUNGEON_CHUNK_OFFSET || chunkPos.z >= -DUNGEON_CHUNK_OFFSET);
     }
 
-    private static final int DUNGEON_MAP_DIAMETER = 100;
-
     private static BlockPos getChunkCenter(ChunkPos chunkPos) {
         return new BlockPos((chunkPos.x * 16) + 7, 80, (chunkPos.z * 16) + 7);
     }
@@ -239,7 +375,8 @@ public class DungeonMap extends Module {
         if (centreBlock == Blocks.AIR || isStartDoor) {
             boolean door = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 66, chunkCenter.getZ())).getBlock() == Blocks.BEDROCK;
             BlockHitResult raycast = C.w().raycast(new RaycastContext(
-                    new Vec3d(chunkCenter.getX(), door ? 74 : 159, chunkCenter.getZ()),
+                    // starts at 82 because 4 secret trap has protrusions at y81
+                    new Vec3d(chunkCenter.getX(), door ? 82 : 159, chunkCenter.getZ()),
                     new Vec3d(chunkCenter.getX(), door ? 159 : 0, chunkCenter.getZ()),
                     RaycastContext.ShapeType.COLLIDER,
                     RaycastContext.FluidHandling.NONE,
@@ -283,6 +420,18 @@ public class DungeonMap extends Module {
 
     private static boolean isChunkUnloaded(ChunkPos chunkPos) {
         return C.w().getBlockState(new BlockPos(chunkPos.x * 16, 0, chunkPos.z * 16)).getBlock() == Blocks.VOID_AIR;
+    }
+
+    private static void drawPlayer(PlayerEntity player) {
+        int playerX = pos3dTo2d(C.p().getX());
+        int playerZ = pos3dTo2d(C.p().getZ());
+
+        Matrix3x2fStack matrices = Render2dUtil.getDrawContext().getMatrices();
+        matrices.pushMatrix();
+        matrices.translate(playerX, playerZ);
+        matrices.rotate((float) Math.toRadians(player.getYaw()-180));
+        Render2dUtil.drawPlayerHead(player, -4, -4, 8, 8, Color.WHITE);
+        matrices.popMatrix();
     }
 
     @Override

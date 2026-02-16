@@ -1,7 +1,10 @@
 package com.scale.scalehackv4.utils.render;
 
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.scale.scalehackv4.utils.C;
+import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import org.joml.Matrix3x2f;
 
@@ -112,5 +115,42 @@ public class Render2dUtil extends RenderUtil {
 
             return true;
         }, queue);
+    }
+
+    public static Identifier getPlayerSkin(PlayerEntity player) {
+        if (C.mc.getNetworkHandler() == null) return null;
+
+        PlayerListEntry playerListEntry = C.mc.getNetworkHandler().getPlayerListEntry(player.getUuid());
+        if (playerListEntry == null) return null;
+
+        return playerListEntry.getSkinTextures().body().id();
+    }
+
+    private static final int HEAD_WIDTH = 64;
+    private static final float HEAD_DIAMETER = 8f/HEAD_WIDTH;
+    private static final float HEAD_Y_OFFSET = 8f/HEAD_WIDTH;
+    private static final float BOTTOM_HEAD_LAYER_OFFSET = 8f/HEAD_WIDTH;
+    private static final float TOP_HEAD_LAYER_OFFSET = 40f/HEAD_WIDTH;
+
+    public static void drawPlayerHead(PlayerEntity player, int x, int y, int width, int height, Color tint) {
+        Matrix3x2f matrices = getMatrices();
+
+        Identifier image = getPlayerSkin(player);
+
+        if (image == null) return;
+
+        drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, getTexture(image), (vertices) -> {
+            vertices.vertex(matrices, x, y).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET).color(tint.getRGB());
+            vertices.vertex(matrices, x, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
+            vertices.vertex(matrices, x+width, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
+            vertices.vertex(matrices, x+width, y).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET).color(tint.getRGB());
+
+            vertices.vertex(matrices, x, y).texture(TOP_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET).color(tint.getRGB());
+            vertices.vertex(matrices, x, y+height).texture(TOP_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
+            vertices.vertex(matrices, x+width, y+height).texture(TOP_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
+            vertices.vertex(matrices, x+width, y).texture(TOP_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET).color(tint.getRGB());
+
+            return true;
+        }, false);
     }
 }

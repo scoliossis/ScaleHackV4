@@ -74,6 +74,7 @@ public class CommandManager {
         if (!text.startsWith(String.valueOf(prefix))) return false;
 
         try {
+            // todo: fix issue with going through past messages
             pendingSuggestions.get().getList().clear();
         } catch (ExecutionException | InterruptedException e) {
             e.printStackTrace();
