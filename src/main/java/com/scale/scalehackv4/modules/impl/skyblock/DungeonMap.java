@@ -10,17 +10,19 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
-import com.scale.scalehackv4.utils.render.Draggable;
-import com.scale.scalehackv4.utils.render.FontUtil;
-import com.scale.scalehackv4.utils.render.Render2dUtil;
-import com.scale.scalehackv4.utils.render.Render3dUtil;
+import com.scale.scalehackv4.utils.render.*;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.ShapeContext;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.PlayerInventory;
+import net.minecraft.item.FilledMapItem;
+import net.minecraft.item.Items;
+import net.minecraft.item.map.MapState;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -36,9 +38,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,6 +54,7 @@ public class DungeonMap extends Module {
     private static final HashMap<Integer, HashMap<Integer, Boolean>> UNASSIGNED_CHUNKS = new HashMap<>();
 
     private static final int MAX_DUNGEON_DIAMETER = 190;
+    private static int CURRENT_DUNGEON_DIAMETER = MAX_DUNGEON_DIAMETER;
     private static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
     private static final int DUNGEON_BLOCKS_OFFSET = 10;
     private static final int DUNGEON_CHUNK_OFFSET = Math.ceilDiv(DUNGEON_BLOCKS_OFFSET, 16);
@@ -64,7 +65,13 @@ public class DungeonMap extends Module {
     private static final int ROOM_RADIUS = 7;
     private static final int DOOR_RADIUS = 3;
 
+    private static final int GREEN_ROOM_COLOUR = 30;
+    private static final int WITHER_DOOR_COLOUR = 119;
+    private static final int MAP_ITEM_DIAMETER = 128;
+
     private static boolean wasInDungeon = false;
+
+    private static MapSizes MAP_SIZES = null;
 
     private static final File DUNGEON_ROOMS_FILE = new File(Main.BASE_FOLDER_PATH + "/dungeons/dungeon_rooms.json");
 
@@ -73,28 +80,32 @@ public class DungeonMap extends Module {
             Blocks.RED_WOOL, // waterboard
             Blocks.JUNGLE_PLANKS, // boulder
             Blocks.BIRCH_PLANKS, // boulder
-            Blocks.POLISHED_ANDESITE // ice fill
+            Blocks.POLISHED_ANDESITE, // ice fill
+            Blocks.POLISHED_GRANITE // any room with crushers
     );
 
     @AllArgsConstructor
     private enum DoorType {
         WALL(new Color(255, 255, 255)),
         FREE(CLEAR_ROOM_COLOUR),
-        WITHER(new Color(0, 0, 0)),
+        WITHER(new Color(113, 0, 213)),
         BLOOD(new Color(255, 0, 0)),;
 
         private final Color colour;
     }
     private record MapDivision(Direction.Axis axis, DoorType doorType) {}
+    private record MapSizes(Rectangle roomSizes, int doorSize, int mapIndent) {}
 
     public static class Room {
         public ChunkPos[] squares;
         public Direction facing = Direction.NORTH;
         public int lowestHashIndex = 0;
         public ArrayList<BlockPos> nodes = new ArrayList<>();
+        public State state = State.UNVISITED;
 
         public String name = "";
         public int secrets = -1;
+        public int secretsFound = 0;
         public Type type = Type.MOB;
         public int hash;
         public int[] facingHashes;
@@ -222,61 +233,41 @@ public class DungeonMap extends Module {
             FAIRY(new Color(0xFF00FE)),
             PUZZLE(new Color(0x6B3AFA)),
             SPAWN(new Color(0x257506)),
-            TRAP(new Color(0xFFA002));
+            TRAP(new Color(0xF88521));
 
             public final Color colour;
+        }
+
+        public enum State {
+            UNVISITED,
+            FAILED,
+            VISITED,
+            CLEARED,
+            GREEN_FN // niche
         }
     }
 
     public final Draggable dungeonMap = new Draggable(
             "Dungeon Map",
             () -> {
-                Render2dUtil.drawRect(-1, -1, DUNGEON_MAP_DIAMETER+1, DUNGEON_MAP_DIAMETER+1, new Color(22, 22, 22, 170));
+                int outlineSize = (int) (((float)CURRENT_DUNGEON_DIAMETER/MAX_DUNGEON_DIAMETER) * DUNGEON_MAP_DIAMETER) + 1;
+                Render2dUtil.drawRect(0, 0, outlineSize, outlineSize, new Color(22, 22, 22, 170));
 
-                for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
-                    for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
-                        MapDivision mapDivision = MAP_DIVISIONS.get(x).get(z);
+                DrawContext dc = RenderUtil.getDrawContext();
+                dc.enableScissor(0, 0, outlineSize, outlineSize);
 
-                        if (mapDivision.doorType == DoorType.WALL) continue;
+                // push a new matrix just to translate 1 pixel to the right :pray:
+                dc.getMatrices().pushMatrix();
+                dc.getMatrices().translate(1, 1);
 
-                        BlockPos chunkCenter = getChunkCenter(new ChunkPos(x, z));
-
-                        int x2d = pos3dTo2d(chunkCenter.getX()) - DOOR_RADIUS;
-                        int y2d = pos3dTo2d(chunkCenter.getZ()) - DOOR_RADIUS;
-
-                        Render2dUtil.drawRect(x2d, y2d, DOOR_RADIUS*2, DOOR_RADIUS*2, mapDivision.doorType.colour);
-                    }
-                }
-
-                for (int i = 0; i < ROOMS.size(); i++) {
-                    Room room = ROOMS.get(i);
-                    Rectangle highestXY = new Rectangle(Integer.MAX_VALUE, Integer.MAX_VALUE, 0, 0);
-                    for (int j = 0; j < room.squares.length; j++) {
-                        ChunkPos square = room.squares[j];
-                        BlockPos chunkCenter = getChunkCenter(square);
-
-                        int x = pos3dTo2d(chunkCenter.getX()) - ROOM_RADIUS;
-                        int y = pos3dTo2d(chunkCenter.getZ()) - ROOM_RADIUS;
-
-                        Render2dUtil.drawRect(x, y, ROOM_RADIUS*2, ROOM_RADIUS*2, room.type.colour);
-
-                        highestXY.x = Math.min(highestXY.x, x);
-                        highestXY.y = Math.min(highestXY.y, y);
-                    }
-                    if (room.secrets == -1) {
-                        FontUtil.drawString("N/A", highestXY.x, highestXY.y, 4, Color.WHITE, true);
-                    }
-                    else if (room.secrets == 0) {
-                        FontUtil.drawString("0", highestXY.x, highestXY.y, 4, Color.WHITE, true);
-                    }
-                    else {
-                        FontUtil.drawString("0/" + room.secrets, highestXY.x, highestXY.y, 4, Color.WHITE, true);
-                    }
-                }
-
+                drawDoors();
+                drawRooms();
                 drawPlayer(C.p());
 
-                return new int[] {DUNGEON_MAP_DIAMETER, DUNGEON_MAP_DIAMETER};
+                dc.getMatrices().popMatrix();
+                dc.disableScissor();
+
+                return new int[] {outlineSize, outlineSize};
             },
             e -> ModuleUtil.isEnabled(DungeonMap.class) && AreaUtil.isInDungeons(),
             e -> true
@@ -311,9 +302,72 @@ public class DungeonMap extends Module {
             getSplits();
             registerRooms();
         }
+        // parse this guy ALWAYS
+        parseMap();
 
         return false;
     }));
+
+    private static void drawDoors() {
+        for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
+            for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
+                MapDivision mapDivision = MAP_DIVISIONS.get(x).get(z);
+
+                if (mapDivision.doorType == DoorType.WALL) continue;
+
+                BlockPos chunkCenter = getChunkCenter(new ChunkPos(x, z));
+
+                int x2d = pos3dTo2d(chunkCenter.getX()) - DOOR_RADIUS;
+                int y2d = pos3dTo2d(chunkCenter.getZ()) - DOOR_RADIUS;
+
+                int connections = 0;
+                for (Room room : ROOMS) {
+                    if (room.state == Room.State.UNVISITED || connections >= 2) continue;
+
+
+                    for (ChunkPos chunkPos : room.squares) {
+                        if (chunkPos.x == x-1 && chunkPos.z == z
+                                || chunkPos.x == x+1 && chunkPos.z == z
+                                || chunkPos.x == x && chunkPos.z == z+1
+                                || chunkPos.x == x && chunkPos.z == z-1
+                        ) {
+                            connections++;
+                            break;
+                        }
+                    }
+                }
+
+                Render2dUtil.drawRect(x2d, y2d, DOOR_RADIUS*2, DOOR_RADIUS*2, connections >= 2 ? mapDivision.doorType.colour : mapDivision.doorType.colour.darker());
+            }
+        }
+    }
+
+    private static void drawRooms() {
+        for (int i = 0; i < ROOMS.size(); i++) {
+            Room room = ROOMS.get(i);
+            Rectangle highestXY = new Rectangle(Integer.MAX_VALUE, Integer.MAX_VALUE, 0, 0);
+            for (int j = 0; j < room.squares.length; j++) {
+                ChunkPos square = room.squares[j];
+                BlockPos chunkCenter = getChunkCenter(square);
+
+                int x = pos3dTo2d(chunkCenter.getX()) - ROOM_RADIUS;
+                int y = pos3dTo2d(chunkCenter.getZ()) - ROOM_RADIUS;
+                Color roomColour = room.state == Room.State.UNVISITED ? room.type.colour.darker() : room.type.colour;
+
+                Render2dUtil.drawRect(x, y, ROOM_RADIUS*2, ROOM_RADIUS*2, roomColour);
+
+                highestXY.x = Math.min(highestXY.x, x);
+                highestXY.y = Math.min(highestXY.y, y);
+            }
+
+            Color secretsColour = room.state == Room.State.CLEARED ? Color.WHITE
+                    : room.state == Room.State.GREEN_FN ? Color.GREEN
+                    : room.state == Room.State.FAILED ? new Color(255, 0, 0)
+                    : new Color(101, 101, 101);
+            String secretsText = room.secrets == -1 ? "N/A" : room.secrets == 0 ? "0" : room.secretsFound + "/" + room.secrets;
+            FontUtil.drawString(secretsText, highestXY.x, highestXY.y, 6, secretsColour, true);
+        }
+    }
 
     private static void registerRooms() {
         // make an array to stop concurrent modification exceptions
@@ -413,12 +467,23 @@ public class DungeonMap extends Module {
                 || (chunkPos.x >= -DUNGEON_CHUNK_OFFSET || chunkPos.z >= -DUNGEON_CHUNK_OFFSET);
     }
 
+    public static ChunkPos getTopRoomChunk(Room room) {
+        return Arrays.stream(room.squares)
+                .sorted(Comparator.comparingInt(e -> e.x))
+                .sorted(Comparator.comparingInt(e -> e.z))
+                .toList().getFirst();
+    }
+
     public static BlockPos getChunkCenter(ChunkPos chunkPos) {
         return new BlockPos((chunkPos.x * 16) + 7, 0, (chunkPos.z * 16) + 7);
     }
 
     private static int pos3dTo2d(double pos) {
-        double multi = (double) DUNGEON_MAP_DIAMETER / MAX_DUNGEON_DIAMETER;
+        return pos3dTo2d(pos, DUNGEON_MAP_DIAMETER, MAX_DUNGEON_DIAMETER);
+    }
+
+    private static int pos3dTo2d(double pos, int width, int maxWidth) {
+        double multi = (double) width / maxWidth;
         return (int) ((pos + (DUNGEON_BLOCKS_OFFSET+MAX_DUNGEON_DIAMETER)) * multi);
     }
 
@@ -463,14 +528,7 @@ public class DungeonMap extends Module {
             boolean north = C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.AIR
                     || (C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.INFESTED_CHISELED_STONE_BRICKS && isStartDoor);
 
-            DoorType doorType = isStartDoor ? DoorType.FREE : DoorType.WALL;
-            if (door) {
-                Block doorBlock = C.w().getBlockState(new BlockPos(chunkCenter.getX(), 69, chunkCenter.getZ())).getBlock();
-
-                if (doorBlock == Blocks.AIR) doorType = DoorType.FREE;
-                else if (doorBlock == Blocks.COAL_BLOCK) doorType = DoorType.WITHER;
-                else if (doorBlock == Blocks.RED_TERRACOTTA) doorType = DoorType.BLOOD;
-            }
+            DoorType doorType = isStartDoor ? DoorType.FREE : door ? getDoorType(chunkCenter) : DoorType.WALL;
 
             MAP_DIVISIONS.computeIfAbsent(chunkPos.x, k -> new HashMap<>())
                     .put(chunkPos.z, new MapDivision(north ? Direction.Axis.X : Direction.Axis.Z, doorType));
@@ -479,6 +537,14 @@ public class DungeonMap extends Module {
         }
 
         return true;
+    }
+
+    private static DoorType getDoorType(BlockPos pos) {
+        Block block = C.w().getBlockState(pos.offset(Direction.UP, 69)).getBlock();
+        if (block == Blocks.AIR) return DoorType.FREE;
+        if (block == Blocks.COAL_BLOCK) return DoorType.WITHER;
+        if (block == Blocks.RED_TERRACOTTA) return DoorType.BLOOD;
+        return DoorType.WALL;
     }
 
     private static void assignChunk(ChunkPos chunkPos) {
@@ -508,6 +574,90 @@ public class DungeonMap extends Module {
         matrices.popMatrix();
     }
 
+    private static void parseMap() {
+        MapState mapState = getMapState();
+        if (mapState == null) return;
+
+        if (MAP_SIZES == null || MAP_SIZES.doorSize == -1) MAP_SIZES = getMapSizeValues(mapState.colors);
+        if (MAP_SIZES == null || MAP_SIZES.doorSize == -1) return;
+
+        int realMapSize = MAP_ITEM_DIAMETER - MAP_SIZES.mapIndent*2;
+        CURRENT_DUNGEON_DIAMETER = (Math.floorDiv(realMapSize, MAP_SIZES.doorSize+MAP_SIZES.roomSizes.width) * 32) - 2;
+
+        for (Room room : ROOMS) {
+            BlockPos chunkCenter = getChunkCenter(getTopRoomChunk(room));
+
+            int roomX = pos3dTo2d(chunkCenter.getX(), realMapSize, CURRENT_DUNGEON_DIAMETER)+MAP_SIZES.mapIndent;
+            int roomY = pos3dTo2d(chunkCenter.getZ(), realMapSize, CURRENT_DUNGEON_DIAMETER)+MAP_SIZES.mapIndent;
+
+            for (int x = -2; x <= 2; x++) {
+                for (int y = -2; y <= 2; y++) {
+                    int colour = mapState.colors[(roomX+x) + ((roomY+y) * MAP_ITEM_DIAMETER)];
+
+                    // if the map shows the position as grey/nothing there/black, the room is unvisited
+                    if (colour == 85 || colour == 0 || colour == 119) continue;
+
+                    if (colour == 34) room.state = Room.State.CLEARED;
+                    else if (colour == 30 && room.type != Room.Type.SPAWN) room.state = Room.State.GREEN_FN;
+                    else if (colour == 18 && room.type != Room.Type.BLOOD) room.state = Room.State.FAILED;
+                    else if (room.state == Room.State.UNVISITED) room.state = Room.State.VISITED;
+                }
+            }
+        }
+    }
+
+    private static MapSizes getMapSizeValues(byte[] colours) {
+        Rectangle roomSizes = null;
+        int doorSize = -1;
+
+        for (int x = 0; x < MAP_ITEM_DIAMETER; x++) {
+            for (int y = 0; y < MAP_ITEM_DIAMETER; y++) {
+                int colour = colours[x + y * MAP_ITEM_DIAMETER];
+                if (colour == GREEN_ROOM_COLOUR) {
+                    if (roomSizes == null) roomSizes = new Rectangle(x, y, 0, 0);
+                    else {
+                        roomSizes.width = x - roomSizes.x;
+                        roomSizes.height = y - roomSizes.y;
+                    }
+                }
+                else if (colour == WITHER_DOOR_COLOUR && doorSize == -1) {
+                    int doorWidth = 0;
+                    while (getMapColour(x+doorWidth, y, colours) == WITHER_DOOR_COLOUR) doorWidth++;
+
+                    int doorHeight = 0;
+                    while (getMapColour(x, y+doorHeight, colours) == WITHER_DOOR_COLOUR) doorHeight++;
+
+                    // check thats its actually a door and not a question mark
+                    if (doorWidth > 3 && doorHeight > 3) doorSize = Math.min(doorWidth, doorHeight);
+                }
+            }
+        }
+
+        if (roomSizes == null) return null;
+
+        int mapIndent = Math.min(Math.min(
+                Math.min(roomSizes.x, roomSizes.y),
+                MAP_ITEM_DIAMETER-(roomSizes.x+roomSizes.width)),
+                MAP_ITEM_DIAMETER-(roomSizes.y+roomSizes.height)
+        );
+
+        return new MapSizes(roomSizes, doorSize, mapIndent);
+    }
+
+    private static int getMapColour(int x, int y, byte[] colours) {
+        return colours[x + y * MAP_ITEM_DIAMETER];
+    }
+
+
+    private static MapState getMapState() {
+        for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {
+            if (C.p().getInventory().getStack(i).getItem() == Items.FILLED_MAP) {
+                return FilledMapItem.getMapState(C.p().getInventory().getStack(i), C.w());
+            }
+        }
+        return null;
+    }
+
     @Override
     public void onEnable() {
         for (int x = -MAX_DUNGEON_CHUNKS; x < -DUNGEON_CHUNK_OFFSET; x++) {
@@ -524,5 +674,7 @@ public class DungeonMap extends Module {
         UNSCANNED_CHUNKS.clear();
         MAP_DIVISIONS.clear();
         ROOMS.clear();
+        MAP_SIZES = null;
+        CURRENT_DUNGEON_DIAMETER = MAX_DUNGEON_DIAMETER;
     }
 }
