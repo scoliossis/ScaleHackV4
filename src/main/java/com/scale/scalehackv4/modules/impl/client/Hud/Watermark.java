@@ -71,7 +71,7 @@ public class Watermark extends HudModule {
             currentPing = System.currentTimeMillis() - lastPingTime;
         }
 
-        if (System.currentTimeMillis()-lastPingTime > Math.max(500, currentPing*2)) {
+        if (System.currentTimeMillis()-lastPingTime > Math.max(2000, currentPing*2)) {
             lastPingTime = System.currentTimeMillis();
             PacketUtil.sendImmediately(new ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS));
         }

@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 // based of the command manager from https://github.com/scoliossis/ScaleHackOpenSrc
@@ -57,7 +57,7 @@ public class CommandManager {
 
         // i love fuzzysearch
         List<ExtractedResult> results = FuzzySearch.extractAll(input.toLowerCase(), commandNames, 40);
-        results.sort(Comparator.comparingInt(ExtractedResult::getScore));
+        results.sort(Comparator.comparingInt(ExtractedResult::getScore).reversed());
         return results;
     }
 
@@ -74,9 +74,8 @@ public class CommandManager {
         if (!text.startsWith(String.valueOf(prefix))) return false;
 
         try {
-            // todo: fix issue with going through past messages
-            pendingSuggestions.get().getList().clear();
-        } catch (ExecutionException | InterruptedException e) {
+            pendingSuggestions.get(100, TimeUnit.MILLISECONDS).getList().clear();
+        } catch (Exception e) {
             e.printStackTrace();
             return false;
         }
@@ -112,8 +111,8 @@ public class CommandManager {
 
     public static void addCommand(String command, StringRange range, CompletableFuture<Suggestions> pendingSuggestions) {
         try {
-            pendingSuggestions.get().getList().add(new Suggestion(range, command));
-        } catch (ExecutionException | InterruptedException e) {
+            pendingSuggestions.get(100, TimeUnit.MILLISECONDS).getList().add(new Suggestion(range, command));
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
