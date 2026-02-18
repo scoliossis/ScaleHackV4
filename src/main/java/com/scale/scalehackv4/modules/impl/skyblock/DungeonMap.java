@@ -3,6 +3,7 @@ package com.scale.scalehackv4.modules.impl.skyblock;
 import com.google.gson.internal.LinkedTreeMap;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.Category;
@@ -23,6 +24,8 @@ import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.FilledMapItem;
 import net.minecraft.item.Items;
 import net.minecraft.item.map.MapState;
+import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -286,7 +289,7 @@ public class DungeonMap extends Module {
     }));
 
     // infrequently posted event
-    private final Event playerUpdateEvent = new PlayerUpdateEvent(this, (params -> {
+    private final Event playerUpdateEvent = new PlayerUpdateEvent(this, params -> {
         if (!AreaUtil.isInDungeons()) {
             if (wasInDungeon) onDisable();
             return false;
@@ -297,16 +300,32 @@ public class DungeonMap extends Module {
             onEnable();
         }
 
-        // once every 20 ticks is enough, its fast as is tho tbf
+        // once a second is enough, its fast as is tho tbf
         if (C.p().age % 20 == 0) {
             getSplits();
             registerRooms();
+            parseMap(); // relatively slow process, maybe move to a separate thread
         }
-        // parse this guy ALWAYS
-        parseMap();
 
         return false;
-    }));
+    });
+
+    private final Event updateSecretCount = new PacketEvent.Received(this, event -> {
+        if (!(event.packet instanceof GameMessageS2CPacket packet)) return false;
+
+        String text = Formatting.strip(packet.content().getString());
+        if (!text.contains("Secrets")) return false;
+
+        Room currentRoom = AreaUtil.getCurrentRoom();
+        if (currentRoom == null) return false;
+
+        String split = text.split("Secrets")[0].trim();
+        String secretCount = split.substring(split.lastIndexOf(" ") + 1).split("/")[0];
+
+        currentRoom.secretsFound = Integer.parseInt(secretCount);
+
+        return false;
+    });
 
     private static void drawDoors() {
         for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
@@ -320,26 +339,33 @@ public class DungeonMap extends Module {
                 int x2d = pos3dTo2d(chunkCenter.getX()) - DOOR_RADIUS;
                 int y2d = pos3dTo2d(chunkCenter.getZ()) - DOOR_RADIUS;
 
-                int connections = 0;
-                for (Room room : ROOMS) {
-                    if (room.state == Room.State.UNVISITED || connections >= 2) continue;
+                // if the door doesnt connect 2 open rooms, make it greyed out.
+                Color doorColour = getOpenedConnections(x, z) == 2 ? mapDivision.doorType.colour : mapDivision.doorType.colour.darker();
 
-
-                    for (ChunkPos chunkPos : room.squares) {
-                        if (chunkPos.x == x-1 && chunkPos.z == z
-                                || chunkPos.x == x+1 && chunkPos.z == z
-                                || chunkPos.x == x && chunkPos.z == z+1
-                                || chunkPos.x == x && chunkPos.z == z-1
-                        ) {
-                            connections++;
-                            break;
-                        }
-                    }
-                }
-
-                Render2dUtil.drawRect(x2d, y2d, DOOR_RADIUS*2, DOOR_RADIUS*2, connections >= 2 ? mapDivision.doorType.colour : mapDivision.doorType.colour.darker());
+                Render2dUtil.drawRect(x2d, y2d, DOOR_RADIUS*2, DOOR_RADIUS*2, doorColour);
             }
         }
+    }
+
+    private static int getOpenedConnections(int x, int z) {
+        int connections = 0;
+
+        for (Room room : ROOMS) {
+            if (room.state == Room.State.UNVISITED || connections == 2) continue;
+
+            for (ChunkPos chunkPos : room.squares) {
+                if (chunkPos.x == x-1 && chunkPos.z == z
+                        || chunkPos.x == x+1 && chunkPos.z == z
+                        || chunkPos.x == x && chunkPos.z == z+1
+                        || chunkPos.x == x && chunkPos.z == z-1
+                ) {
+                    connections++;
+                    break;
+                }
+            }
+        }
+
+        return connections;
     }
 
     private static void drawRooms() {
@@ -364,7 +390,9 @@ public class DungeonMap extends Module {
                     : room.state == Room.State.GREEN_FN ? Color.GREEN
                     : room.state == Room.State.FAILED ? new Color(255, 0, 0)
                     : new Color(101, 101, 101);
-            String secretsText = room.secrets == -1 ? "N/A" : room.secrets == 0 ? "0" : room.secretsFound + "/" + room.secrets;
+
+            int secretsFound = room.state == Room.State.GREEN_FN ? room.secrets : room.secretsFound;
+            String secretsText = room.secrets == -1 ? "N/A" : room.secrets == 0 ? "0" : secretsFound+ "/" + room.secrets;
             FontUtil.drawString(secretsText, highestXY.x, highestXY.y, 6, secretsColour, true);
         }
     }
@@ -592,7 +620,10 @@ public class DungeonMap extends Module {
 
             for (int x = -2; x <= 2; x++) {
                 for (int y = -2; y <= 2; y++) {
-                    int colour = mapState.colors[(roomX+x) + ((roomY+y) * MAP_ITEM_DIAMETER)];
+                    int colourIndex = (roomX+x) + ((roomY+y) * MAP_ITEM_DIAMETER);
+                    if (colourIndex >= mapState.colors.length) continue; // this does happen, not sure why, mb ig
+
+                    int colour = mapState.colors[colourIndex];
 
                     // if the map shows the position as grey/nothing there/black, the room is unvisited
                     if (colour == 85 || colour == 0 || colour == 119) continue;
