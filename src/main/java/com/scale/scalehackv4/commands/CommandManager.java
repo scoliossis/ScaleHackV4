@@ -76,7 +76,7 @@ public class CommandManager {
         try {
             pendingSuggestions.get(100, TimeUnit.MILLISECONDS).getList().clear();
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
             return false;
         }
 
@@ -113,7 +113,7 @@ public class CommandManager {
         try {
             pendingSuggestions.get(100, TimeUnit.MILLISECONDS).getList().add(new Suggestion(range, command));
         } catch (Exception e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 

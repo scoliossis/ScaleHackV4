@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.*;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
@@ -81,10 +82,19 @@ public class DungeonMap extends Module {
     // blocks for the hashing algorithm to ignore because they can be in different positions randomly
     private static final List<Block> BLACKLISTED_BLOCKS = List.of(
             Blocks.RED_WOOL, // waterboard
+            Blocks.LIME_WOOL, // waterboard
+            Blocks.BLUE_WOOL, // waterboard
+            Blocks.ORANGE_WOOL, // waterboard
+            Blocks.PURPLE_WOOL, // waterboard
+            Blocks.PISTON, // waterboard
             Blocks.JUNGLE_PLANKS, // boulder
             Blocks.BIRCH_PLANKS, // boulder
             Blocks.POLISHED_ANDESITE, // ice fill
-            Blocks.POLISHED_GRANITE // any room with crushers
+            Blocks.ANDESITE, // trap
+            Blocks.POLISHED_GRANITE, // any room with crushers
+            Blocks.MOSSY_COBBLESTONE, // i was scared mossy cobble was scattered, but it isnt, already marked rooms, cant remove now
+            Blocks.STONE_BRICKS, // crypts
+            Blocks.CRACKED_STONE_BRICKS // crypts and exploding walls
     );
 
     @AllArgsConstructor
@@ -128,17 +138,30 @@ public class DungeonMap extends Module {
             this.name = (String) room.getOrDefault("name", "");
             this.secrets = (int) Double.parseDouble(room.getOrDefault("secrets", -1).toString());
             this.type = Type.valueOf((String) room.getOrDefault("type", "RARE"));
-            getFacing(room.getOrDefault("hashes", new int[0]), facingHashes[0]);
+            getFacing(room.getOrDefault("hashes", new int[0]));
             getNodes((String) room.getOrDefault("nodes", ""));
         }
 
-        private void getFacing(Object hashes, int currentFacingHash) {
-            this.facingHashes = Arrays.stream(hashes.toString().replaceAll("[\\[\\]\\s]", "").split(",")).mapToInt(Integer::parseInt).toArray();
+        private void getFacing(Object hashes) {
+            int[] northFacingHashes = Arrays.stream(hashes.toString().replaceAll("[\\[\\]\\s]", "").split(",")).mapToInt(Integer::parseInt).toArray();
 
-            if (this.facingHashes[0] == currentFacingHash) facing = Direction.NORTH;
-            else if (this.facingHashes[1] == currentFacingHash) facing = Direction.EAST;
-            else if (this.facingHashes[2] == currentFacingHash) facing = Direction.SOUTH;
-            else facing = Direction.WEST;
+            // loops to find the offset of the array which matches the current hashes
+            for (int offset = 0; offset < 4; offset++) {
+                boolean matches = true;
+                for (int i = 0; i < 4; i++) {
+                    // check that everything is in the same order at this offset
+                    if (this.facingHashes[i] != northFacingHashes[(i + offset) % 4]) {
+                        matches = false;
+                        break;
+                    }
+                }
+                if (matches) {
+                    this.facing = offset == 0 ? Direction.NORTH : offset == 1 ? Direction.WEST : offset == 2 ? Direction.SOUTH : Direction.EAST;
+                    return;
+                }
+            }
+
+            ChatUtil.chat("WARNING: Room facing hashes not found: " + this.name + "!");
         }
 
         private void getNodes(String nodesString) {
@@ -168,6 +191,10 @@ public class DungeonMap extends Module {
             room.put("hashes", Arrays.toString(this.facingHashes));
             room.put("nodes", nodes.stream().map(e -> e.getX()+","+e.getY()+","+e.getZ()).collect(Collectors.joining(",")));
 
+            if (rooms.containsKey(hash+"")) {
+                System.out.println("Overwriting room: " + name);
+                ChatUtil.chat("Room overwritten: " + name + "!");
+            }
             rooms.put(hash+"", room);
 
             try {
@@ -197,7 +224,8 @@ public class DungeonMap extends Module {
                 ChunkPos square = squares[i];
                 BlockPos middle = getChunkCenter(square);
 
-                chunkHashes[i] = hashXZ(middle.getX(), middle.getZ());
+                chunkHashes[i] = hashPos(middle).hashCode();
+                // i assume no room has several equal chunk hashes, *gulp*
                 if (chunkHashes[i] < chunkHashes[this.lowestHashIndex]) this.lowestHashIndex = i;
             }
 
@@ -211,19 +239,20 @@ public class DungeonMap extends Module {
         }
 
         public int[] getFacingHashes() {
-            // arbitrary number offsets, some rooms are almost symmetrical, like boulder, two offsets should be enough
-            // always offsets from the same point, meaning the result is only affected by the orientation of the room
             BlockPos centerBlock = getChunkCenter(this.squares[this.lowestHashIndex]);
-            BlockPos offset1 = centerBlock.add(7, 0, 7);
-            BlockPos offset2 = centerBlock.add(-7, 0, -7);
 
-            return new int[] {
-                    // create all the possible hashes for the rotations
-                    hashXZ(centerBlock.getX(), offset1.getZ()),
-                    hashXZ(offset1.getX(), centerBlock.getZ()),
-                    hashXZ(centerBlock.getX(), offset2.getZ()),
-                    hashXZ(offset2.getX(), centerBlock.getZ())
-            };
+            String[] hashes = new String[4];
+
+            // scans the whole chunk
+            // always offsets from the same point, meaning the result is only affected by the orientation of the room
+            for (int i = 1; i < 7; i++) {
+                hashes[0] += hashPos(centerBlock.offset(Direction.NORTH, i));
+                hashes[1] += hashPos(centerBlock.offset(Direction.EAST, i));
+                hashes[2] += hashPos(centerBlock.offset(Direction.SOUTH, i));
+                hashes[3] += hashPos(centerBlock.offset(Direction.WEST, i));
+            }
+
+            return new int[] {hashes[0].hashCode(), hashes[1].hashCode(), hashes[2].hashCode(), hashes[3].hashCode()};
         }
 
         @AllArgsConstructor
@@ -419,18 +448,23 @@ public class DungeonMap extends Module {
         }
     }
 
-    private static int hashXZ(int x, int z) {
+    private static String hashPos(BlockPos pos) {
         String hashString = "";
+
+        String lastKey = "";
         for (int y = 0; y < 255; y++) {
-            BlockState state = C.w().getBlockState(new BlockPos(x, y, z));
+            BlockState state = C.w().getBlockState(new BlockPos(pos.getX(), y, pos.getZ()));
             Block block = state.getBlock();
             // ignore non full blocks as they can sometimes not be loaded cause of render distance
             if (state.isOpaqueFullCube() && !BLACKLISTED_BLOCKS.contains(block)) {
-                hashString += block.getTranslationKey();
+                // since the roofs are different sometimes, we dont include the top layer
+                // the last valid block is NEVER added to hashString and is forgotten like a grain of sand in the desert.
+                hashString += lastKey;
+                lastKey = block.getTranslationKey();
             }
         }
 
-        return hashString.hashCode();
+        return hashString;
     }
 
     private static BlockPos getNodePos(BlockPos node, Room room) {
@@ -610,7 +644,7 @@ public class DungeonMap extends Module {
         if (MAP_SIZES == null || MAP_SIZES.doorSize == -1) return;
 
         int realMapSize = MAP_ITEM_DIAMETER - MAP_SIZES.mapIndent*2;
-        CURRENT_DUNGEON_DIAMETER = (Math.floorDiv(realMapSize, MAP_SIZES.doorSize+MAP_SIZES.roomSizes.width) * 32) - 2;
+        CURRENT_DUNGEON_DIAMETER = (Math.floorDiv(realMapSize+MAP_SIZES.doorSize, MAP_SIZES.doorSize+MAP_SIZES.roomSizes.width) * 32) - 2;
 
         for (Room room : ROOMS) {
             BlockPos chunkCenter = getChunkCenter(getTopRoomChunk(room));
@@ -621,7 +655,11 @@ public class DungeonMap extends Module {
             for (int x = -2; x <= 2; x++) {
                 for (int y = -2; y <= 2; y++) {
                     int colourIndex = (roomX+x) + ((roomY+y) * MAP_ITEM_DIAMETER);
-                    if (colourIndex >= mapState.colors.length) continue; // this does happen, not sure why, mb ig
+                    // not sure if this still happens, issue with first try, probably fixed
+                    if (colourIndex >= mapState.colors.length) {
+                        ChatUtil.prefixMessage("Critical error!!! (lie, but maybe bad, report pls <3 the map parsing has failed)");
+                        continue;
+                    }
 
                     int colour = mapState.colors[colourIndex];
 
@@ -659,7 +697,9 @@ public class DungeonMap extends Module {
                     while (getMapColour(x, y+doorHeight, colours) == WITHER_DOOR_COLOUR) doorHeight++;
 
                     // check thats its actually a door and not a question mark
-                    if (doorWidth > 3 && doorHeight > 3) doorSize = Math.min(doorWidth, doorHeight);
+                    if (doorWidth < 3 && doorHeight < 3) continue;
+
+                    doorSize = Math.min(doorWidth, doorHeight) + 1;
                 }
             }
         }
@@ -670,7 +710,7 @@ public class DungeonMap extends Module {
                 Math.min(roomSizes.x, roomSizes.y),
                 MAP_ITEM_DIAMETER-(roomSizes.x+roomSizes.width)),
                 MAP_ITEM_DIAMETER-(roomSizes.y+roomSizes.height)
-        );
+        ) + 1;
 
         return new MapSizes(roomSizes, doorSize, mapIndent);
     }
