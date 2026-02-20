@@ -133,13 +133,19 @@ public class Render2dUtil extends RenderUtil {
     private static final float TOP_HEAD_LAYER_OFFSET = 40f/HEAD_WIDTH;
 
     public static void drawPlayerHead(PlayerEntity player, int x, int y, int width, int height, Color tint) {
+        drawSkinHead(getPlayerSkin(player), x, y, width, height, tint);
+    }
+
+    // https://open.spotify.com/track/722tgOgdIbNe3BEyLnejw4
+    public static void drawSkinHead(Identifier skin, int x, int y, int width, int height, Color tint) {
         Matrix3x2f matrices = getMatrices();
 
-        Identifier image = getPlayerSkin(player);
+        if (skin == null) {
+            skin = getPlayerSkin(C.p());
+            if (skin == null) return;
+        }
 
-        if (image == null) return;
-
-        drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, getTexture(image), (vertices) -> {
+        drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, getTexture(skin), (vertices) -> {
             vertices.vertex(matrices, x, y).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET).color(tint.getRGB());
             vertices.vertex(matrices, x, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
             vertices.vertex(matrices, x+width, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());

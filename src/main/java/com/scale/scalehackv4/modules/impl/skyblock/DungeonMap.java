@@ -2,6 +2,7 @@ package com.scale.scalehackv4.modules.impl.skyblock;
 
 import com.google.gson.internal.LinkedTreeMap;
 import com.scale.scalehackv4.Main;
+import com.scale.scalehackv4.bridge.MapDecorationsBridge;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
@@ -12,6 +13,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
+import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.*;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import lombok.AllArgsConstructor;
@@ -24,9 +26,11 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.item.FilledMapItem;
 import net.minecraft.item.Items;
+import net.minecraft.item.map.MapDecoration;
 import net.minecraft.item.map.MapState;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -36,6 +40,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import org.apache.commons.io.FileUtils;
 import org.joml.Matrix3x2fStack;
+import org.joml.Vector2f;
+import org.joml.Vector2i;
 
 import java.awt.*;
 import java.io.File;
@@ -58,24 +64,22 @@ public class DungeonMap extends Module {
     private static final HashMap<Integer, HashMap<Integer, Boolean>> UNASSIGNED_CHUNKS = new HashMap<>();
 
     private static final int MAX_DUNGEON_DIAMETER = 190;
-    private static int CURRENT_DUNGEON_DIAMETER = MAX_DUNGEON_DIAMETER;
+    private static Vector2f CURRENT_DUNGEON_DIAMETER = new Vector2f(MAX_DUNGEON_DIAMETER, MAX_DUNGEON_DIAMETER);
     private static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
     private static final int DUNGEON_BLOCKS_OFFSET = 10;
     private static final int DUNGEON_CHUNK_OFFSET = Math.ceilDiv(DUNGEON_BLOCKS_OFFSET, 16);
 
-    private static final Color CLEAR_ROOM_COLOUR = new Color(169, 104, 5);
-
-    private static final int DUNGEON_MAP_DIAMETER = 100;
+    private static final int MAX_DUNGEON_MAP_DIAMETER = 100;
     private static final int ROOM_RADIUS = 7;
     private static final int DOOR_RADIUS = 3;
 
-    private static final int GREEN_ROOM_COLOUR = 30;
-    private static final int WITHER_DOOR_COLOUR = 119;
     private static final int MAP_ITEM_DIAMETER = 128;
+    private static final int MAP_ITEM_ROOM_SIZES = 18;
+    private static final int MAP_ITEM_DOOR_SIZES = 2;
+    private static final int MAP_SQUARE_SIZE = MAP_ITEM_ROOM_SIZES+MAP_ITEM_DOOR_SIZES;
 
     private static boolean wasInDungeon = false;
-
-    private static MapSizes MAP_SIZES = null;
+    private static boolean finishedScanning = false;
 
     private static final File DUNGEON_ROOMS_FILE = new File(Main.BASE_FOLDER_PATH + "/dungeons/dungeon_rooms.json");
 
@@ -100,14 +104,13 @@ public class DungeonMap extends Module {
     @AllArgsConstructor
     private enum DoorType {
         WALL(new Color(255, 255, 255)),
-        FREE(CLEAR_ROOM_COLOUR),
+        FREE(new Color(169, 104, 5)),
         WITHER(new Color(113, 0, 213)),
         BLOOD(new Color(255, 0, 0)),;
 
         private final Color colour;
     }
     private record MapDivision(Direction.Axis axis, DoorType doorType) {}
-    private record MapSizes(Rectangle roomSizes, int doorSize, int mapIndent) {}
 
     public static class Room {
         public ChunkPos[] squares;
@@ -257,9 +260,9 @@ public class DungeonMap extends Module {
 
         @AllArgsConstructor
         public enum Type {
-            MOB(CLEAR_ROOM_COLOUR),
-            MINI(CLEAR_ROOM_COLOUR),
-            RARE(new Color(0xAF6803)),
+            MOB(new Color(169, 104, 5)),
+            MINI(new Color(169, 104, 5)),
+            RARE(new Color(0x0666DC)),
             YELLOW(new Color(0xFFE95F)),
             BLOOD(new Color(0xFF0202)),
             FAIRY(new Color(0xFF00FE)),
@@ -282,11 +285,11 @@ public class DungeonMap extends Module {
     public final Draggable dungeonMap = new Draggable(
             "Dungeon Map",
             () -> {
-                int outlineSize = (int) (((float)CURRENT_DUNGEON_DIAMETER/MAX_DUNGEON_DIAMETER) * DUNGEON_MAP_DIAMETER) + 1;
-                Render2dUtil.drawRect(0, 0, outlineSize, outlineSize, new Color(22, 22, 22, 170));
+                Vector2i mapDiameter = getMapDiameter();
+                Render2dUtil.drawRect(0, 0, mapDiameter.x+1, mapDiameter.y+1, new Color(22, 22, 22, 170));
 
                 DrawContext dc = RenderUtil.getDrawContext();
-                dc.enableScissor(0, 0, outlineSize, outlineSize);
+                dc.enableScissor(0, 0, mapDiameter.x, mapDiameter.y);
 
                 // push a new matrix just to translate 1 pixel to the right :pray:
                 dc.getMatrices().pushMatrix();
@@ -294,12 +297,12 @@ public class DungeonMap extends Module {
 
                 drawDoors();
                 drawRooms();
-                drawPlayer(C.p());
+                drawPlayers();
 
                 dc.getMatrices().popMatrix();
                 dc.disableScissor();
 
-                return new int[] {outlineSize, outlineSize};
+                return new int[] {mapDiameter.x+1, mapDiameter.y+1};
             },
             e -> ModuleUtil.isEnabled(DungeonMap.class) && AreaUtil.isInDungeons(),
             e -> true
@@ -334,6 +337,11 @@ public class DungeonMap extends Module {
             getSplits();
             registerRooms();
             parseMap(); // relatively slow process, maybe move to a separate thread
+            setCurrentDungeonDiameter();
+
+            if (!finishedScanning && finishedScanning()) {
+                onFinishedScanning();
+            }
         }
 
         return false;
@@ -356,6 +364,33 @@ public class DungeonMap extends Module {
         return false;
     });
 
+    private static void setCurrentDungeonDiameter() {
+        Vector2f dungeonRect = getDungeonRect();
+        CURRENT_DUNGEON_DIAMETER = new Vector2f(dungeonRect.x * 32 - 2, dungeonRect.y * 32 - 2);
+    }
+
+    private static Vector2f getDungeonRect() {
+        // yeah there are better ways to do this, eg. scanning player pos on the map, get percent and compare to percent of max
+        Vector2f highestValue = new Vector2f(Integer.MIN_VALUE, Integer.MIN_VALUE);
+        for (int x : MAP_DIVISIONS.keySet()) {
+            for (int z : MAP_DIVISIONS.get(x).keySet()) {
+                MapDivision mapDivision = MAP_DIVISIONS.get(x).get(z);
+                if (mapDivision.doorType == DoorType.WALL) continue;
+                int x2 = mapDivision.axis == Direction.Axis.X ? x+1 : x;
+                int z2 = mapDivision.axis == Direction.Axis.Z ? z+1 : z;
+
+                highestValue.x = Math.max(highestValue.x, x2);
+                highestValue.y = Math.max(highestValue.y, z2);
+            }
+        }
+
+        return new Vector2f(getRoomAmountFromChunks(highestValue.x), getRoomAmountFromChunks(highestValue.y));
+    }
+
+    private static float getRoomAmountFromChunks(float chunks) {
+        return ((MAX_DUNGEON_CHUNKS - Math.abs(chunks)) / 2) + 1;
+    }
+
     private static void drawDoors() {
         for (int x : MAP_DIVISIONS.keySet().stream().sorted().toList()) {
             for (int z : MAP_DIVISIONS.get(x).keySet().stream().sorted().toList()) {
@@ -376,11 +411,11 @@ public class DungeonMap extends Module {
         }
     }
 
-    private static int getOpenedConnections(int x, int z) {
-        int connections = 0;
+    private static ArrayList<Room> getConnectedRooms(int x, int z) {
+        ArrayList<Room> connectedRooms = new ArrayList<>();
 
         for (Room room : ROOMS) {
-            if (room.state == Room.State.UNVISITED || connections == 2) continue;
+            if (connectedRooms.size() == 2) continue;
 
             for (ChunkPos chunkPos : room.squares) {
                 if (chunkPos.x == x-1 && chunkPos.z == z
@@ -388,13 +423,17 @@ public class DungeonMap extends Module {
                         || chunkPos.x == x && chunkPos.z == z+1
                         || chunkPos.x == x && chunkPos.z == z-1
                 ) {
-                    connections++;
+                    connectedRooms.add(room);
                     break;
                 }
             }
         }
 
-        return connections;
+        return connectedRooms;
+    }
+
+    private static int getOpenedConnections(int x, int z) {
+        return getConnectedRooms(x, z).stream().filter(e -> e.state != Room.State.UNVISITED).toList().size();
     }
 
     private static void drawRooms() {
@@ -541,11 +580,11 @@ public class DungeonMap extends Module {
     }
 
     private static int pos3dTo2d(double pos) {
-        return pos3dTo2d(pos, DUNGEON_MAP_DIAMETER, MAX_DUNGEON_DIAMETER);
+        return pos3dTo2d(pos, MAX_DUNGEON_MAP_DIAMETER, MAX_DUNGEON_DIAMETER);
     }
 
-    private static int pos3dTo2d(double pos, int width, int maxWidth) {
-        double multi = (double) width / maxWidth;
+    private static int pos3dTo2d(double pos, double width, double maxWidth) {
+        double multi = width / maxWidth;
         return (int) ((pos + (DUNGEON_BLOCKS_OFFSET+MAX_DUNGEON_DIAMETER)) * multi);
     }
 
@@ -567,8 +606,9 @@ public class DungeonMap extends Module {
     // checks if the centre of the chunk is a split in the map (a door)
     private static boolean checkSplit(ChunkPos chunkPos) {
         BlockPos chunkCenter = getChunkCenter(chunkPos);
+        BlockPos aboveDoorCenter = chunkCenter.offset(Direction.UP, 82);
 
-        Block centreBlock = C.w().getBlockState(chunkCenter.offset(Direction.UP, 82)).getBlock();
+        Block centreBlock = C.w().getBlockState(aboveDoorCenter).getBlock();
         if (isChunkUnloaded(chunkPos)) return false;
 
         boolean isStartDoor = C.w().getBlockState(chunkCenter.offset(Direction.UP, 69)).getBlock() == Blocks.INFESTED_CHISELED_STONE_BRICKS;
@@ -587,8 +627,8 @@ public class DungeonMap extends Module {
             // check that there are no blocks in the line other than the door
             if (raycast.getType() != HitResult.Type.MISS && !isStartDoor) return true;
 
-            boolean north = C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.AIR
-                    || (C.w().getBlockState(chunkCenter.north()).getBlock() == Blocks.INFESTED_CHISELED_STONE_BRICKS && isStartDoor);
+            boolean north = C.w().getBlockState(aboveDoorCenter.north()).getBlock() == Blocks.AIR
+                    || (C.w().getBlockState(aboveDoorCenter.north()).getBlock() == Blocks.INFESTED_CHISELED_STONE_BRICKS && isStartDoor);
 
             DoorType doorType = isStartDoor ? DoorType.FREE : door ? getDoorType(chunkCenter) : DoorType.WALL;
 
@@ -624,39 +664,104 @@ public class DungeonMap extends Module {
         return C.w().getBlockState(new BlockPos(chunkPos.x * 16, 0, chunkPos.z * 16)).getBlock() == Blocks.VOID_AIR;
     }
 
-    private static void drawPlayer(PlayerEntity player) {
-        int playerX = pos3dTo2d(C.p().getX());
-        int playerZ = pos3dTo2d(C.p().getZ());
+    private static HashMap<String, HashMap<PlayerEntity, PlayerIcon>> MAP_PLAYERS = new HashMap<>();
+    private record PlayerIcon(int score, Identifier skin) {}
 
+    private static void drawPlayers() {
+        MapState mapState = getMapState();
+        if (mapState != null) {
+            Map<String, MapDecoration> decorations = MapDecorationsBridge.from(mapState).bridge$getDecorations();
+            if (decorations == null) return;
+
+            for (String id : decorations.keySet()) {
+                MapDecoration decoration = decorations.get(id);
+
+                Vector2f pos = new Vector2f(
+                        (decoration.x() + 128) / 2f,
+                        (decoration.z() + 128) / 2f
+                );
+
+                getPotentialPlayersFromMapDecoration(id, pos);
+                drawPlayer(id, decoration, pos);
+            }
+        }
+    }
+
+    // todo: im sure there is a way to get the player 100% correct, but i couldnt find anything in the mapstate class.
+    private static void getPotentialPlayersFromMapDecoration(String id, Vector2f pos) {
+        for (PlayerEntity player : TargetUtil.getPlayers()) {
+            int x = pos3dTo2d(player.getX(), MAP_ITEM_DIAMETER, CURRENT_DUNGEON_DIAMETER.x);
+            int z = pos3dTo2d(player.getZ(), MAP_ITEM_DIAMETER, CURRENT_DUNGEON_DIAMETER.y);
+
+            if (Math.abs(x - pos.x) <= 5 && Math.abs(z - pos.y) <= 5) {
+                MAP_PLAYERS.computeIfAbsent(id, k -> new HashMap<>());
+                PlayerIcon playerIcon = MAP_PLAYERS.get(id).get(player);
+                int score = 0;
+                Identifier skin;
+                if (playerIcon != null) {
+                    score = playerIcon.score;
+                    skin = playerIcon.skin;
+                }
+                else skin = Render2dUtil.getPlayerSkin(player);
+
+                MAP_PLAYERS.get(id).put(player, new PlayerIcon(score+1, skin));
+            }
+        }
+    }
+
+    private static PlayerIcon getBestGuessPlayer(String id) {
+        PlayerIcon defaultPlayer = new PlayerIcon(0, Render2dUtil.getPlayerSkin(C.p()));
+        if (!MAP_PLAYERS.containsKey(id)) return defaultPlayer;
+
+        return MAP_PLAYERS.get(id).entrySet().stream()
+                .max(Comparator.comparingInt(e -> e.getValue().score))
+                .map(Map.Entry::getValue)
+                .orElse(defaultPlayer);
+    }
+
+    // todo: on lower floors the heads are slightly offset
+    private static void drawPlayer(String id, MapDecoration decoration, Vector2f pos) {
         Matrix3x2fStack matrices = Render2dUtil.getDrawContext().getMatrices();
         matrices.pushMatrix();
-        matrices.translate(playerX, playerZ);
-        matrices.rotate((float) Math.toRadians(player.getYaw()-180));
-        Render2dUtil.drawPlayerHead(player, -4, -4, 8, 8, Color.WHITE);
+        Vector2i mapDiameter = getMapDiameter();
+        matrices.translate(
+                (pos.x/MAP_ITEM_DIAMETER) * mapDiameter.x,
+                (pos.y/MAP_ITEM_DIAMETER) * mapDiameter.y
+        );
+        matrices.rotate((float) Math.toRadians((decoration.rotation()*22.5) - 180));
+        Render2dUtil.drawSkinHead(getBestGuessPlayer(id).skin, -4, -4, 8, 8, Color.WHITE);
         matrices.popMatrix();
+    }
+
+    private static Vector2i getMapDiameter() {
+        return new Vector2i(
+                (int) ((CURRENT_DUNGEON_DIAMETER.x/MAX_DUNGEON_DIAMETER) * MAX_DUNGEON_MAP_DIAMETER),
+                (int) ((CURRENT_DUNGEON_DIAMETER.y/MAX_DUNGEON_DIAMETER) * MAX_DUNGEON_MAP_DIAMETER)
+        );
+    }
+
+    private static Vector2f getMapIndent() {
+        return new Vector2f(MAP_ITEM_DIAMETER).sub(getDungeonRect().mul(MAP_SQUARE_SIZE));
     }
 
     private static void parseMap() {
         MapState mapState = getMapState();
         if (mapState == null) return;
 
-        if (MAP_SIZES == null || MAP_SIZES.doorSize == -1) MAP_SIZES = getMapSizeValues(mapState.colors);
-        if (MAP_SIZES == null || MAP_SIZES.doorSize == -1) return;
-
-        int realMapSize = MAP_ITEM_DIAMETER - MAP_SIZES.mapIndent*2;
-        CURRENT_DUNGEON_DIAMETER = (Math.floorDiv(realMapSize+MAP_SIZES.doorSize, MAP_SIZES.doorSize+MAP_SIZES.roomSizes.width) * 32) - 2;
+        Vector2f mapIndent = getMapIndent();
+        if (!hasCalculatedSize()) return;
 
         for (Room room : ROOMS) {
             BlockPos chunkCenter = getChunkCenter(getTopRoomChunk(room));
 
-            int roomX = pos3dTo2d(chunkCenter.getX(), realMapSize, CURRENT_DUNGEON_DIAMETER)+MAP_SIZES.mapIndent;
-            int roomY = pos3dTo2d(chunkCenter.getZ(), realMapSize, CURRENT_DUNGEON_DIAMETER)+MAP_SIZES.mapIndent;
+            int roomX = (int) (pos3dTo2d(chunkCenter.getX(), MAP_ITEM_DIAMETER - mapIndent.x, CURRENT_DUNGEON_DIAMETER.x)+mapIndent.x/2);
+            int roomY = (int) (pos3dTo2d(chunkCenter.getZ(), MAP_ITEM_DIAMETER - mapIndent.y, CURRENT_DUNGEON_DIAMETER.y)+mapIndent.y/2);
 
-            for (int x = -2; x <= 2; x++) {
-                for (int y = -2; y <= 2; y++) {
+            for (int x = -3; x <= 3; x++) {
+                for (int y = -3; y <= 3; y++) {
                     int colourIndex = (roomX+x) + ((roomY+y) * MAP_ITEM_DIAMETER);
                     // not sure if this still happens, issue with first try, probably fixed
-                    if (colourIndex >= mapState.colors.length) {
+                    if (colourIndex < 0 || colourIndex >= mapState.colors.length) {
                         ChatUtil.prefixMessage("Critical error!!! (lie, but maybe bad, report pls <3 the map parsing has failed)");
                         continue;
                     }
@@ -675,51 +780,6 @@ public class DungeonMap extends Module {
         }
     }
 
-    private static MapSizes getMapSizeValues(byte[] colours) {
-        Rectangle roomSizes = null;
-        int doorSize = -1;
-
-        for (int x = 0; x < MAP_ITEM_DIAMETER; x++) {
-            for (int y = 0; y < MAP_ITEM_DIAMETER; y++) {
-                int colour = colours[x + y * MAP_ITEM_DIAMETER];
-                if (colour == GREEN_ROOM_COLOUR) {
-                    if (roomSizes == null) roomSizes = new Rectangle(x, y, 0, 0);
-                    else {
-                        roomSizes.width = x - roomSizes.x;
-                        roomSizes.height = y - roomSizes.y;
-                    }
-                }
-                else if (colour == WITHER_DOOR_COLOUR && doorSize == -1) {
-                    int doorWidth = 0;
-                    while (getMapColour(x+doorWidth, y, colours) == WITHER_DOOR_COLOUR) doorWidth++;
-
-                    int doorHeight = 0;
-                    while (getMapColour(x, y+doorHeight, colours) == WITHER_DOOR_COLOUR) doorHeight++;
-
-                    // check thats its actually a door and not a question mark
-                    if (doorWidth < 3 && doorHeight < 3) continue;
-
-                    doorSize = Math.min(doorWidth, doorHeight) + 1;
-                }
-            }
-        }
-
-        if (roomSizes == null) return null;
-
-        int mapIndent = Math.min(Math.min(
-                Math.min(roomSizes.x, roomSizes.y),
-                MAP_ITEM_DIAMETER-(roomSizes.x+roomSizes.width)),
-                MAP_ITEM_DIAMETER-(roomSizes.y+roomSizes.height)
-        ) + 1;
-
-        return new MapSizes(roomSizes, doorSize, mapIndent);
-    }
-
-    private static int getMapColour(int x, int y, byte[] colours) {
-        return colours[x + y * MAP_ITEM_DIAMETER];
-    }
-
-
     private static MapState getMapState() {
         for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {
             if (C.p().getInventory().getStack(i).getItem() == Items.FILLED_MAP) {
@@ -727,6 +787,52 @@ public class DungeonMap extends Module {
             }
         }
         return null;
+    }
+
+    private static boolean finishedScanning() {
+        for (int x : MAP_DIVISIONS.keySet()) {
+            for (int z : MAP_DIVISIONS.get(x).keySet()) {
+                if (MAP_DIVISIONS.get(x).get(z).doorType == DoorType.WALL) continue;
+
+                if (getConnectedRooms(x, z).size() < 2) return false;
+            }
+        }
+        return true;
+    }
+
+    // if no door is missing a room to the bottom right, then the dungeon is fully scanned, otherwise, there is still more to come
+    private static boolean hasCalculatedSize() {
+        for (int x : MAP_DIVISIONS.keySet()) {
+            for (int z : MAP_DIVISIONS.get(x).keySet()) {
+                if (MAP_DIVISIONS.get(x).get(z).doorType == DoorType.WALL) continue;
+
+                boolean found = false;
+                for (Room room : ROOMS) {
+                    for (ChunkPos chunkPos : room.squares) {
+                        if (chunkPos.x == x+1 && chunkPos.z == z || chunkPos.x == x && chunkPos.z == z+1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found) return false;
+            }
+        }
+        return true;
+    }
+
+    private static void onFinishedScanning() {
+        finishedScanning = true;
+        ChatUtil.chat("--------------------------");
+        ChatUtil.prefixMessage("&a&lFinished scanning dungeon!");
+        ChatUtil.chat("&2" + ROOMS.size() + " &arooms found!");
+        ChatUtil.chat("&2Puzzles:\n" + ROOMS.stream()
+                .filter(e -> e.type == Room.Type.PUZZLE)
+                .map(e -> "&5 - " + e.name)
+                .collect(Collectors.joining("\n"))
+        );
+        ChatUtil.chat("--------------------------");
     }
 
     @Override
@@ -745,7 +851,8 @@ public class DungeonMap extends Module {
         UNSCANNED_CHUNKS.clear();
         MAP_DIVISIONS.clear();
         ROOMS.clear();
-        MAP_SIZES = null;
-        CURRENT_DUNGEON_DIAMETER = MAX_DUNGEON_DIAMETER;
+        MAP_PLAYERS.clear();
+        CURRENT_DUNGEON_DIAMETER = new Vector2f(MAX_DUNGEON_DIAMETER, MAX_DUNGEON_DIAMETER);
+        finishedScanning = false;
     }
 }

@@ -14,6 +14,7 @@
     "client.ChatSentMixin",
     "client.KeyPressMixin",
     "player.FastPlaceMixin",
+    "player.KeyboardInputMixin",
     "player.RotationEventMixin",
     "render.MouseBridgeMixin",
     "render.MouseDraggedEventMixin",
@@ -21,7 +22,6 @@
     "render.RenderScoreboardEventMixin",
     "render.RenderTickEventMixin",
     "render.freelook.FakePlayerSetterMixin",
-    "render.freelook.FixMovementMixin",
     "render.freelook.FixPlayerPosOnTeleportMixin",
     "render.freelook.FreeMoveMixin",
     "render.freelook.NoClipRenderMixin",
@@ -41,6 +41,7 @@
     "client.TabCompleteMixin",
     "player.PacketUtilMixin",
     "player.PlayerUpdateEventMixin",
-    "render.RenderWorldEventMixin"
+    "render.RenderWorldEventMixin",
+    "skyblock.DungeonMapMixin"
   ]
 }

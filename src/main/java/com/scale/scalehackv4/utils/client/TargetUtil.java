@@ -8,7 +8,7 @@ import java.util.List;
 
 public class TargetUtil {
     public static List<AbstractClientPlayerEntity> getPlayers() {
-        return C.w().getPlayers();
+        return C.w().getPlayers().stream().filter(TargetUtil::isValidTarget).toList();
     }
 
     public static boolean isValidTarget(Entity target) {
