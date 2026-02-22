@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.mixins.player;
 
-import com.scale.scalehackv4.modules.impl.movement.SpeedModule;
+import com.scale.scalehackv4.events.Bus;
+import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import net.minecraft.client.input.Input;
 import net.minecraft.client.input.KeyboardInput;
@@ -29,10 +30,20 @@ public abstract class KeyboardInputMixin extends Input {
      */
     @Overwrite
     public void tick() {
-        boolean sprintKey = this.settings.sprintKey.isPressed() || SpeedModule.shouldSprint();
+        KeyboardInputEvent.Params params = new KeyboardInputEvent.Params(
+                this.settings.forwardKey.isPressed(),
+                this.settings.backKey.isPressed(),
+                this.settings.leftKey.isPressed(),
+                this.settings.rightKey.isPressed(),
+                this.settings.jumpKey.isPressed(),
+                this.settings.sneakKey.isPressed(),
+                this.settings.sprintKey.isPressed()
+        );
+        Bus.post(KeyboardInputEvent.class, params);
+
         this.playerInput = Freelook.isPositionLocked()
                 ? PlayerInput.DEFAULT
-                : new PlayerInput(this.settings.forwardKey.isPressed(), this.settings.backKey.isPressed(), this.settings.leftKey.isPressed(), this.settings.rightKey.isPressed(), this.settings.jumpKey.isPressed(), this.settings.sneakKey.isPressed(), sprintKey);
+                : new PlayerInput(params.forwardKey, params.backKey, params.leftKey, params.rightKey, params.jumpKey, params.sneakKey, params.sprintKey);
 
         float f = getMovementMultiplier(this.playerInput.forward(), this.playerInput.backward());
         float g = getMovementMultiplier(this.playerInput.left(), this.playerInput.right());

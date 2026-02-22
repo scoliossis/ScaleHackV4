@@ -6,12 +6,21 @@ import com.scale.scalehackv4.commands.Command;
 import com.scale.scalehackv4.commands.CommandManager;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.player.RotationUtil;
+import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
+import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
+import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.NodeUtil;
+import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3i;
+import org.apache.commons.lang3.EnumUtils;
 
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 public class AutoRouteCommand extends Command {
@@ -36,22 +45,51 @@ public class AutoRouteCommand extends Command {
         BlockPos nodePos = getNodePos(room, playerPos);
         if (nodePos == null) return true;
 
-        switch (text.substring(0, text.indexOf(" ")).trim().toLowerCase()) {
-            case "add" -> {
-                room.nodes.add(nodePos);
-                room.saveRoom();
-                ChatUtil.prefixMessage(String.format("Added node at %s", playerPos));
+        String command = text.substring(0, text.indexOf(" ")).trim().toLowerCase();
+        switch (command) {
+            case "etherwarp" -> {
+                Vec3i etherwarpPos = EtherwarpUtil.getEtherwarpBlockSuccess(C.p().getPitch(), C.p().getYaw(), C.p().getEntityPos(), 57);
+                if (etherwarpPos == null) {
+                    ChatUtil.prefixMessage("Etherwarp goes nowhere.");
+                    return true;
+                }
+
+                ChatUtil.prefixMessage("Etherwarp successfully found!");
+                room.nodes.add(new Node(nodePos, getNodePos(room, new BlockPos(etherwarpPos.getX(), etherwarpPos.getY(), etherwarpPos.getZ())), Node.Type.ETHERWARP));
+            }
+            case "stonk" -> {
+                BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), RotationUtil.getClientRotation());
+                if (blockHitResult == null || blockHitResult.getBlockPos() == null || blockHitResult.getType() == HitResult.Type.MISS) {
+                    ChatUtil.prefixMessage("We are breaking NOTHING :speaking_head: :burger:");
+                    return true;
+                }
+
+                ChatUtil.prefixMessage("Stonk success");
+                room.nodes.add(new Node(nodePos, getNodePos(room, blockHitResult.getBlockPos()), Node.Type.DUNGEON_BREAKER));
             }
             case "remove" -> {
-                if (room.nodes.remove(nodePos)) {
-                    room.saveRoom();
-                    ChatUtil.prefixMessage(String.format("Removed node at %s", playerPos));
-                }
-                else {
-                    ChatUtil.prefixMessage(String.format("No node exists at %s", playerPos));
+                // removes last node at pos
+                for (int i = room.nodes.size()-1; i >= 0; i--) {
+                    if (room.nodes.get(i).startPos.equals(nodePos)) {
+                        room.nodes.remove(i);
+                        break;
+                    }
                 }
             }
+            default -> {
+                if (!EnumUtils.isValidEnum(Node.Type.class, command.toUpperCase())) {
+                    ChatUtil.prefixMessage("Invalid node type, try: " + Arrays.toString(Node.Type.values()));
+                    return true;
+                }
+
+                Node.Type nodeType = Node.Type.valueOf(command.toUpperCase());
+
+                ChatUtil.prefixMessage(nodeType.name() + " node successfully added!");
+                room.nodes.add(new Node(nodePos, BlockPos.ORIGIN, nodeType));
+            }
         }
+
+        room.saveRoom();
 
         return true;
     }
@@ -67,7 +105,11 @@ public class AutoRouteCommand extends Command {
     public void handleTab(String text, int pos, CompletableFuture<Suggestions> pendingSuggestions) {
         if (!text.contains(" ")) {
             StringRange range = StringRange.between(pos, pos+text.length());
-            CommandManager.addCommand("add", range, pendingSuggestions);
+            CommandManager.addCommand("etherwarp", range, pendingSuggestions);
+            CommandManager.addCommand("stonk", range, pendingSuggestions);
+            for (Node.Type type : Node.Type.values()) {
+                if (type.isSecret) CommandManager.addCommand(type.name().toLowerCase(), range, pendingSuggestions);
+            }
             CommandManager.addCommand("remove", range, pendingSuggestions);
         }
     }

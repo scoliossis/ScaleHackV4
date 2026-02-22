@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.utils.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
@@ -15,6 +16,8 @@ import net.minecraft.util.math.Vec3i;
 import java.util.List;
 
 public class EtherwarpUtil {
+    public static final double ETHERWARP_EYE_HEIGHT = 1.54;
+
     public static boolean isEtherwarpItem(ItemStack stack) {
         LoreComponent lore = stack.getComponents().get(DataComponentTypes.LORE);
         if (lore == null) return false;
@@ -26,19 +29,11 @@ public class EtherwarpUtil {
         return false;
     }
 
-    // From UnclaimedBloom6's BloomCore
-    public static Vec3d fromPitchYaw(float pitch, float yaw) {
-        double f = Math.cos(-yaw * 0.017453292 - Math.PI);
-        double f1 = Math.sin(-yaw * 0.017453292 - Math.PI);
-        double f2 = -Math.cos(-pitch * 0.017453292);
-        double f3 = Math.sin(-pitch * 0.017453292);
-        return new Vec3d(f1 * f2, f3, f * f2).normalize();
-    }
-
     public static Vec3d scale(Vec3d v, double scalar) {
         return new Vec3d(v.x * scalar, v.y * scalar, v.z * scalar);
     }
 
+    // list from bloomcore
     private static final List<Block> ETHER_BLOCK_TYPES = List.of(
             Blocks.AIR,
             Blocks.FIRE,
@@ -182,10 +177,9 @@ public class EtherwarpUtil {
         return null;
     }
 
-    private static final double SNEAK_EYE_HEIGHT = 1.54;
     public static Vec3i getEtherwarpBlockSuccess(float pitch, float yaw, Vec3d startPos_, double distance) {
-        Vec3d lookVec = scale(fromPitchYaw(pitch, yaw), distance);
-        Vec3d startPos = startPos_.add(0, SNEAK_EYE_HEIGHT, 0);
+        Vec3d lookVec = scale(WorldUtil.fromPitchYaw(pitch, yaw), distance);
+        Vec3d startPos = startPos_.add(0, ETHERWARP_EYE_HEIGHT, 0);
         Vec3d endPos = lookVec.add(startPos);
 
         Vec3i etherSpot = traverseVoxels(startPos, endPos);
@@ -193,22 +187,9 @@ public class EtherwarpUtil {
         return etherSpot;
     }
 
-    /*
-    public static BlockHitResult rayTraceFrom(Entity ent, Vec3d from, double distance) {
-        Vec3d look = ent.getLook(0);
-
-        return C.w().raycast(new RaycastContext(
-                from,
-                from.add(look.x * distance, look.y * distance, look.z * distance),
-                RaycastContext.ShapeType.OUTLINE,
-                RaycastContext.FluidHandling.NONE, ent
-        ));
-    }
-     */
     private static double frac0(double val) {
         return val - Math.floor(val);
     }
-
     private static double frac1(double val) {
         return 1 - val + Math.floor(val);
     }

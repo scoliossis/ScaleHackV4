@@ -162,6 +162,8 @@ public class DungeonScanner {
     }
 
     private static boolean finishedScanning() {
+        if (ROOMS.isEmpty() || MAP_DIVISIONS.isEmpty()) return false;
+
         for (int x : MAP_DIVISIONS.keySet()) {
             for (int z : MAP_DIVISIONS.get(x).keySet()) {
                 if (MAP_DIVISIONS.get(x).get(z).doorType == DoorType.WALL) continue;

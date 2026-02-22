@@ -4,6 +4,7 @@ import com.google.gson.internal.LinkedTreeMap;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 
 public class Room {
     private static final File DUNGEON_ROOMS_FILE = new File(Main.BASE_FOLDER_PATH + "/dungeons/dungeon_rooms.json");
+    private static final File DUNGEON_ROUTES_FILE = new File(Main.BASE_FOLDER_PATH + "/dungeons/dungeon_routes.json");
 
     // blocks for the hashing algorithm to ignore because they can be in different positions randomly
     private static final java.util.List<Block> BLACKLISTED_BLOCKS = List.of(
@@ -48,7 +50,7 @@ public class Room {
     public ChunkPos[] squares;
     public Direction facing = Direction.NORTH;
     public int lowestHashIndex = 0;
-    public ArrayList<BlockPos> nodes = new ArrayList<>();
+    public ArrayList<Node> nodes = new ArrayList<>();
     public State state = State.UNVISITED;
 
     public String name = "";
@@ -74,7 +76,13 @@ public class Room {
         this.secrets = (int) Double.parseDouble(room.getOrDefault("secrets", -1).toString());
         this.type = Type.valueOf((String) room.getOrDefault("type", "RARE"));
         getFacing(room.getOrDefault("hashes", new int[0]));
-        getNodes((String) room.getOrDefault("nodes", ""));
+
+        HashMap<String, String> routesMap = getRoutes();
+
+        String routes = routesMap.get(this.name);
+        if (routes == null) return;
+
+        getNodes(routes);
     }
 
     private void getFacing(Object hashes) {
@@ -103,8 +111,12 @@ public class Room {
         if (nodesString.isEmpty()) return;
 
         String[] nodes = nodesString.split(",");
-        for (int i = 0; i < nodes.length; i+=3) {
-            this.nodes.add(new BlockPos(Integer.parseInt(nodes[i]), Integer.parseInt(nodes[i+1]), Integer.parseInt(nodes[i+2])));
+        for (int i = 0; i < nodes.length; i+=7) {
+            this.nodes.add(new Node(
+                    new BlockPos(Integer.parseInt(nodes[i]), Integer.parseInt(nodes[i+1]), Integer.parseInt(nodes[i+2])),
+                    new BlockPos(Integer.parseInt(nodes[i+3]), Integer.parseInt(nodes[i+4]), Integer.parseInt(nodes[i+5])),
+                    Node.Type.valueOf(nodes[i+6])
+            ));
         }
     }
 
@@ -119,21 +131,26 @@ public class Room {
         this.secrets = secrets;
         this.type = type;
 
-        LinkedTreeMap<String, Object> room = new LinkedTreeMap<>();
+        LinkedTreeMap<String, Object> room = rooms.containsKey(hash+"") ? rooms.get(hash+"") : new LinkedTreeMap<>();
         room.put("name", name);
         room.put("type", type.name());
         room.put("secrets", secrets);
-        room.put("hashes", Arrays.toString(this.facingHashes));
-        room.put("nodes", nodes.stream().map(e -> e.getX()+","+e.getY()+","+e.getZ()).collect(Collectors.joining(",")));
-
-        if (rooms.containsKey(hash+"")) {
-            System.out.println("Overwriting room: " + name);
-            ChatUtil.chat("Room overwritten: " + name + "!");
-        }
+        room.putIfAbsent("hashes", Arrays.toString(this.facingHashes));
         rooms.put(hash+"", room);
+
+        HashMap<String, String> routes = getRoutes();
+        String nodesString = nodes.stream()
+                .map(e ->
+                        e.startPos.getX()+","+e.startPos.getY()+","+e.startPos.getZ()+","
+                                + e.targetPos.getX()+","+e.targetPos.getY()+","+e.targetPos.getZ()+","
+                                + e.type.name()
+                ).collect(Collectors.joining(","));
+
+        routes.put(this.name, nodesString);
 
         try {
             Files.write(DUNGEON_ROOMS_FILE.toPath(), C.gson.toJson(rooms).getBytes());
+            Files.write(DUNGEON_ROUTES_FILE.toPath(), C.gson.toJson(routes).getBytes());
             System.out.println("Saved room: " + name);
         } catch (IOException e) {
             e.printStackTrace();
@@ -149,6 +166,18 @@ public class Room {
         } catch (IOException ignored) {}
 
         DUNGEON_ROOMS_FILE.getParentFile().mkdirs();
+        return new HashMap<>();
+    }
+
+    private static HashMap<String, String> getRoutes() {
+        try {
+            if (Files.exists(DUNGEON_ROUTES_FILE.toPath())) {
+                HashMap<String,String> routes = C.gson.fromJson(FileUtils.readFileToString(DUNGEON_ROUTES_FILE, Charset.defaultCharset()), HashMap.class);
+                if (routes != null) return routes;
+            }
+        } catch (IOException ignored) {}
+
+        DUNGEON_ROUTES_FILE.getParentFile().mkdirs();
         return new HashMap<>();
     }
 

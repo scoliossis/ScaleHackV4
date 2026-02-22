@@ -14,6 +14,7 @@ import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3f;
 
 import java.awt.*;
 import java.util.HashMap;
@@ -94,13 +95,28 @@ public class Render3dUtil extends RenderUtil {
 
     // todo: auto generate cull and non cull versions
     private static final RenderLayer QUADS_NO_CULL = RenderLayer.of(
-            Main.MOD_ID + "glowpipeline3d",
+            Main.MOD_ID + "quadsnocull3d",
             RenderSetup.builder(
                             RenderPipelines.register(
                                     RenderPipeline.builder(RenderUtil.getRenderPipelineSnippet(VertexFormats.POSITION_COLOR))
                                             .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
                                             .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
                                             .withLocation(Main.MOD_ID + "quadsnocull")
+                                            .build()
+                            )
+                    )
+                    .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
+                    .build()
+    );
+
+    private static final RenderLayer DEBUG_LINES_NO_CULL = RenderLayer.of(
+            Main.MOD_ID + "debuglinenocull3d",
+            RenderSetup.builder(
+                            RenderPipelines.register(
+                                    RenderPipeline.builder(RenderUtil.getRenderPipelineSnippet(VertexFormats.POSITION_COLOR))
+                                            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINE_STRIP)
+                                            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                                            .withLocation(Main.MOD_ID + "debuglinenocull")
                                             .build()
                             )
                     )
@@ -131,6 +147,17 @@ public class Render3dUtil extends RenderUtil {
 
         addSquare(x, y, z, width, 0, depth, colour, vertexConsumer, entry);
         addSquare(x, y+height, z, width, 0, depth, colour, vertexConsumer, entry);
+
+        vertexConsumers.drawCurrentLayer();
+    }
+
+    public static void drawLine(Vector3f one, Vector3f two, Color colour) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(DEBUG_LINES_NO_CULL);
+
+        MatrixStack.Entry entry = getEntry();
+
+        vertexConsumer.vertex(entry, one).color(colour.getRGB());
+        vertexConsumer.vertex(entry, two).color(colour.getRGB());
 
         vertexConsumers.drawCurrentLayer();
     }

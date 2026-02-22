@@ -1,31 +1,25 @@
-package com.scale.scalehackv4.modules.impl.skyblock;
+package com.scale.scalehackv4.modules.impl.skyblock.Dungeons;
 
 import com.scale.scalehackv4.bridge.MapDecorationsBridge;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.events.impl.skyblock.FinishedDungeonScanningEvent;
-import com.scale.scalehackv4.modules.Category;
-import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
-import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
-import com.scale.scalehackv4.utils.render.*;
+import com.scale.scalehackv4.utils.render.Draggable;
+import com.scale.scalehackv4.utils.render.FontUtil;
+import com.scale.scalehackv4.utils.render.Render2dUtil;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.MapParser;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.entity.Entity;
 import net.minecraft.item.map.MapDecoration;
 import net.minecraft.item.map.MapState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix3x2fStack;
-import org.joml.Quaternionf;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
 
@@ -33,21 +27,11 @@ import java.awt.*;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-@RegisterModule(
-        name = "Dungeon Scanner",
-        category = Category.SKYBLOCK
-)
-public class DungeonScannerModule extends Module {
+public class DungeonMap extends DungeonScannerModule {
     @RegisterSubModule(name = "Dungeon Map")
     public static boolean showMap = true;
-
     @RegisterSubModule(name = "Print Dungeon Info")
     public static boolean printDungeonInfo = true;
-
-    @RegisterSubModule(name = "Starred Mob ESP")
-    public static boolean starredMobESP = true;
-    @RegisterSubModule(name = "ESP Colour", parent = "Starred Mob ESP")
-    public static Color espColour = new Color(243, 62, 255, 100);
 
     private static final int MAX_DUNGEON_MAP_DIAMETER = 100;
     private static final int ROOM_RADIUS = 7;
@@ -79,7 +63,7 @@ public class DungeonScannerModule extends Module {
             e -> true
     );
 
-    private final Event onFinishedScanningDungeon = new FinishedDungeonScanningEvent(this, params -> {
+    private final Event onFinishedScanningDungeon = new FinishedDungeonScanningEvent(ModuleUtil.getModule(DungeonScannerModule.class), params -> {
         if (!printDungeonInfo) return false;
 
         ChatUtil.chat("--------------------------");
@@ -91,30 +75,6 @@ public class DungeonScannerModule extends Module {
                 .collect(Collectors.joining("\n"))
         );
         ChatUtil.chat("--------------------------");
-
-        return false;
-    });
-
-    private final Event drawStarredMobs = new RenderWorldEvent(this, params -> {
-        if (!starredMobESP || !AreaUtil.isInDungeons()) return false;
-
-        float partialTicks = C.mc.getRenderTickCounter().getTickProgress(true);
-
-        for (Entity entity : C.w().getEntities()) {
-            boolean isShadowAssassin = entity.getName().getString().contains("Shadow Assassin");
-            if (!entity.getName().getString().contains("✯") && !isShadowAssassin) continue;
-
-            float width = 0.8f;
-            float height = 2.2f; // wrong height for fels but idc tbh
-            Vec3d pos = new Vec3d(entity.lastX, entity.lastY, entity.lastZ).lerp(entity.getEntityPos(), partialTicks).subtract(0, isShadowAssassin ? 0 : height, 0);
-
-            Render3dUtil.getMatrices().push();
-            Render3dUtil.getMatrices().translate(pos.x, pos.y, pos.z);
-            float yaw = (float) Math.toRadians(180 - MathHelper.lerp(partialTicks, entity.lastYaw, entity.getYaw()));
-            Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, yaw, 0f));
-            Render3dUtil.drawBox(-width/2, 0, -width/2, width, height, width, espColour, false);
-            Render3dUtil.getMatrices().pop();
-        }
 
         return false;
     });
@@ -216,15 +176,5 @@ public class DungeonScannerModule extends Module {
                 (int) ((DungeonScanner.CURRENT_DUNGEON_DIAMETER.x/DungeonScanner.MAX_DUNGEON_DIAMETER) * MAX_DUNGEON_MAP_DIAMETER),
                 (int) ((DungeonScanner.CURRENT_DUNGEON_DIAMETER.y/DungeonScanner.MAX_DUNGEON_DIAMETER) * MAX_DUNGEON_MAP_DIAMETER)
         );
-    }
-
-    @Override
-    public void onEnable() {
-
-    }
-
-    @Override
-    public void onDisable() {
-        MapParser.MAP_PLAYERS.clear();
     }
 }
