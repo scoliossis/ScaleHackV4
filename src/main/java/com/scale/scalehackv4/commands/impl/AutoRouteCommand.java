@@ -4,10 +4,11 @@ import com.mojang.brigadier.context.StringRange;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.scale.scalehackv4.commands.Command;
 import com.scale.scalehackv4.commands.CommandManager;
-import com.scale.scalehackv4.modules.impl.skyblock.DungeonMap;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
+import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
+import com.scale.scalehackv4.utils.skyblock.SecretsHelper.NodeUtil;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 
@@ -26,7 +27,7 @@ public class AutoRouteCommand extends Command {
         // adds the space just in case!
         text += " ";
 
-        DungeonMap.Room room = AreaUtil.getCurrentRoom();
+        Room room = AreaUtil.getCurrentRoom();
         if (room == null) {
             ChatUtil.prefixMessage("Not in a valid dungeon room!");
             return true;
@@ -55,11 +56,11 @@ public class AutoRouteCommand extends Command {
         return true;
     }
 
-    private static BlockPos getNodePos(DungeonMap.Room room, BlockPos pos) {
-        BlockPos roomCorner = DungeonMap.getRoomDefaultCorner(room);
+    private static BlockPos getNodePos(Room room, BlockPos pos) {
+        BlockPos roomCorner = NodeUtil.getRoomDefaultCorner(room);
         BlockPos relativePos = pos.subtract(roomCorner);
 
-        return DungeonMap.rotateNode(relativePos, room.facing, Direction.NORTH);
+        return NodeUtil.rotateNode(relativePos, room.facing, Direction.NORTH);
     }
 
     @Override

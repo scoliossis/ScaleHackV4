@@ -2,9 +2,9 @@ package com.scale.scalehackv4.commands.impl;
 
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.scale.scalehackv4.commands.Command;
-import com.scale.scalehackv4.modules.impl.skyblock.DungeonMap;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
+import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -31,9 +31,9 @@ public class SaveRoomCommand extends Command {
 
         if (roomName.isEmpty() || !secretCount.matches("\\d+")) return false;
 
-        for (DungeonMap.Room.Type type : DungeonMap.Room.Type.values()) {
+        for (Room.Type type : Room.Type.values()) {
             if (type.name().equalsIgnoreCase(roomType)) {
-                DungeonMap.Room currentRoom = AreaUtil.getCurrentRoom();
+                Room currentRoom = AreaUtil.getCurrentRoom();
                 if (currentRoom == null) return false;
 
                 currentRoom.createRoom(roomName, type, Integer.parseInt(secretCount));
