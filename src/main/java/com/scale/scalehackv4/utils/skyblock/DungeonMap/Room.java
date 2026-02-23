@@ -4,6 +4,7 @@ import com.google.gson.internal.LinkedTreeMap;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
@@ -111,11 +112,12 @@ public class Room {
         if (nodesString.isEmpty()) return;
 
         String[] nodes = nodesString.split(",");
-        for (int i = 0; i < nodes.length; i+=7) {
+        for (int i = 0; i < nodes.length; i+=9) {
             this.nodes.add(new Node(
                     new BlockPos(Integer.parseInt(nodes[i]), Integer.parseInt(nodes[i+1]), Integer.parseInt(nodes[i+2])),
                     new BlockPos(Integer.parseInt(nodes[i+3]), Integer.parseInt(nodes[i+4]), Integer.parseInt(nodes[i+5])),
-                    Node.Type.valueOf(nodes[i+6])
+                    new Rotation(Float.parseFloat(nodes[i+6]), Float.parseFloat(nodes[i+7])),
+                    Node.Type.valueOf(nodes[i+8])
             ));
         }
     }
@@ -143,6 +145,7 @@ public class Room {
                 .map(e ->
                         e.startPos.getX()+","+e.startPos.getY()+","+e.startPos.getZ()+","
                                 + e.targetPos.getX()+","+e.targetPos.getY()+","+e.targetPos.getZ()+","
+                                + e.rotation.yaw+","+e.rotation.pitch+","
                                 + e.type.name()
                 ).collect(Collectors.joining(","));
 

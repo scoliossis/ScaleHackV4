@@ -3,7 +3,6 @@ package com.scale.scalehackv4.utils.skyblock.SecretsHelper;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
@@ -147,28 +146,24 @@ public class EtherwarpUtil {
                 if(tMaxX < tMaxZ) {
                     currVoxelX += stepX;
                     Vec3i v = new Vec3i(currVoxelX, currVoxelY, currVoxelZ);
-                    BlockState currentBlock = C.w().getBlockState(new BlockPos(v));
-                    if(currentBlock.getBlock() != Blocks.AIR) return v;
+                    if(!ETHER_BLOCK_TYPES.contains(C.w().getBlockState(new BlockPos(v)).getBlock())) return v;
                     tMaxX += tDeltaX;
                 }else {
                     currVoxelZ += stepZ;
                     Vec3i v = new Vec3i(currVoxelX, currVoxelY, currVoxelZ);
-                    BlockState currentBlock = C.w().getBlockState(new BlockPos(v));
-                    if(currentBlock.getBlock() != Blocks.AIR) return v;
+                    if(!ETHER_BLOCK_TYPES.contains(C.w().getBlockState(new BlockPos(v)).getBlock())) return v;
                     tMaxZ += tDeltaZ;
                 }
             }else {
                 if(tMaxY < tMaxZ) {
                     currVoxelY += stepY;
                     Vec3i v = new Vec3i(currVoxelX, currVoxelY, currVoxelZ);
-                    BlockState currentBlock = C.w().getBlockState(new BlockPos(v));
-                    if(currentBlock.getBlock() != Blocks.AIR) return v;
+                    if(!ETHER_BLOCK_TYPES.contains(C.w().getBlockState(new BlockPos(v)).getBlock())) return v;
                     tMaxY += tDeltaY;
                 }else {
                     currVoxelZ += stepZ;
                     Vec3i v = new Vec3i(currVoxelX, currVoxelY, currVoxelZ);
-                    BlockState currentBlock = C.w().getBlockState(new BlockPos(v));
-                    if(currentBlock.getBlock() != Blocks.AIR) return v;
+                    if(!ETHER_BLOCK_TYPES.contains(C.w().getBlockState(new BlockPos(v)).getBlock())) return v;
                     tMaxZ += tDeltaZ;
                 }
             }

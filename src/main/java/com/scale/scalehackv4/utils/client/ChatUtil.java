@@ -11,6 +11,6 @@ public class ChatUtil {
     public static void chat(Object message) {
         if (!C.isInGame()) return;
 
-        C.mc.inGameHud.getChatHud().addMessage(Text.of(String.valueOf(message).replaceAll("&", "§")));
+        C.mc.execute(() -> C.mc.inGameHud.getChatHud().addMessage(Text.of(String.valueOf(message).replaceAll("&", "§"))));
     }
 }

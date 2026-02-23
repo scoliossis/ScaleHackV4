@@ -14,7 +14,6 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
-import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
@@ -22,6 +21,7 @@ import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.NodeUtil;
+import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.passive.BatEntity;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
@@ -29,9 +29,9 @@ import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.network.packet.s2c.play.ItemPickupAnimationS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
-import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
 import java.awt.*;
@@ -66,6 +66,8 @@ public class SecretHelper extends Module {
     public static Color etherwarpNodeColour = new Color(135, 148, 255, 92);
     @RegisterSubModule(name = "Line Colour", parent = "Show Auto Routes")
     public static Color lineColours = new Color(198, 0, 255, 92);
+    @RegisterSubModule(name = "Pearl Colour", parent = "Show Auto Routes")
+    public static Color pearlColour = new Color(113, 0, 255, 92);
     @RegisterSubModule(name = "Stonk Colour", parent = "Show Auto Routes")
     public static Color stonkColour = new Color(255, 51, 51, 92);
     @RegisterSubModule(name = "Await Secret Colour", parent = "Show Auto Routes")
@@ -80,6 +82,8 @@ public class SecretHelper extends Module {
     private boolean failed = false;
 
     private int lastNodeIndex = 0;
+    private int receivedSecretPackets = 0;
+    private int ticksAwaiting = 0;
 
     private final Event onPlayerUpdate = new PlayerUpdateEvent(this, params -> {
         handleAutoRoutes();
@@ -112,7 +116,7 @@ public class SecretHelper extends Module {
                 Node node = currentRoom.nodes.get(index);
 
                 BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
-                if (C.p().getBlockPos().offset(Direction.DOWN, 1).equals(nodePos) && (C.p().isOnGround() || node.type != Node.Type.ETHERWARP)) {
+                if (C.p().getBlockPos().offset(Direction.DOWN, 1).equals(nodePos) && isValid(node)) {
                     currentNode = node;
                     lastNodeIndex = index;
                     break;
@@ -121,20 +125,20 @@ public class SecretHelper extends Module {
         }
 
         if (currentNode == null) return;
-        if (currentNode.type.isSecret || !handleSwap()) startAwaiting();
+        ticksAwaiting++;
+        if (currentNode.type == Node.Type.PEARL && ticksAwaiting == currentNode.targetPos.getX()) {
+            UseItemBridge.from(C.mc).bridge$DoItemUse();
+        }
+
+        if (currentNode.type == Node.Type.SECRET || !handleSwap()) startAwaiting();
     }
 
     private boolean handleSwap() {
         if (!swapped) {
-            Rotation rotation = getRotation();
-
-            if (rotation == null) {
-                if (currentNode.type == Node.Type.DUNGEON_BREAKER) {
-                    finishedNode(true);
-                    return true;
-                }
+            Rotation rotation = NodeUtil.flipRotation(currentNode.rotation, Direction.NORTH, AreaUtil.getCurrentRoom().facing);
+            if (!isValid(currentNode)) {
                 ChatUtil.prefixMessage("Target node invalid for " + currentNode.type.name());
-                finishedNode(false);
+                finishedNode(true);
                 return true;
             }
 
@@ -154,57 +158,35 @@ public class SecretHelper extends Module {
         return false;
     }
 
-    // i dont like this code
-    private Rotation getRotation() {
-        BlockPos nodePos = NodeUtil.getNodePos(currentNode.targetPos, AreaUtil.getCurrentRoom());
-        switch (currentNode.type) {
-            case DUNGEON_BREAKER -> {
-                Rotation basicRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), C.p().getEyePos(), nodePos.toCenterPos());
-                BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), basicRotation);
-                if (blockHitResult.getBlockPos().equals(nodePos)) return basicRotation;
+    private boolean isValid(Node node) {
+        Room room = AreaUtil.getCurrentRoom();
 
-                for (float yaw = 0; yaw < 30; yaw+=0.25f) {
-                    for (float pitch = 0; pitch < 30; pitch+=0.25f) {
-                        if (WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), basicRotation.add(new Rotation(yaw, pitch))).getBlockPos().equals(nodePos)) {
-                            return basicRotation.add(new Rotation(yaw, pitch));
-                        }
-                        else if (WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), basicRotation.subtract(new Rotation(yaw, pitch))).getBlockPos().equals(nodePos)) {
-                            return basicRotation.subtract(new Rotation(yaw, pitch));
-                        }
-                    }
-                }
-            }
+        if (room == null) return false;
+
+        BlockPos nodePos = NodeUtil.getNodePos(node.targetPos, room);
+        Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, room.facing);
+
+        switch (node.type) {
             case ETHERWARP -> {
-                Vec3d etherwarpEyePos = C.p().getEntityPos().add(0, EtherwarpUtil.ETHERWARP_EYE_HEIGHT, 0);
-                Rotation rotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), etherwarpEyePos, nodePos.toCenterPos());
-                Vec3i etherwarpPos = EtherwarpUtil.getEtherwarpBlockSuccess(rotation.pitch, rotation.yaw, C.p().getEntityPos(), 57);
-                if (etherwarpPos != null && new BlockPos(etherwarpPos).equals(nodePos)) return rotation;
-
-                for (float yaw = 0; yaw < 30; yaw+=0.1f) {
-                    for (float pitch = 0; pitch < 30; pitch+=0.1f) {
-                        Vec3i newPosA = EtherwarpUtil.getEtherwarpBlockSuccess(rotation.pitch+pitch, rotation.yaw+yaw, C.p().getEntityPos(), 57);
-                        if (newPosA != null && new BlockPos(newPosA).equals(nodePos)) {
-                            return new Rotation(rotation.yaw+yaw, rotation.pitch+pitch);
-                        }
-                        else {
-                            Vec3i newPosB = EtherwarpUtil.getEtherwarpBlockSuccess(rotation.pitch-pitch, rotation.yaw-yaw, C.p().getEntityPos(), 57);
-                            if (newPosB != null && new BlockPos(newPosB).equals(nodePos)) {
-                                return new Rotation(rotation.yaw-yaw, rotation.pitch-pitch);
-                            }
-                        }
-                    }
-                }
+                Vec3i etherwarpBlock = EtherwarpUtil.getEtherwarpBlockSuccess(rotation.pitch, rotation.yaw, C.p().getEntityPos(), 57);
+                return etherwarpBlock != null && new BlockPos(etherwarpBlock).equals(nodePos);
             }
+            case DUNGEON_BREAKER -> {
+                BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), rotation);
+                return blockHitResult.getType() != HitResult.Type.MISS && blockHitResult.getBlockPos().equals(nodePos);
+            }
+            // todo: check ender pearl is valid
         }
 
-        return null;
+        return true;
     }
 
     private void startAwaiting() {
         if (startedAwaiting != -1) return;
 
+        ticksAwaiting = 0;
         switch (currentNode.type) {
-            case ETHERWARP -> {
+            case ETHERWARP, PEARL -> {
                 UseItemBridge.from(C.mc).bridge$DoItemUse();
             }
             case DUNGEON_BREAKER -> {
@@ -216,12 +198,12 @@ public class SecretHelper extends Module {
 
     private final Event awaitAutoRouteSuccess = new PacketEvent.Received(this, params -> {
         if (startedAwaiting == -1) return false;
-        if (System.currentTimeMillis() - startedAwaiting > (currentNode.type.isSecret ? maxSecretDelay : timeout)) {
+        if (System.currentTimeMillis() - startedAwaiting > (currentNode.type == Node.Type.SECRET ? maxSecretDelay : timeout)) {
             finishedNode(false);
             return false;
         }
         switch (currentNode.type) {
-            case ETHERWARP -> {
+            case ETHERWARP, PEARL -> {
                 if (params.packet instanceof PlayerPositionLookS2CPacket) {
                     finishedNode(true);
                 }
@@ -231,12 +213,10 @@ public class SecretHelper extends Module {
                     finishedNode(true);
                 }
             }
-            case ITEM -> {
+            case SECRET -> {
                 if (params.packet instanceof ItemPickupAnimationS2CPacket) {
                     finishedNode(true);
                 }
-            }
-            case BAT -> {
                 if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
                     if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
                         finishedNode(true);
@@ -248,14 +228,13 @@ public class SecretHelper extends Module {
     });
 
     private final Event awaitSecretInteraction = new PacketEvent.Sent(this, params -> {
-        if (currentNode == null || !currentNode.type.isSecret) return false;
+        if (currentNode == null || currentNode.type != Node.Type.SECRET) return false;
 
-        switch (currentNode.type) {
-            case CHEST, WITHER_ESSENCE -> {
-                if (params.packet instanceof PlayerInteractBlockC2SPacket) {
-                    ChatUtil.prefixMessage("Secret found!");
-                    finishedNode(true);
-                }
+        if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
+            Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
+
+            if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
+                finishedNode(true);
             }
         }
 
@@ -264,13 +243,25 @@ public class SecretHelper extends Module {
 
     private void finishedNode(boolean success) {
         failed = !success;
-        if (failed) {
-            ChatUtil.prefixMessage(currentNode.type.isSecret ? "Secret not found" : "Node failed, oops *teehee*");
+        // secrets nodes pass the amount of secrets as the the X coord
+        if (failed || currentNode.type != Node.Type.SECRET || receivedSecretPackets+1 >= currentNode.targetPos.getX()) {
+            if (failed) {
+                ChatUtil.prefixMessage(currentNode.type == Node.Type.SECRET ? "Secret not found" : "Node failed, oops *teehee*");
+            }
+            forceStop();
         }
+        else {
+            ChatUtil.prefixMessage("Secret found: " + receivedSecretPackets+1);
+            receivedSecretPackets++;
+        }
+    }
+
+    private void forceStop() {
         startedAwaiting = -1;
         swapped = false;
         currentNode = null;
         lastNode = System.currentTimeMillis();
+        receivedSecretPackets = 0;
     }
 
     private final Event overrideMovement = new KeyboardInputEvent(this, params -> {
@@ -310,7 +301,11 @@ public class SecretHelper extends Module {
         if (currentRoom == null) return;
 
         for (Node node : currentRoom.nodes) {
-            Color startNodeColour = node.type.isSecret ? awaitSecretColour : node.type == Node.Type.DUNGEON_BREAKER ? stonkColour : etherwarpNodeColour;
+            Color startNodeColour = node.type == Node.Type.SECRET ? awaitSecretColour
+                    : node.type == Node.Type.PEARL ? pearlColour
+                    : node.type == Node.Type.DUNGEON_BREAKER ? stonkColour
+                    : etherwarpNodeColour;
+
             BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
             Render3dUtil.drawBox(nodePos.getX(), nodePos.getY(), nodePos.getZ(), 1, 1, 1, startNodeColour, false);
 
@@ -323,6 +318,6 @@ public class SecretHelper extends Module {
 
     @Override public void onEnable() {}
     @Override public void onDisable() {
-        finishedNode(true);
+        forceStop();
     }
 }

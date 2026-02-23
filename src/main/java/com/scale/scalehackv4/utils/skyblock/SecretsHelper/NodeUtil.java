@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.utils.skyblock.SecretsHelper;
 
+import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import net.minecraft.util.math.BlockPos;
@@ -26,6 +27,19 @@ public class NodeUtil {
             case 2 -> new BlockPos(-node.getX(), node.getY(), -node.getZ());
             case 3 -> new BlockPos(node.getZ(), node.getY(), -node.getX());
             default -> node;
+        };
+    }
+
+    public static Rotation flipRotation(Rotation rotation, Direction from, Direction to) {
+        // tuff name
+        int horizontalQuarterTurns = Math.floorMod(to.getHorizontalQuarterTurns() - from.getHorizontalQuarterTurns(), 4);
+
+        // java 17 or wtv is so fancy i love this
+        return switch (horizontalQuarterTurns) {
+            case 1 -> rotation.add(new Rotation(90, 0));
+            case 2 -> rotation.add(new Rotation(180, 0));
+            case 3 -> rotation.add(new Rotation(270, 0));
+            default -> rotation;
         };
     }
 }
