@@ -91,7 +91,7 @@ public class AutoRouteCommand extends Command {
                 }
             }
             case "secret" -> {
-                int secretAmount = Math.min(1, extraInt);
+                int secretAmount = Math.max(1, extraInt);
 
                 ChatUtil.prefixMessage(secretAmount + " secret await node(s) successfully added!");
                 room.nodes.add(new Node(nodePos, new BlockPos(secretAmount, 0, 0), rotation, Node.Type.SECRET));
