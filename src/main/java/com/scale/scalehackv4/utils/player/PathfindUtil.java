@@ -26,6 +26,8 @@ public class PathfindUtil {
     // A* finds a path from start to goal.
     // h is the heuristic function. h(n) estimates the cost to reach goal from node n.
     public static ArrayList<BlockPos> findPath(BlockPos start, BlockPos goal) {
+        if (!isValid(goal)) return null;
+
         // The set of discovered nodes that may need to be (re-)expanded.
         // Initially, only the start node is known.
         // This is usually implemented as a min-heap or priority queue rather than a hash-set.
@@ -43,23 +45,30 @@ public class PathfindUtil {
         // For node n, fScore[n] := gScore[n] + h(n). fScore[n] represents our current best guess as to
         // how cheap a path could be from start to finish if it goes through n.
         HashMap<BlockPos, Integer> fScore = new HashMap<>();
-        fScore.put(start, h(start, goal));
+        int startDistance = d(start, goal);
+        fScore.put(start, startDistance);
 
         while (!openSet.isEmpty()) {
             // This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
             openSet.sort(Comparator.comparingInt(fScore::get));
             BlockPos current = openSet.getFirst();
-            if (current.equals(goal)) {
-                return reconstructPath(cameFrom, current);
-            }
+            if (current.equals(goal)) return reconstructPath(cameFrom, current);
+
+            // if we have gone miles of track, there probably isnt a path
+            else if (fScore.get(current)-startDistance > fScore.get(start)*100) return null;
 
             openSet.remove(current);
 
-            for (BlockPos neighbor : neighbours(current)) {
+            for (BlockPos neighbor : getNeighbours(current)) {
+                // duplicates are very possible
+                if (gScore.containsKey(neighbor)) continue;
+
                 // d(current,neighbor) is the weight of the edge from current to neighbor
                 // tentative_gScore is the distance from start to the neighbor through current
-                int tentative_gScore = gScore.get(current) + d(neighbor);
+                int tentative_gScore = gScore.get(current) + d(current, neighbor);
                 if (tentative_gScore < gScore.getOrDefault(neighbor, Integer.MAX_VALUE)) {
+                    // todo: this node is good, double check its validity
+
                     // This path to neighbor is better than any previous one. Record it!
                     cameFrom.put(neighbor, current);
                     gScore.put(neighbor, tentative_gScore);
@@ -75,36 +84,53 @@ public class PathfindUtil {
         return null;
     }
 
-    // i think this is manhattan distance, its fast, thats all the matters
     private static int h(BlockPos pos, BlockPos goal) {
-        return (int) Math.sqrt(pos.getSquaredDistance(goal));
+        // todo: make heuristic influence as much
+        return 0;
+
+        //int blockSpeed = 10;
+        //if (C.w().getBlockState(pos.up()).isLiquid() || C.w().getBlockState(pos.up().up()).isLiquid()) blockSpeed *= 14;
+        //return d(pos, goal) + blockSpeed;
     }
 
-    private static int d(BlockPos pos) {
-        return C.w().getBlockState(pos.up()).isLiquid() || C.w().getBlockState(pos.up().up()).isLiquid() ? 14 : 1;
+    private static int d(BlockPos current, BlockPos neighbour) {
+        return (int) Math.sqrt(current.getSquaredDistance(neighbour));
     }
 
-    private static ArrayList<BlockPos> neighbours(BlockPos pos) {
+    private static ArrayList<BlockPos> getNeighbours(BlockPos pos) {
         ArrayList<BlockPos> validNeighbours = new ArrayList<>();
 
-        for (Direction direction : Direction.values()) {
-            BlockPos newPos = pos.offset(direction);
+        for (BlockPos offset : VALID_NEIGHBOUR_OFFSETS) {
+            BlockPos possiblePos = pos.add(offset);
 
-            if (direction != Direction.UP) {
-                if (isValid(newPos.up())) validNeighbours.add(newPos.up());
-            }
-
-            if (isValid(newPos)) {
-                validNeighbours.add(newPos);
-            }
-            // assuming u dont care about fall damage, you can go anywhere below the positions
-            else {
-                while (!isValid(newPos) && newPos.getY() >= -64) newPos = newPos.down();
-                if (isValid(newPos)) validNeighbours.add(newPos);
+            if (isValid(possiblePos)) {
+                validNeighbours.add(possiblePos);
             }
         }
 
         return validNeighbours;
+    }
+
+    // precomputing these saves a heck of a lot of time
+    private static final BlockPos[] VALID_NEIGHBOUR_OFFSETS = getBlocksInRange(5);
+    private static BlockPos[] getBlocksInRange(int range) {
+        ArrayList<BlockPos> blocks = new ArrayList<>();
+        for (int x = -range; x <= range; x++) {
+            // todo: jumpboost changes EVERYTHING + blocks below are ignored
+            for (int y = 0; y <= 1; y++) {
+                for (int z = -range; z <= range; z++) {
+                    if (x + z == 0) continue;
+
+                    // block gotta be within a circular range, sadly u dont go further diagonally :pensive:
+                    if (Math.abs(x * x + y * y + z * z) >= range * (range + 1)) continue;
+
+                    blocks.add(new BlockPos(x, y, z));
+                }
+            }
+        }
+
+
+        return blocks.toArray(new BlockPos[0]);
     }
 
     private static boolean isValid(BlockPos pos) {

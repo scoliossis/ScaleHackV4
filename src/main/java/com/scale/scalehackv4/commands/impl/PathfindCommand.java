@@ -9,6 +9,7 @@ import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.player.PathfindUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import net.minecraft.util.math.BlockPos;
+import org.joml.Vector3f;
 
 import java.awt.*;
 import java.util.ArrayList;
@@ -19,14 +20,32 @@ public class PathfindCommand extends Command {
     ArrayList<BlockPos> blocks = null;
 
     private final Event drawPath = new RenderWorldEvent(null, params -> {
+        BlockPos playerPos = C.p().getBlockPos().down();
+
+        /*
+        int range = 5;
+        for (int x = -range; x <= range; x++) {
+            for (int y = 0; y <= 1; y++) {
+                for (int z = -range; z <= range; z++) {
+                    if (Math.abs(x * x + y * y + z * z) >= range * (range + 1)) continue;
+
+                    BlockPos pos = playerPos.add(x, y, z);
+                    Render3dUtil.drawBox(pos.getX(), pos.getY(), pos.getZ(), 1, 1, 1, new Color(255, 0, 0, 20), false);
+                }
+            }
+        }
+         */
+
         if (blocks == null) return false;
 
-        BlockPos lastPos = null;
+        Vector3f lastPos = null;
         for (BlockPos block : blocks) {
+            Vector3f pos = block.toCenterPos().toVector3f().add(0, 0.5f, 0);
             if (lastPos != null) {
-                Render3dUtil.drawLine(lastPos.toCenterPos().toVector3f().add(0, 0.5f, 0), block.toCenterPos().toVector3f().add(0, 0.5f, 0), new Color(255, 0, 0));
+                Render3dUtil.drawLine(lastPos, pos, new Color(255, 0, 0));
             }
-            lastPos = block;
+            Render3dUtil.drawBox(pos.x - 0.05f, pos.y - 0.05f, pos.z - 0.05f, 0.1f, 0.1f, 0.1f, new Color(0, 245, 255, 255), false);
+            lastPos = pos;
         }
 
         return false;
