@@ -1,17 +1,35 @@
 package com.scale.scalehackv4.utils.skyblock;
 
+import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.render.RenderScoreboardEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
+import net.minecraft.scoreboard.Scoreboard;
+import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.util.math.ChunkPos;
 
 @RegisterListeners
 public class AreaUtil {
-    public static boolean isInDungeons() {
-        if (C.w().getScoreboard().getObjectives().isEmpty()) return false;
+    public final Event onLoadWorld = new WorldJoinEvent(null, params -> {
+        RenderScoreboardEvent.LAST_SIDEBAR = new RenderScoreboardEvent.SidebarEntry[0];
+        return false;
+    });
 
+    public static boolean isInSkyblock() {
+        Scoreboard scoreboard = C.w().getScoreboard();
+        if (scoreboard == null) return false;
+
+        for (ScoreboardObjective objective : scoreboard.getObjectives()) {
+            if (objective.getName().equals("SBScoreboard")) return true;
+        }
+
+        return false;
+    }
+
+    public static boolean isInDungeons() {
         for (RenderScoreboardEvent.SidebarEntry sidebarEntry : RenderScoreboardEvent.LAST_SIDEBAR) {
             if (sidebarEntry.name().getString().matches("( )+§7⏣ §cThe Catac§[a-zA-Z0-9]§combs §7\\([MFE].+")) {
                 return true;

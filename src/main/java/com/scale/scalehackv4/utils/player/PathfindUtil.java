@@ -59,9 +59,6 @@ public class PathfindUtil {
             openSetMap.remove(current);
             if (current.equals(goal)) return reconstructPath(cameFrom, current);
 
-            // if we have gone miles of track, there probably isnt a path
-            else if (fScore.get(current)-startDistance > fScore.get(start)*100) return null;
-
             if (!closedSet.add(current)) continue;
 
             for (BlockPos neighbor : getNeighbours(current)) {
@@ -161,7 +158,6 @@ public class PathfindUtil {
         Box targetBoxXZ = targetCollisionBox.withMinY(-64).withMaxY(255);
 
         Vec3d closestStartPos = getClosestPoint(startBox, targetBox);
-        Vec3d closestTargetPos = getClosestPoint(targetBox, startBox);
 
         Vec3d velocity = new Vec3d(0, 0, 0);
         Vec3d pos = startPos.toCenterPos().add(0, 0.5, 0);
@@ -171,7 +167,7 @@ public class PathfindUtil {
         distanceToEdge = Entity.adjustMovementForCollisions(null, distanceToEdge, new Box(pos.x - PLAYER_RADIUS, pos.y, pos.z - PLAYER_RADIUS, pos.x + PLAYER_RADIUS, pos.y+PLAYER_HEIGHT, pos.z + PLAYER_RADIUS), C.w(), List.of());
         pos = pos.add(distanceToEdge);
 
-        double yaw = Math.toRadians(-RotationUtil.getRotation(RotationUtil.getClientRotation(), closestStartPos, closestTargetPos).yaw);
+        double yaw = Math.toRadians(-RotationUtil.getRotation(RotationUtil.getClientRotation(), closestStartPos, targetBox.getCenter()).yaw);
         boolean onGround = true;
         double prevVelocityY = Double.MAX_VALUE;
 

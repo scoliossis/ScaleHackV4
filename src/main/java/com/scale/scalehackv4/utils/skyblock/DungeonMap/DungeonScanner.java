@@ -86,7 +86,7 @@ public class DungeonScanner {
         return false;
     });
 
-
+    // todo: change unseen rooms to have question marks
     private final Event updateSecretCount = new PacketEvent.Received(null, event -> {
         if (!(event.packet instanceof GameMessageS2CPacket packet)) return false;
 

@@ -12,6 +12,7 @@ import net.minecraft.util.math.BlockPos;
 import java.util.function.Predicate;
 
 @AllArgsConstructor
+// maybe add walk/aote node? but pearl is probably enough
 public class Node {
     public BlockPos startPos;
     public BlockPos targetPos;

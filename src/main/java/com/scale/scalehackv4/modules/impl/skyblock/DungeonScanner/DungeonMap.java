@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.skyblock.Dungeons;
+package com.scale.scalehackv4.modules.impl.skyblock.DungeonScanner;
 
 import com.scale.scalehackv4.bridge.MapDecorationsBridge;
 import com.scale.scalehackv4.events.Event;

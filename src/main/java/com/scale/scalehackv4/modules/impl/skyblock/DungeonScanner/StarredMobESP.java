@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.skyblock.Dungeons;
+package com.scale.scalehackv4.modules.impl.skyblock.DungeonScanner;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
@@ -26,7 +26,7 @@ public class StarredMobESP extends DungeonScannerModule {
         float partialTicks = C.mc.getRenderTickCounter().getTickProgress(true);
 
         for (Entity entity : C.w().getEntities()) {
-            boolean isShadowAssassin = entity.getName().getString().contains("Shadow Assassin");
+            boolean isShadowAssassin = entity.getName().getString().equals("Shadow Assassin");
             if (!entity.getName().getString().contains("✯") && !isShadowAssassin) continue;
 
             float width = 0.8f;
