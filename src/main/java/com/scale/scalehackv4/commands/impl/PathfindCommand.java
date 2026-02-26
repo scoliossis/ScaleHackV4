@@ -20,22 +20,6 @@ public class PathfindCommand extends Command {
     ArrayList<BlockPos> blocks = null;
 
     private final Event drawPath = new RenderWorldEvent(null, params -> {
-        BlockPos playerPos = C.p().getBlockPos().down();
-
-        /*
-        int range = 5;
-        for (int x = -range; x <= range; x++) {
-            for (int y = 0; y <= 1; y++) {
-                for (int z = -range; z <= range; z++) {
-                    if (Math.abs(x * x + y * y + z * z) >= range * (range + 1)) continue;
-
-                    BlockPos pos = playerPos.add(x, y, z);
-                    Render3dUtil.drawBox(pos.getX(), pos.getY(), pos.getZ(), 1, 1, 1, new Color(255, 0, 0, 20), false);
-                }
-            }
-        }
-         */
-
         if (blocks == null) return false;
 
         Vector3f lastPos = null;
