@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.skyblock;
+package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
@@ -7,12 +7,10 @@ import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.LeftClickedEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
-import com.scale.scalehackv4.modules.Category;
-import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
@@ -36,16 +34,7 @@ import net.minecraft.util.math.Vec3i;
 
 import java.awt.*;
 
-@RegisterModule(
-        name = "Secret Helper",
-        category = Category.SKYBLOCK
-)
-public class SecretHelper extends Module {
-    @RegisterSubModule(name = "Etherwarp Overlay")
-    public static boolean etherwarpOverlay = true;
-    @RegisterSubModule(name = "Etherwarp Colour", parent = "Etherwarp Overlay")
-    public static Color etherwarpColour = new Color(188, 0, 250, 90);
-
+public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Auto Routes", hasKeybind = true)
     public static boolean autoroutes = true;
     @RegisterSubModule(name = "Skip On Click")
@@ -73,29 +62,86 @@ public class SecretHelper extends Module {
     @RegisterSubModule(name = "Await Secret Colour", parent = "Show Auto Routes")
     public static Color awaitSecretColour = new Color(255, 215, 0, 92);
 
-    private Vec3i etherwarpPos = null;
+    private static Node currentNode = null;
+    private static boolean swapped = false;
+    private static long startedAwaiting = -1;
+    private static long lastNode = -1;
+    private static boolean failed = false;
 
-    private Node currentNode = null;
-    private boolean swapped = false;
-    private long startedAwaiting = -1;
-    private long lastNode = -1;
-    private boolean failed = false;
+    private static int receivedSecretPackets = 0;
+    private static int lastNodeIndex = 0;
+    private static int ticksAwaiting = 0;
 
-    private int lastNodeIndex = 0;
-    private int receivedSecretPackets = 0;
-    private int ticksAwaiting = 0;
-
-    private final Event onPlayerUpdate = new PlayerUpdateEvent(this, params -> {
+    private final Event onPlayerUpdate = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         handleAutoRoutes();
-        handleEtherwarpOverlay();
 
         return false;
     });
 
-    private final Event onLeftClicked = new LeftClickedEvent(this, params -> {
+
+    private final Event onLeftClicked = new LeftClickedEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         if (skipOnClick && currentNode != null) {
             ChatUtil.prefixMessage("Skipping node: " + currentNode.type.name());
             finishedNode(true);
+        }
+
+        return false;
+    });
+
+    private final Event overrideMovement = new KeyboardInputEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (currentNode == null) return false;
+
+        params.backKey = params.leftKey = params.rightKey = params.forwardKey = params.sneakKey = params.jumpKey = false;
+        if (currentNode.type == Node.Type.ETHERWARP) params.sneakKey = true;
+        return false;
+    });
+
+    private final Event renderWorldEvent = new RenderWorldEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        renderAutoroutes();
+
+        return false;
+    });
+
+    private final Event awaitAutoRouteSuccess = new PacketEvent.Received(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (startedAwaiting == -1) return false;
+        if (System.currentTimeMillis() - startedAwaiting > (currentNode.type == Node.Type.SECRET ? maxSecretDelay : timeout)) {
+            finishedNode(false);
+            return false;
+        }
+        switch (currentNode.type) {
+            case ETHERWARP, PEARL -> {
+                if (params.packet instanceof PlayerPositionLookS2CPacket) {
+                    finishedNode(true);
+                }
+            }
+            case DUNGEON_BREAKER -> {
+                if (C.w().getBlockState(NodeUtil.getNodePos(currentNode.targetPos, AreaUtil.getCurrentRoom())).getBlock() == Blocks.AIR) {
+                    finishedNode(true);
+                }
+            }
+            case SECRET -> {
+                if (params.packet instanceof ItemPickupAnimationS2CPacket) {
+                    finishedNode(true);
+                }
+                if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
+                    if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
+                        finishedNode(true);
+                    }
+                }
+            }
+        }
+        return false;
+    });
+
+    private final Event awaitSecretInteraction = new PacketEvent.Sent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (currentNode == null || currentNode.type != Node.Type.SECRET) return false;
+
+        if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
+            Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
+
+            if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
+                finishedNode(true);
+            }
         }
 
         return false;
@@ -196,51 +242,6 @@ public class SecretHelper extends Module {
         startedAwaiting = System.currentTimeMillis();
     }
 
-    private final Event awaitAutoRouteSuccess = new PacketEvent.Received(this, params -> {
-        if (startedAwaiting == -1) return false;
-        if (System.currentTimeMillis() - startedAwaiting > (currentNode.type == Node.Type.SECRET ? maxSecretDelay : timeout)) {
-            finishedNode(false);
-            return false;
-        }
-        switch (currentNode.type) {
-            case ETHERWARP, PEARL -> {
-                if (params.packet instanceof PlayerPositionLookS2CPacket) {
-                    finishedNode(true);
-                }
-            }
-            case DUNGEON_BREAKER -> {
-                if (C.w().getBlockState(NodeUtil.getNodePos(currentNode.targetPos, AreaUtil.getCurrentRoom())).getBlock() == Blocks.AIR) {
-                    finishedNode(true);
-                }
-            }
-            case SECRET -> {
-                if (params.packet instanceof ItemPickupAnimationS2CPacket) {
-                    finishedNode(true);
-                }
-                if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
-                    if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
-                        finishedNode(true);
-                    }
-                }
-            }
-        }
-        return false;
-    });
-
-    private final Event awaitSecretInteraction = new PacketEvent.Sent(this, params -> {
-        if (currentNode == null || currentNode.type != Node.Type.SECRET) return false;
-
-        if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
-            Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
-
-            if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
-                finishedNode(true);
-            }
-        }
-
-        return false;
-    });
-
     private void finishedNode(boolean success) {
         failed = !success;
         // secrets nodes pass the amount of secrets as the the X coord
@@ -256,7 +257,7 @@ public class SecretHelper extends Module {
         }
     }
 
-    private void forceStop() {
+    protected static void forceStop() {
         startedAwaiting = -1;
         swapped = false;
         currentNode = null;
@@ -264,35 +265,6 @@ public class SecretHelper extends Module {
         receivedSecretPackets = 0;
     }
 
-    private final Event overrideMovement = new KeyboardInputEvent(this, params -> {
-        if (currentNode == null) return false;
-
-        params.backKey = params.leftKey = params.rightKey = params.forwardKey = params.sneakKey = params.jumpKey = false;
-        if (currentNode.type == Node.Type.ETHERWARP) params.sneakKey = true;
-        return false;
-    });
-
-    private void handleEtherwarpOverlay() {
-        if (!etherwarpOverlay || !C.p().isSneaking() || !EtherwarpUtil.isEtherwarpItem(C.p().getMainHandStack())) {
-            etherwarpPos = null;
-            return;
-        }
-
-        etherwarpPos = EtherwarpUtil.getEtherwarpBlockSuccess(C.p().getPitch(), C.p().getYaw(), C.p().getEntityPos(), 57);
-    }
-
-    private final Event renderWorldEvent = new RenderWorldEvent(this, params -> {
-        renderEtherwarpPos();
-        renderAutoroutes();
-
-        return false;
-    });
-
-    private void renderEtherwarpPos() {
-        if (etherwarpPos != null) {
-            Render3dUtil.drawBox(etherwarpPos.getX(), etherwarpPos.getY(), etherwarpPos.getZ(), 1, 1, 1, etherwarpColour, false);
-        }
-    }
 
     private static void renderAutoroutes() {
         if (!showAutoRoutes) return;
@@ -314,10 +286,5 @@ public class SecretHelper extends Module {
             BlockPos targetNodePos = NodeUtil.getNodePos(node.targetPos, currentRoom);
             Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetNodePos.toCenterPos().toVector3f(), lineColours);
         }
-    }
-
-    @Override public void onEnable() {}
-    @Override public void onDisable() {
-        forceStop();
     }
 }

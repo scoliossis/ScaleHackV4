@@ -3,7 +3,6 @@ package com.scale.scalehackv4.modules.impl.skyblock.DungeonScanner;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
-import com.scale.scalehackv4.utils.skyblock.DungeonMap.MapParser;
 
 @RegisterModule(
         name = "Dungeon Scanner",
@@ -18,6 +17,5 @@ public class DungeonScannerModule extends Module {
 
     @Override
     public void onDisable() {
-        MapParser.MAP_PLAYERS.clear();
     }
 }

@@ -27,13 +27,13 @@ public class AutoGFS extends Module {
     @RegisterSubModule(name = "Superboom TNT")
     public static boolean superboom = true;
 
-    @RegisterSubModule(name = "Delay", min = 1500, max = 5000)
+    @RegisterSubModule(name = "Delay", min = 1500, max = 5000, increment = 100)
     public static long delay = 1500;
 
     @AllArgsConstructor
     private enum SackItems {
         PEARLS(e -> pearls, 16, "ENDER_PEARL", e -> e.getItem() == Items.ENDER_PEARL && getCustomName(e).equals("Ender Pearl")),
-        SUPERBOOM(e -> superboom, 64, "SUPERBOOM_TNT", e -> e.getItem() == Items.TNT && getCustomName(e).equals("Superboom TNT"));
+        SUPERBOOM(e -> superboom, 64, "SUPERBOOM_TNT", e -> e.getItem() == Items.TNT && getCustomName(e).equals("Superboom TNT") && AreaUtil.isInDungeons());
 
         public final Predicate<?> enabled;
         public final int maxStack;

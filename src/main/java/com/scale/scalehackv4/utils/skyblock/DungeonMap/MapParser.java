@@ -1,5 +1,8 @@
 package com.scale.scalehackv4.utils.skyblock.DungeonMap;
 
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
@@ -18,11 +21,17 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 
+@RegisterListeners
 public class MapParser {
     public static final int MAP_ITEM_DIAMETER = 128;
     public static final int MAP_ITEM_ROOM_SIZES = 18;
     public static final int MAP_ITEM_DOOR_SIZES = 2;
     public static final int MAP_SQUARE_SIZE = MAP_ITEM_ROOM_SIZES+MAP_ITEM_DOOR_SIZES;
+
+    public final Event onLoadWorld = new WorldJoinEvent(null, params -> {
+        MapParser.MAP_PLAYERS.clear();
+        return false;
+    });
 
     public static MapState getMapState() {
         for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {
