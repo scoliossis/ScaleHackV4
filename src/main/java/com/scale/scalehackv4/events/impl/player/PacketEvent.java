@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.events.impl.client;
+package com.scale.scalehackv4.events.impl.player;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.modules.Module;

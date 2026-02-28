@@ -11,6 +11,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
 public class SecretsHelper extends Module {
     @Override public void onEnable() {}
     @Override public void onDisable() {
+        SecretAura.INTERACTED_POSITIONS.clear();
         AutoRoutes.forceStop();
     }
 }

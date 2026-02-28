@@ -2,9 +2,9 @@ package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.client.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.LeftClickedEvent;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
@@ -34,10 +34,13 @@ import net.minecraft.util.math.Vec3i;
 
 import java.awt.*;
 
+// todo: fix secrets awaiting to allow secrets to be gotten before the node is reached
+//  change rotations to be serverside
 public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Auto Routes", hasKeybind = true)
     public static boolean autoroutes = true;
-    @RegisterSubModule(name = "Skip On Click")
+
+    @RegisterSubModule(name = "Skip On Click", parent = "Auto Routes")
     public static boolean skipOnClick = true;
 
     @RegisterSubModule(name = "Timeout", parent = "Auto Routes", max = 5000, increment = 100)
@@ -49,7 +52,7 @@ public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Max Secret Delay", parent = "Auto Routes", max = 10000, increment = 100)
     public static long maxSecretDelay = 5000;
 
-    @RegisterSubModule(name = "Show Auto Routes")
+    @RegisterSubModule(name = "Show Auto Routes", hasKeybind = true)
     public static boolean showAutoRoutes = true;
     @RegisterSubModule(name = "Etherwarp Node Colour", parent = "Show Auto Routes")
     public static Color etherwarpNodeColour = new Color(135, 148, 255, 92);
@@ -71,6 +74,8 @@ public class AutoRoutes extends SecretsHelper {
     private static int receivedSecretPackets = 0;
     private static int lastNodeIndex = 0;
     private static int ticksAwaiting = 0;
+
+    private static long lastItemPickup = -1;
 
     private final Event onPlayerUpdate = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         handleAutoRoutes();
@@ -103,6 +108,11 @@ public class AutoRoutes extends SecretsHelper {
     });
 
     private final Event awaitAutoRouteSuccess = new PacketEvent.Received(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        // hypixel gives u the item before we expect it </3
+        if (params.packet instanceof ItemPickupAnimationS2CPacket) {
+            lastItemPickup = System.currentTimeMillis();
+        }
+
         if (startedAwaiting == -1) return false;
         if (System.currentTimeMillis() - startedAwaiting > (currentNode.type == Node.Type.SECRET ? maxSecretDelay : timeout)) {
             finishedNode(false);
@@ -120,8 +130,9 @@ public class AutoRoutes extends SecretsHelper {
                 }
             }
             case SECRET -> {
-                if (params.packet instanceof ItemPickupAnimationS2CPacket) {
+                if (System.currentTimeMillis() - lastItemPickup < 1000) {
                     finishedNode(true);
+                    lastItemPickup = -1;
                 }
                 if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
                     if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {

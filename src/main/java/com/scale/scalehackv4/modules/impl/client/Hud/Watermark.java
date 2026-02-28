@@ -2,7 +2,7 @@ package com.scale.scalehackv4.modules.impl.client.Hud;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.client.PacketEvent;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;

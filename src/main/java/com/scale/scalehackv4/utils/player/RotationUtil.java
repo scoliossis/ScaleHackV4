@@ -6,6 +6,10 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 public class RotationUtil {
+    public static Rotation getRotation(Vec3d to) {
+        return applyGcd(getClientRotation(), getRotationNoGcd(getClientRotation(), C.p().getEyePos(), to));
+    }
+
     public static Rotation getRotation(Rotation currentRotation, Vec3d from, Vec3d to) {
         return applyGcd(currentRotation, getRotationNoGcd(currentRotation, from, to));
     }

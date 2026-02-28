@@ -6,6 +6,7 @@ import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.client.ColourAdapter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.network.ClientPlayerInteractionManager;
 import net.minecraft.client.util.Window;
 import net.minecraft.client.world.ClientWorld;
 import org.reflections.Reflections;
@@ -28,6 +29,10 @@ public class C {
 
     public static ClientWorld w() {
         return mc.world;
+    }
+
+    public static ClientPlayerInteractionManager im() {
+        return mc.interactionManager;
     }
 
     public static Window res() {

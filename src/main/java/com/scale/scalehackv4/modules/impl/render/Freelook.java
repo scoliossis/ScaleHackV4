@@ -1,7 +1,7 @@
 package com.scale.scalehackv4.modules.impl.render;
 
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.client.PacketEvent;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;

@@ -3,7 +3,7 @@ package com.scale.scalehackv4.utils.skyblock.DungeonMap;
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
-import com.scale.scalehackv4.events.impl.client.PacketEvent;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.skyblock.FinishedDungeonScanningEvent;
 import com.scale.scalehackv4.utils.C;

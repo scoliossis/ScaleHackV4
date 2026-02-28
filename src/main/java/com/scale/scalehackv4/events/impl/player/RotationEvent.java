@@ -16,5 +16,7 @@ public class RotationEvent extends Event {
     public RotationEvent(Module parent, Predicate<Params> predicate) {
         super(parent, predicate);
     }
+
+    public static Rotation lastRotation;
 }
 

@@ -1,7 +1,7 @@
 package com.scale.scalehackv4.mixins.client;
 
 import com.scale.scalehackv4.events.Bus;
-import com.scale.scalehackv4.events.impl.client.PacketEvent;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.network.ClientConnection;
