@@ -27,6 +27,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.HashMap;
 import java.util.UUID;
@@ -70,7 +71,7 @@ public class SecretAura extends SecretsHelper {
         LEVER(
                 pos -> {
                     Room currentRoom = AreaUtil.getCurrentRoom();
-                    if (currentRoom == null || currentRoom.name.equals("Water Board")) return false;
+                    if (AreaUtil.isInBoss() || (currentRoom != null && currentRoom.name.equals("Water Board"))) return false;
 
                     return C.w().getBlockState(pos).getBlock() == Blocks.LEVER;
                 },
@@ -78,12 +79,12 @@ public class SecretAura extends SecretsHelper {
         ),
         REDSTONE_BLOCK(
                 pos -> hasRedstoneKey && C.w().getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK,
-                pos -> hasRedstoneKey = false
+                pos -> true
         ),
         CHEST(
                 pos -> {
                     Room currentRoom = AreaUtil.getCurrentRoom();
-                    if (currentRoom == null || currentRoom.name.equals("Three Weirdos")) return false;
+                    if (currentRoom != null && currentRoom.name.equals("Three Weirdos")) return false;
 
                     BlockEntity blockEntity = C.w().getBlockEntity(pos);
                     if (blockEntity instanceof ChestBlockEntity chestBlockEntity) {
@@ -123,9 +124,9 @@ public class SecretAura extends SecretsHelper {
         // todo: Goddamn, fella, don't just say all that concernin' shit, Besides, you should know, none of this is permanent
         // yeah, ive complained before about people doing these loops, im no better ig </3
         int scanningDistance = (int) Math.ceil(reach);
-        for (int x = -scanningDistance; x < scanningDistance; x++) {
-            for (int y = -scanningDistance; y < scanningDistance; y++) {
-                for (int z = -scanningDistance; z < scanningDistance; z++) {
+        for (int x = -scanningDistance; x <= scanningDistance; x++) {
+            for (int y = -scanningDistance; y <= scanningDistance; y++) {
+                for (int z = -scanningDistance; z <= scanningDistance; z++) {
                     BlockPos pos = C.p().getBlockPos().add(x, y, z);
                     if (INTERACTED_POSITIONS.containsKey(pos)) continue;
 
@@ -136,10 +137,13 @@ public class SecretAura extends SecretsHelper {
                     double distance = Math.sqrt(pos.getSquaredDistance(C.p().getEyePos()));
                     if (distance > reach) continue;
 
+                    Vec3d posVec = pos.toCenterPos();
+
                     BlockState blockState = C.w().getBlockState(pos);
                     BlockHitResult blockHitResult = C.w().raycastBlock(
                             C.p().getEyePos(),
-                            pos.toBottomCenterPos(),
+                            // adding on extra just in case!
+                            posVec.subtract(C.p().getEyePos().subtract(posVec)),
                             pos,
                             blockState.getOutlineShape(C.w(), pos),
                             blockState
@@ -178,7 +182,9 @@ public class SecretAura extends SecretsHelper {
     private final Event onRedstoneKeyPickup = new ChatEvent.Received(ModuleUtil.getModule(SecretsHelper.class), params -> {
         if (Formatting.strip(params.message).equals("You found a Secret Redstone Key!")) {
             hasRedstoneKey = true;
-            ChatUtil.prefixMessage("REDSTONE KEY FOUND!");
+        }
+        if (Formatting.strip(params.message).equals("You hear something open...")) {
+            hasRedstoneKey = false;
         }
         return false;
     });

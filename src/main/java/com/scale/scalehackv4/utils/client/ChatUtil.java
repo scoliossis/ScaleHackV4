@@ -5,7 +5,7 @@ import com.scale.scalehackv4.utils.C;
 import net.minecraft.text.Text;
 
 public class ChatUtil {
-    public static void prefixMessage(String message) {
+    public static void prefixMessage(Object message) {
         chat("&c[&f"+ Main.MOD_NAME+"&c] " + message);
     }
     public static void chat(Object message) {

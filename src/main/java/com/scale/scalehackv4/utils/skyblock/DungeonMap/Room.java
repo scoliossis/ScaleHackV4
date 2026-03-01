@@ -31,7 +31,7 @@ public class Room {
     private static final File DUNGEON_ROUTES_FILE = new File(Main.BASE_FOLDER_PATH + "/dungeons/dungeon_routes.json");
 
     // blocks for the hashing algorithm to ignore because they can be in different positions randomly
-    private static final java.util.List<Block> BLACKLISTED_BLOCKS = List.of(
+    private static final List<Block> BLACKLISTED_BLOCKS = List.of(
             Blocks.RED_WOOL, // waterboard
             Blocks.LIME_WOOL, // waterboard
             Blocks.BLUE_WOOL, // waterboard
@@ -45,7 +45,9 @@ public class Room {
             Blocks.POLISHED_GRANITE, // any room with crushers
             Blocks.MOSSY_COBBLESTONE, // i was scared mossy cobble was scattered, but it isnt, already marked rooms, cant remove now
             Blocks.STONE_BRICKS, // crypts
-            Blocks.CRACKED_STONE_BRICKS // crypts and exploding walls
+            Blocks.CRACKED_STONE_BRICKS, // crypts and exploding walls
+            Blocks.SPRUCE_SLAB, // old trap
+            Blocks.MELON // MELON!
     );
 
     public ChunkPos[] squares;
@@ -80,7 +82,7 @@ public class Room {
 
         HashMap<String, String> routesMap = getRoutes();
 
-        String routes = routesMap.get(this.name);
+        String routes = routesMap.get(this.hash+"");
         if (routes == null) return;
 
         getNodes(routes);
@@ -149,7 +151,7 @@ public class Room {
                                 + e.type.name()
                 ).collect(Collectors.joining(","));
 
-        routes.put(this.name, nodesString);
+        routes.put(this.hash+"", nodesString);
 
         try {
             Files.write(DUNGEON_ROOMS_FILE.toPath(), C.gson.toJson(rooms).getBytes());

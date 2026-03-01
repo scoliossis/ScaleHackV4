@@ -24,6 +24,8 @@ import java.util.function.Predicate;
 public class AutoGFS extends Module {
     @RegisterSubModule(name = "Pearls")
     public static boolean pearls = true;
+    @RegisterSubModule(name = "Spirit Leaps")
+    public static boolean spiritLeaps = true;
     @RegisterSubModule(name = "Superboom TNT")
     public static boolean superboom = true;
 
@@ -33,6 +35,7 @@ public class AutoGFS extends Module {
     @AllArgsConstructor
     private enum SackItems {
         PEARLS(e -> pearls, 16, "ENDER_PEARL", e -> e.getItem() == Items.ENDER_PEARL && getCustomName(e).equals("Ender Pearl")),
+        SPIRIT_LEAP(e -> spiritLeaps, 16, "SPIRIT_LEAP", e -> e.getItem() == Items.ENDER_PEARL && getCustomName(e).equals("Spirit Leap") && AreaUtil.isInDungeons()),
         SUPERBOOM(e -> superboom, 64, "SUPERBOOM_TNT", e -> e.getItem() == Items.TNT && getCustomName(e).equals("Superboom TNT") && AreaUtil.isInDungeons());
 
         public final Predicate<?> enabled;

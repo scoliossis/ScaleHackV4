@@ -39,6 +39,13 @@ public class AreaUtil {
         return false;
     }
 
+    // boss is always right of the rightmost chunk
+    public static boolean isInBoss() {
+        float bossX = -DungeonScanner.MAX_DUNGEON_DIAMETER+DungeonScanner.DUNGEON_BLOCKS_OFFSET + DungeonScanner.CURRENT_DUNGEON_DIAMETER.x;
+        float bossZ = -DungeonScanner.MAX_DUNGEON_DIAMETER+DungeonScanner.DUNGEON_BLOCKS_OFFSET + DungeonScanner.CURRENT_DUNGEON_DIAMETER.y;
+        return C.p().getX() > bossX && C.p().getZ() > bossZ;
+    }
+
     public static Room getCurrentRoom() {
         if (!isInDungeons()) return null;
 
