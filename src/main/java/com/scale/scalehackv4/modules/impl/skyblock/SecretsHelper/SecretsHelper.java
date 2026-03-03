@@ -9,9 +9,11 @@ import com.scale.scalehackv4.modules.RegisterModule;
         category = Category.SKYBLOCK
 )
 public class SecretsHelper extends Module {
-    @Override public void onEnable() {}
+    @Override public void onEnable() {
+        if (SecretAura.secretAura) SecretAura.onSetSecretAura(true);
+    }
     @Override public void onDisable() {
-        SecretAura.INTERACTED_POSITIONS.clear();
+        SecretAura.onSetSecretAura(false);
         AutoRoutes.forceStop();
     }
 }

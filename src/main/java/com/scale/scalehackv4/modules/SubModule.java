@@ -1,6 +1,8 @@
 package com.scale.scalehackv4.modules;
 
 import com.scale.scalehackv4.Main;
+import com.scale.scalehackv4.events.Bus;
+import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import lombok.Getter;
@@ -47,6 +49,8 @@ public class SubModule {
 
     public void set(Object value) {
         try {
+            Bus.post(SubModuleToggledEvent.class, new SubModuleToggledEvent.Params(field, value));
+
             // this is copied from scalehack, boring.
             if (isSlider()) {
                 double doubleValue = Math.clamp(
@@ -76,6 +80,10 @@ public class SubModule {
         } catch (IllegalAccessException e) {
             e.printStackTrace();
         }
+    }
+
+    public String getKey() {
+        return (this.parent == null ? "" : this.annotation.parent() + ".") + this.annotation.name();
     }
 
     public boolean isSlider() {

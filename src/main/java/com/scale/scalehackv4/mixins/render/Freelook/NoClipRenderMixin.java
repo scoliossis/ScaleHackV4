@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.mixins.render.freelook;
+package com.scale.scalehackv4.mixins.render.Freelook;
 
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import net.minecraft.client.gui.hud.InGameOverlayRenderer;

@@ -221,7 +221,7 @@ public class ModuleUtil {
 
         for (SubModule sm : module.getChildren()) {
             Object value = sm.getField().getType() == boolean.class ? new BooleanModule((Boolean) sm.get(), sm.getKeybind()) : sm.get();
-            subModules.put(sm.getAnnotation().name(), value);
+            subModules.put(sm.getKey(), value);
         }
 
         moduleJSON.put(module.getAnnotation().name(), subModules);
@@ -272,7 +272,7 @@ public class ModuleUtil {
                 if (modulesJSON.containsKey(m.getAnnotation().name())) {
                     if (!sm.getAnnotation().hasKeybind()) continue;
 
-                    Object value = subModules.get(sm.getAnnotation().name());
+                    Object value = subModules.get(sm.getKey());
                     LinkedTreeMap<String, Object> booleanMap = (LinkedTreeMap<String, Object>) value;
 
                     loadKeybind(sm, booleanMap);
@@ -295,13 +295,13 @@ public class ModuleUtil {
             LinkedTreeMap<String, Object> subModules = modulesJSON.get(module.getAnnotation().name());
 
             for (SubModule subModule : module.getChildren()) {
-                if (!subModules.containsKey(subModule.getAnnotation().name())) {
+                if (!subModules.containsKey(subModule.getKey())) {
                     // todo: fix defaulting values
-                    System.out.println("Module has no config: " + subModule.getAnnotation().name() + " submodule of " + module.getAnnotation().name() + " not found, defaulting to " + subModule.get());
+                    System.out.println("Sub-module has no config: " + subModule.getKey() + " submodule of " + module.getAnnotation().name() + " not found, defaulting to " + subModule.get());
                     continue;
                 }
 
-                Object value = subModules.get(subModule.getAnnotation().name());
+                Object value = subModules.get(subModule.getKey());
 
                 if (subModule.getField().getType().isEnum()) {
                     Enum<?>[] enumConstants = (Enum<?>[]) subModule.getField().getType().getEnumConstants();

@@ -12,6 +12,7 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
         category = Category.RENDER
 )
 // todo: nausea, blindness, fire, grass, notifications, firework particles
+//  fix loading world screen bugging out in singleplayer
 public class NoRender extends Module {
     @RegisterSubModule(name = "Potions Overlay")
     public static boolean hidePotionEffectsGUI = true;

@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.mixins.render.freelook;
+package com.scale.scalehackv4.mixins.render.Freelook;
 
 import com.mojang.authlib.GameProfile;
 import com.scale.scalehackv4.modules.impl.render.Freelook;

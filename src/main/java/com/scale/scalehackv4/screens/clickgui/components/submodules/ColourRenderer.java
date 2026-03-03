@@ -158,7 +158,6 @@ public class ColourRenderer extends SubModuleRenderer {
             SubModuleRenderer.activeSubModule = subModule;
             if (ClickGuiModule.colourBoxType == ClickGuiModule.ColourBoxType.Anime_Girl) {
                 ANIME_GIRL_MOUSE_POS = guessPictureMousePos(ANIME_GIRL, (Color) subModule.get());
-                System.out.println(ANIME_GIRL_MOUSE_POS[0] + ", " + ANIME_GIRL_MOUSE_POS[1]);
             }
 
             return true;
@@ -269,8 +268,9 @@ public class ColourRenderer extends SubModuleRenderer {
 
                     ColourRenderer.hsb[0] = hsb[0];
                     ColourRenderer.hsb[1] = hsb[1];
+                    Color newColour = Color.getHSBColor(hsb[0], ColourRenderer.hsb[1], ColourRenderer.hsb[2]);
 
-                    subModule.set(Color.getHSBColor(hsb[0], hsb[1], ColourRenderer.hsb[2]));
+                    subModule.set(new Color(newColour.getRed(), newColour.getGreen(), newColour.getBlue(), moduleValue.getAlpha()));
                 }
             }
         }
