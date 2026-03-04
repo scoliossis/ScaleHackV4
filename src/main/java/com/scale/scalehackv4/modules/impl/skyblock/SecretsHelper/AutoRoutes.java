@@ -2,10 +2,7 @@ package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
-import com.scale.scalehackv4.events.impl.player.LeftClickedEvent;
-import com.scale.scalehackv4.events.impl.player.PacketEvent;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
+import com.scale.scalehackv4.events.impl.player.*;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
@@ -77,12 +74,40 @@ public class AutoRoutes extends SecretsHelper {
 
     private static long lastItemPickup = -1;
 
-    private final Event onPlayerUpdate = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        handleAutoRoutes();
+    private static boolean startAwaiting = false;
+
+    private final Event onRotateEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (!autoroutes) return false;
+
+        Room currentRoom = AreaUtil.getCurrentRoom();
+        if (currentRoom == null || currentRoom.nodes.isEmpty()) {
+            if (currentNode != null) finishedNode(true);
+            return false;
+        }
+
+        findCurrentNode(currentRoom);
+
+        if (currentNode == null) return false;
+        if ((currentNode.type == Node.Type.SECRET || !handleSwap()) && startedAwaiting == -1) startAwaiting = true;
 
         return false;
     });
 
+    private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (!autoroutes || currentNode == null) {
+            forceStop();
+            return false;
+        }
+
+        ticksAwaiting++;
+
+        // handle double pearling
+        if (currentNode.type == Node.Type.PEARL && ticksAwaiting == currentNode.targetPos.getX()) UseItemBridge.from(C.mc).bridge$DoItemUse();
+        // perform action based on node type
+        if (startAwaiting && ticksAwaiting >= getTicksBeforeAwait()) startAwaiting();
+
+        return false;
+    });
 
     private final Event onLeftClicked = new LeftClickedEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         if (skipOnClick && currentNode != null) {
@@ -158,15 +183,19 @@ public class AutoRoutes extends SecretsHelper {
         return false;
     });
 
-    private void handleAutoRoutes() {
-        if (!autoroutes) return;
+    private int getTicksBeforeAwait() {
+        return switch (currentNode.type) {
+            case ETHERWARP -> {
+                // hypixel hates me for some reason if im looking at a block before etherwarping, likely mb
+                HitResult hitResult = C.mc.crosshairTarget;
+                yield hitResult == null || hitResult.getType() == HitResult.Type.MISS ? 2 : 3;
+            }
+            case PEARL, DUNGEON_BREAKER  -> 2;
+            case SECRET -> 1;
+        };
+    }
 
-        Room currentRoom = AreaUtil.getCurrentRoom();
-        if (currentRoom == null || currentRoom.nodes.isEmpty()) {
-            if (currentNode != null) finishedNode(true);
-            return;
-        }
-
+    private void findCurrentNode(Room currentRoom) {
         if (currentNode == null && System.currentTimeMillis() - lastNode > (failed ? retryDelay : delay)) {
             for (int i = 0; i < currentRoom.nodes.size(); i++) {
                 int index = (i + lastNodeIndex + 1) % currentRoom.nodes.size();
@@ -180,14 +209,6 @@ public class AutoRoutes extends SecretsHelper {
                 }
             }
         }
-
-        if (currentNode == null) return;
-        ticksAwaiting++;
-        if (currentNode.type == Node.Type.PEARL && ticksAwaiting == currentNode.targetPos.getX()) {
-            UseItemBridge.from(C.mc).bridge$DoItemUse();
-        }
-
-        if (currentNode.type == Node.Type.SECRET || !handleSwap()) startAwaiting();
     }
 
     private boolean handleSwap() {
@@ -239,6 +260,7 @@ public class AutoRoutes extends SecretsHelper {
     }
 
     private void startAwaiting() {
+        startAwaiting = false;
         if (startedAwaiting != -1) return;
 
         ticksAwaiting = 0;
@@ -274,6 +296,7 @@ public class AutoRoutes extends SecretsHelper {
         currentNode = null;
         lastNode = System.currentTimeMillis();
         receivedSecretPackets = 0;
+        ticksAwaiting = 0;
     }
 
 

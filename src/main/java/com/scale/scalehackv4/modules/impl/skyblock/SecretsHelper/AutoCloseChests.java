@@ -8,6 +8,7 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import net.minecraft.client.gui.screen.ingame.GenericContainerScreen;
 
+// todo: make chest stealer, maybe scrap this module?
 public class AutoCloseChests extends SecretsHelper {
     @RegisterSubModule(name = "Auto Close Chests", hasKeybind = true)
     public static boolean autoCloseChests = true;

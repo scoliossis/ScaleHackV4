@@ -40,7 +40,7 @@ public class Room {
             Blocks.PISTON, // waterboard
             Blocks.JUNGLE_PLANKS, // boulder
             Blocks.BIRCH_PLANKS, // boulder
-            Blocks.POLISHED_ANDESITE, // ice fill
+            Blocks.POLISHED_ANDESITE, // ice fill + crushers in one room idk the name of
             Blocks.ANDESITE, // trap
             Blocks.POLISHED_GRANITE, // any room with crushers
             Blocks.MOSSY_COBBLESTONE, // i was scared mossy cobble was scattered, but it isnt, already marked rooms, cant remove now

@@ -127,8 +127,7 @@ public class SecretAura extends SecretsHelper {
                     if (INTERACTED_POSITIONS.containsKey(pos)) continue;
 
                     // basic reach check + condition check done after cause its more expensive on the cpu than the distance check
-                    double reachSquared = reach * reach;
-                    if (pos.getSquaredDistance(C.p().getEyePos()) > reachSquared || !auraBlock.condition.test(pos)) continue;
+                    if (Math.sqrt(pos.getSquaredDistance(C.p().getEyePos()))-1 > reach || !auraBlock.condition.test(pos)) continue;
 
                     BlockState blockState = C.w().getBlockState(pos);
                     Vec3d targetMiddle = new Vec3d(pos.getX(), pos.getY(), pos.getZ()).add(blockState.getOutlineShape(C.w(), pos).getBoundingBox().getCenter());
@@ -142,7 +141,7 @@ public class SecretAura extends SecretsHelper {
                     );
 
                     // make CERTAIN we are UP
-                    if (blockHitResult == null || blockHitResult.getType() == HitResult.Type.MISS || C.p().squaredDistanceTo(blockHitResult.getPos()) > reachSquared) continue;
+                    if (blockHitResult == null || blockHitResult.getType() == HitResult.Type.MISS || C.p().getEyePos().squaredDistanceTo(blockHitResult.getPos()) > reach * reach) continue;
 
                     currentTarget = new CurrentTarget(pos, auraBlock, blockHitResult);
                     if (rotate) params.rotation = RotationUtil.getRotation(blockHitResult.getPos());

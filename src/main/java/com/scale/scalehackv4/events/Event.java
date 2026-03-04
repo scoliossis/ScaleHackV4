@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.function.Predicate;
 
 // todo: probably a weird way to make an event bus, will probably hate myself later
+//  add priority
 public abstract class Event {
     public final Module module;
     public final Predicate<Object> predicate;
