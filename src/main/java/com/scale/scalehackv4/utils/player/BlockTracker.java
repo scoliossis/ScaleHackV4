@@ -185,7 +185,7 @@ public class BlockTracker {
 
         if (blocksToStopTracking.isEmpty()) return;
 
-        // we are done. its over. dont ever pregnant man emoji react me ever again
+        // we are done. its over. dont ever pregnant man emoji react me ever again 🫃
         for (int chunkX : loadedChunks.keySet()) {
             for (int chunkZ : loadedChunks.get(chunkX).keySet()) {
                 queueChunk(new ChunkPos(chunkX, chunkZ), blocksToStopTracking, false);
