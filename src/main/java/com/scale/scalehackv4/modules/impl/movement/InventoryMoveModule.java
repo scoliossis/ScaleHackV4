@@ -8,7 +8,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
         name = "Inventory Move",
         category = Category.MOVEMENT
 )
-public class InventoryMove extends Module {
+public class InventoryMoveModule extends Module {
     @Override
     public void onEnable() {
 

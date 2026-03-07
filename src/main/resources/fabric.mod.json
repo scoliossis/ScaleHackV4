@@ -1,6 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "scalehackv4",
+  "custom": {"firmament:hide_from_modlist": true},
   "version": "${version}",
 
   "name": "ScaleHackV4",

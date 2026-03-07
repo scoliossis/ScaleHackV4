@@ -23,6 +23,7 @@ import java.awt.*;
 //  multi select
 //  min-max sliders
 //  resizing the whole gui
+//  show which settings are sub settings
 public class ClickGuiScreen extends Screen {
     public ClickGuiScreen() {
         super(Text.of("Click GUI"));

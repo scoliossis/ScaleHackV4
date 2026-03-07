@@ -18,5 +18,9 @@ public class RotationEvent extends Event {
     }
 
     public static Rotation lastRotation;
+    public static Rotation currentRotation;
+
+    public static float lastHeadYaw;
+    public static float headYaw;
 }
 

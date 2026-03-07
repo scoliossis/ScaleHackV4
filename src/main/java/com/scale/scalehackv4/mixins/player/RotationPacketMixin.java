@@ -10,21 +10,21 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public class RotationPacketMixin {
     @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F"))
     private float fixRotationYaw(ClientPlayerEntity instance) {
-        return RotationEvent.lastRotation.yaw;
+        return RotationEvent.currentRotation.yaw;
     }
 
     @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F"))
     private float fixRotationPitch(ClientPlayerEntity instance) {
-        return RotationEvent.lastRotation.pitch;
+        return RotationEvent.currentRotation.pitch;
     }
 
     // u send rotation packets seperately when riding animals </3
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F"))
     private float fixRotationYawRidingAnimal(ClientPlayerEntity instance) {
-        return RotationEvent.lastRotation.yaw;
+        return RotationEvent.currentRotation.yaw;
     }
     @Redirect(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F"))
     private float fixRotationPitchRidingAnimal(ClientPlayerEntity instance) {
-        return RotationEvent.lastRotation.pitch;
+        return RotationEvent.currentRotation.pitch;
     }
 }

@@ -172,6 +172,7 @@ public class EtherwarpUtil {
         return null;
     }
 
+    // i jerk off to this function some times 🤭
     public static Vec3i getEtherwarpBlockSuccess(float pitch, float yaw, Vec3d startPos_, double distance) {
         Vec3d lookVec = scale(WorldUtil.fromPitchYaw(pitch, yaw), distance);
         Vec3d startPos = startPos_.add(0, ETHERWARP_EYE_HEIGHT, 0);

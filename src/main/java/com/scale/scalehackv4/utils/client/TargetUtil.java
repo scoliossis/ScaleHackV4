@@ -52,6 +52,8 @@ public class TargetUtil {
 
     public static boolean isValidTarget(Entity target) {
         if (!Targets.antibot) return true;
+        // this is possible for some reason, crash occured with a random skyblock mod, idk why it fed this a null target, wtv.
+        if (target == null) return false;
 
         int ping = -1;
         if (target instanceof PlayerEntity player) {

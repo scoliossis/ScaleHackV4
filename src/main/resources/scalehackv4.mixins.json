@@ -15,6 +15,7 @@
     "client.KeyPressMixin",
     "client.WorldJoinEventMixin",
     "client.antibot.AntiBotMixin",
+    "client.FixRotation.ShowRotationMixin",
     "player.CheckClickEventMixin",
     "player.FastPlaceMixin",
     "player.KeyboardInputMixin",
@@ -46,7 +47,7 @@
   "mixins": [
     "client.PacketEventMixin",
     "client.TabCompleteMixin",
-    "player.MovementFixMixin",
+    "client.FixRotation.MovementFixMixin",
     "player.PacketUtilMixin",
     "player.PlayerUpdateEventMixin",
     "player.BlockScanner.ChunkLoadMixin",

@@ -12,9 +12,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(MinecraftClient.class)
 public class RotationEventMixin {
     @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/tick/TickManager;step()V"))
-    public void tick(CallbackInfo ci) {
+    public void onTickPlayer(CallbackInfo ci) {
         RotationEvent.Params rotation = new RotationEvent.Params(RotationUtil.getClientRotation());
         Bus.post(RotationEvent.class, rotation);
-        RotationEvent.lastRotation = rotation.rotation;
+
+        RotationEvent.lastRotation = RotationEvent.currentRotation;
+        RotationEvent.currentRotation = rotation.rotation;
     }
 }

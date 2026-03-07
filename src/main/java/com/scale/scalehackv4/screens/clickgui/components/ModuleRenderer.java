@@ -225,8 +225,8 @@ public class ModuleRenderer {
         for (Module module : ModuleUtil.getModulesByCategory(CategoryRenderer.selectedCategory)) {
             if (module == activeModule) continue;
 
-            boolean intersectsX = activeModule.x <= module.x + module.width && activeModule.x + fixedSize.x >= module.x;
-            boolean intersectsY = activeModule.y <= module.y + module.height && activeModule.y + fixedSize.y >= module.y;
+            boolean intersectsX = activeModule.x <= module.x + module.width && activeModule.x <= module.x && activeModule.x + fixedSize.x >= module.x;
+            boolean intersectsY = activeModule.y <= module.y + module.height && activeModule.y <= module.y && activeModule.y + fixedSize.y >= module.y;
 
             if (intersectsX && intersectsY) {
                 fixedSize.x = activeModule.width;
