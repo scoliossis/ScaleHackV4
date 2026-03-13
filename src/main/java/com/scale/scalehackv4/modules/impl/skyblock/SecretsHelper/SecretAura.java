@@ -15,7 +15,10 @@ import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import lombok.AllArgsConstructor;
-import net.minecraft.block.*;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.block.LeverBlock;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.block.entity.SkullBlockEntity;
@@ -25,18 +28,18 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 // todo: add option to select whatever blocks
-//  locked chest check + retry delay
+//  locked chest check
 //  check surroundings, no redstone block/lever should be touching eachother (u should be touching me tho)
+//  check the room the SECRET is in, not the guy.
 public class SecretAura extends SecretsHelper {
     @RegisterSubModule(name = "Secret Aura", hasKeybind = true)
     public static boolean secretAura = true;
@@ -48,7 +51,10 @@ public class SecretAura extends SecretsHelper {
     @RegisterSubModule(name = "Reach", parent = "Secret Aura", increment = 0.1, min = 1, max = 6)
     public static double reach = 4.5;
 
-    protected static HashMap<BlockPos, Boolean> INTERACTED_POSITIONS = new HashMap<>();
+    @RegisterSubModule(name = "Retry Delay", parent = "Secret Aura", increment = 50, min = 100, max = 5000)
+    public static long delay = 1000;
+
+    protected static final ConcurrentHashMap<BlockPos, Long> INTERACTED_POSITIONS = new ConcurrentHashMap<>();
 
     private static boolean hasRedstoneKey = false;
     private static CurrentTarget currentTarget = null;
@@ -69,24 +75,21 @@ public class SecretAura extends SecretsHelper {
 
                     // only click wither essence or redstone key
                     return skinID.toString().equals("e0f3e929-869e-3dca-9504-54c666ee6f23") || skinID.toString().equals("fed95410-aba1-39df-9b95-1d4f361eb66e");
-                },
-                pos -> true
+                }
         ),
         LEVER(
                 new Block[]{Blocks.LEVER},
                 pos -> {
-                    // todo: check the room the secret is in, not our room
                     Room currentRoom = AreaUtil.getCurrentRoom();
                     if (AreaUtil.isInBoss() || (currentRoom != null && currentRoom.name.equals("Water Board"))) return false;
 
-                    return C.w().getBlockState(pos).getBlock() == Blocks.LEVER;
-                },
-                pos -> true
+                    BlockState blockState = C.w().getBlockState(pos);
+                    return blockState.getBlock() instanceof LeverBlock && !blockState.get(LeverBlock.POWERED);
+                }
         ),
         REDSTONE_BLOCK(
                 new Block[]{Blocks.REDSTONE_BLOCK},
-                pos -> hasRedstoneKey && C.w().getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK,
-                pos -> true
+                pos -> hasRedstoneKey && C.w().getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK
         ),
         CHEST(
                 new Block[]{Blocks.CHEST, Blocks.TRAPPED_CHEST},
@@ -99,27 +102,22 @@ public class SecretAura extends SecretsHelper {
                         return chestBlockEntity.getAnimationProgress(0) == 0;
                     }
                     return false;
-                },
-                pos -> {
-                    BlockState blockState = C.w().getBlockState(pos);
-
-                    DoubleBlockProperties.Type doubleChestType = ChestBlock.getDoubleBlockType(blockState);
-
-                    if (doubleChestType == DoubleBlockProperties.Type.SINGLE) return false;
-                    Direction facing = ChestBlock.getFacing(blockState);
-
-                    INTERACTED_POSITIONS.put(pos.offset(facing), true);
-                    return false;
                 }
         );
 
         private final Block[] validBlocks;
         private final Predicate<BlockPos> condition;
-        private final Predicate<BlockPos> postClick;
     }
 
     private final Event onRotationEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         if (!secretAura || C.mc.currentScreen != null || (dungeonsOnly && !AreaUtil.isInDungeons())) return false;
+
+        for (BlockPos blockPos : INTERACTED_POSITIONS.keySet()) {
+            long interactedTime = INTERACTED_POSITIONS.get(blockPos);
+            if (System.currentTimeMillis() - interactedTime < delay) continue;
+
+            INTERACTED_POSITIONS.remove(blockPos);
+        }
 
         for (AuraBlock auraBlock : AuraBlock.values()) {
             for (Block block : auraBlock.validBlocks) {
@@ -141,7 +139,7 @@ public class SecretAura extends SecretsHelper {
                     );
 
                     // make CERTAIN we are UP
-                    if (blockHitResult == null || blockHitResult.getType() == HitResult.Type.MISS || C.p().getEyePos().squaredDistanceTo(blockHitResult.getPos()) > reach * reach) continue;
+                    if (blockHitResult == null || blockHitResult.getType() == HitResult.Type.MISS || Math.sqrt(C.p().getEyePos().squaredDistanceTo(blockHitResult.getPos())) > reach) continue;
 
                     currentTarget = new CurrentTarget(pos, auraBlock, blockHitResult);
                     if (rotate) params.rotation = RotationUtil.getRotation(blockHitResult.getPos());
@@ -160,9 +158,7 @@ public class SecretAura extends SecretsHelper {
             C.im().interactBlock(C.p(), Hand.MAIN_HAND, currentTarget.hitResult);
             ChatUtil.prefixMessage("&agot secret!! cheer and rejoice");
 
-            INTERACTED_POSITIONS.put(currentTarget.pos, true);
-
-            currentTarget.block.postClick.test(currentTarget.pos);
+            INTERACTED_POSITIONS.put(currentTarget.pos, System.currentTimeMillis());
         }
 
         currentTarget = null;

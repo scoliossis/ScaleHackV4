@@ -33,7 +33,7 @@ public class FixRotations extends Module {
     public static float getYaw(LivingEntity entity, float tickProgress) {
         return shouldShowRotation(entity)
                 ? MathHelper.lerpAngleDegrees(tickProgress, RotationEvent.lastRotation.yaw, RotationEvent.currentRotation.yaw)
-                : entity.getYaw(tickProgress);
+                : MathHelper.lerpAngleDegrees(tickProgress, entity.lastBodyYaw, entity.bodyYaw);
     }
 
     public static float getHeadYaw(LivingEntity entity, float tickProgress) {

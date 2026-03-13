@@ -14,6 +14,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.text.Text;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 @RegisterModule(
@@ -29,8 +30,10 @@ public class AutoGFS extends Module {
     @RegisterSubModule(name = "Superboom TNT")
     public static boolean superboom = true;
 
-    @RegisterSubModule(name = "Delay", min = 1500, max = 5000, increment = 100)
-    public static long delay = 1500;
+    @RegisterSubModule(name = "Withdraw Delay", min = 100, max = 5000, increment = 100)
+    public static long withdrawDelay = 1500;
+    @RegisterSubModule(name = "Delay Between", min = 1500, max = 5000, increment = 100)
+    public static long delayBetween = 1500;
 
     @AllArgsConstructor
     private enum SackItems {
@@ -49,27 +52,42 @@ public class AutoGFS extends Module {
         }
     }
 
-    private long lastGFS = 0;
+    // not actually a queue, flop
+    private final ConcurrentHashMap<SackItems, WithdrawRequest> WITHDRAW_QUEUE = new ConcurrentHashMap<>();
+    private record WithdrawRequest(int itemSlot, long requestTime) {}
+
+    private long lastWithdraw = 0;
+
     private final Event onPlayerUpdate = new PlayerUpdateEvent(this, params -> {
-        if (System.currentTimeMillis() - lastGFS < delay || !AreaUtil.isInSkyblock()) return false;
+        if (System.currentTimeMillis() - lastWithdraw < delayBetween || !AreaUtil.isInSkyblock()) return false;
+
+        if (!WITHDRAW_QUEUE.isEmpty()) {
+            for (SackItems sackItem : WITHDRAW_QUEUE.keySet()) {
+                WithdrawRequest request = WITHDRAW_QUEUE.get(sackItem);
+                // do we really need to withdraw?
+                if (System.currentTimeMillis() - request.requestTime < withdrawDelay) continue;
+
+                ItemStack itemStack = C.p().getInventory().getStack(request.itemSlot);
+                if (itemStack != null && itemStack.getCount() < sackItem.maxStack) {
+                    // we are READY, withdraw, gogogo
+                    C.p().networkHandler.sendChatCommand("gfs " + sackItem.name + " " + (sackItem.maxStack - itemStack.getCount()));
+                    lastWithdraw = System.currentTimeMillis();
+                    return false;
+                }
+
+                WITHDRAW_QUEUE.remove(sackItem);
+            }
+        }
 
         for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {
             for (SackItems sackItem : SackItems.values()) {
                 if (!sackItem.enabled.test(null)) continue;
 
                 ItemStack itemStack = C.p().getInventory().getStack(i);
-                if (!sackItem.predicate.test(itemStack)) continue;
+                if (!sackItem.predicate.test(itemStack) || itemStack.getCount() >= sackItem.maxStack) continue;
 
-                int remaining = sackItem.maxStack - itemStack.getCount();
-                if (remaining <= 0) continue;
-
-                // $wag
-                C.p().networkHandler.sendChatCommand("gfs " + sackItem.name + " " + remaining);
-
-                // time to wait :pensive:
-                lastGFS = System.currentTimeMillis();
-                // dont refill multiple times in the tick
-                return false;
+                long requestTime = WITHDRAW_QUEUE.get(sackItem) == null ? System.currentTimeMillis() : WITHDRAW_QUEUE.get(sackItem).requestTime;
+                WITHDRAW_QUEUE.put(sackItem, new WithdrawRequest(i, requestTime));
             }
         }
 

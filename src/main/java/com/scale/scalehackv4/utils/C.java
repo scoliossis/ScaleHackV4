@@ -12,6 +12,7 @@ import net.minecraft.client.world.ClientWorld;
 import org.reflections.Reflections;
 
 import java.awt.*;
+import java.util.concurrent.ForkJoinPool;
 
 public class C {
     public static final Reflections REFLECTIONS = new Reflections(Main.class.getPackage().getName());
@@ -21,6 +22,9 @@ public class C {
             .enableComplexMapKeySerialization()
             .registerTypeAdapter(Color.class, new ColourAdapter())
             .create();
+
+    public static final ForkJoinPool ASYNC = ForkJoinPool.commonPool();
+
 
     // C.p
     public static ClientPlayerEntity p() {

@@ -13,7 +13,7 @@ public class SecretsHelper extends Module {
         if (SecretAura.secretAura) SecretAura.onSetSecretAura(true);
     }
     @Override public void onDisable() {
-        SecretAura.onSetSecretAura(false);
+        if (SecretAura.secretAura) SecretAura.onSetSecretAura(false);
         AutoRoutes.forceStop();
     }
 }

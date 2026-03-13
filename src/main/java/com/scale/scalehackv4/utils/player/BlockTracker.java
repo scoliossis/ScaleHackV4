@@ -13,7 +13,6 @@ import net.minecraft.util.math.ChunkPos;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ForkJoinPool;
 
 // ripped 1:1 from https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlockTracker.java
 // but i added async this time, how swag
@@ -51,8 +50,7 @@ public class BlockTracker {
     public final Event onRenderWorld = new RenderWorldEvent(null, params -> {
         if (C.w() == null || currentlyUpdating) return false;
 
-        // async, god bless :pray:
-        ForkJoinPool.commonPool().execute(() -> {
+        C.ASYNC.execute(() -> {
             currentlyUpdating = true;
             ArrayList<Update> updates = (ArrayList<Update>) incomingUpdates.clone();
 
