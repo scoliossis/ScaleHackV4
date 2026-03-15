@@ -32,11 +32,13 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
 // todo: add option to select whatever blocks
+//  check if the pos is blacklisted in the room
 //  locked chest check
 //  check surroundings, no redstone block/lever should be touching eachother (u should be touching me tho)
 //  check the room the SECRET is in, not the guy.
@@ -59,6 +61,11 @@ public class SecretAura extends SecretsHelper {
     private static boolean hasRedstoneKey = false;
     private static CurrentTarget currentTarget = null;
     private record CurrentTarget(BlockPos pos, AuraBlock block, BlockHitResult hitResult) {}
+
+    private static final List<Integer> IGNORE_CHEST_ROOM_HASHES = List.of(
+            -949494214, // three weirdos
+            -550739784 // ice path iirc
+    );
 
     @AllArgsConstructor
     private enum AuraBlock {
@@ -95,7 +102,7 @@ public class SecretAura extends SecretsHelper {
                 new Block[]{Blocks.CHEST, Blocks.TRAPPED_CHEST},
                 pos -> {
                     Room currentRoom = AreaUtil.getCurrentRoom();
-                    if (currentRoom != null && currentRoom.name.equals("Three Weirdos")) return false;
+                    if (currentRoom != null && IGNORE_CHEST_ROOM_HASHES.contains(currentRoom.hash)) return false;
 
                     BlockEntity blockEntity = C.w().getBlockEntity(pos);
                     if (blockEntity instanceof ChestBlockEntity chestBlockEntity) {

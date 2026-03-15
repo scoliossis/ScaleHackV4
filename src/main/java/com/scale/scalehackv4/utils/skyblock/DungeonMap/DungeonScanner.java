@@ -69,18 +69,15 @@ public class DungeonScanner {
             onEnterDungeon();
         }
 
-        // once a second is enough, its fast as is tho tbf
-        if (C.p().age % 20 == 0) {
-            if (!finishedScanning) {
-                getSplits();
-                registerRooms();
-            }
-            MapParser.parseMap(); // relatively slow process, maybe move to a separate thread
-            setCurrentDungeonDiameter();
+        if (!finishedScanning) {
+            getSplits();
+            registerRooms();
+        }
+        MapParser.parseMap(); // relatively slow process, maybe move to a separate thread
+        setCurrentDungeonDiameter();
 
-            if (!finishedScanning && finishedScanning()) {
-                finishedScanning = !Bus.post(FinishedDungeonScanningEvent.class, null);
-            }
+        if (!finishedScanning && finishedScanning()) {
+            finishedScanning = !Bus.post(FinishedDungeonScanningEvent.class, null);
         }
 
         return false;
