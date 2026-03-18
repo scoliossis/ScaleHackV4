@@ -14,12 +14,18 @@ public class PacketEvent {
     }
 
     public static class Sent extends Event {
+        public Sent(Module module, Predicate<Params> predicate, int priority) {
+            super(module, predicate, priority);
+        }
         public Sent(Module module, Predicate<Params> predicate) {
             super(module, predicate);
         }
     }
 
     public static class Received extends Event {
+        public Received(Module module, Predicate<Params> predicate, int priority) {
+            super(module, predicate, priority);
+        }
         public Received(Module module, Predicate<Params> predicate) {
             super(module, predicate);
         }

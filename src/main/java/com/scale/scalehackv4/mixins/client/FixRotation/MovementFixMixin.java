@@ -13,7 +13,8 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public class MovementFixMixin {
     @Redirect(method = "updateVelocity", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;getYaw()F"))
     public float updateVelocity(Entity instance) {
-        boolean shouldntMovementFix = C.p() == null || instance.getId() != C.p().getId() || RotationEvent.currentRotation == null || !FixRotations.shouldFixMovement();
-        return shouldntMovementFix ? instance.getYaw() : RotationEvent.currentRotation.yaw;
+        return (C.p() != null && instance.getId() == C.p().getId() && RotationEvent.clientRotation != null && !FixRotations.shouldFixMovement())
+                ? RotationEvent.clientRotation.yaw
+                : instance.getYaw();
     }
 }

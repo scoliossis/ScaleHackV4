@@ -8,7 +8,15 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 
+@RegisterListeners
 public class WorldUtil {
+    public static int ticks = 0;
+
+    private final Event countTicks = new RotationEvent(null, params -> {
+        ticks++;
+        return false;
+    });
+
     public static boolean isChunkUnloaded(ChunkPos chunkPos) {
         return C.w().getBlockState(new BlockPos(chunkPos.x * 16, 0, chunkPos.z * 16)).getBlock() == Blocks.VOID_AIR;
     }

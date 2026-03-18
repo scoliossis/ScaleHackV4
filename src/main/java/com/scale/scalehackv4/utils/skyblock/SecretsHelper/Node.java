@@ -20,6 +20,7 @@ public class Node {
     public Type type;
 
     @AllArgsConstructor
+    // todo: move these predicates, idk where yet.
     public enum Type {
         ETHERWARP(e -> {
             for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {

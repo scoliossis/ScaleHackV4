@@ -13,12 +13,18 @@ public class KeyEvent {
     }
 
     public static class Pressed extends Event {
+        public Pressed(Module module, Predicate<Params> predicate, int priority) {
+            super(module, predicate, priority);
+        }
         public Pressed(Module module, Predicate<Params> predicate) {
             super(module, predicate);
         }
     }
 
     public static class Released extends Event {
+        public Released(Module module, Predicate<Params> predicate, int priority) {
+            super(module, predicate, priority);
+        }
         public Released(Module module, Predicate<Params> predicate) {
             super(module, predicate);
         }

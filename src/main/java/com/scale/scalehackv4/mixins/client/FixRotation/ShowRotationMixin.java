@@ -22,22 +22,6 @@ public abstract class ShowRotationMixin <T extends LivingEntity, S extends Livin
 
     @Redirect(
             method = "updateRenderState(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;F)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/entity/LivingEntityRenderer;clampBodyYaw(Lnet/minecraft/entity/LivingEntity;FF)F")
-    )
-    public float fixBodyYaw(LivingEntity entity, float degrees, float tickProgress) {
-        return FixRotations.getYaw(entity, tickProgress);
-    }
-
-    @Redirect(
-            method = "updateRenderState(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;F)V",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/util/math/MathHelper;wrapDegrees(F)F")
-    )
-    public float fixHeadYaw(float degrees, T livingEntity, S livingEntityRenderState, float f) {
-        return FixRotations.getHeadYaw(livingEntity, f);
-    }
-
-    @Redirect(
-            method = "updateRenderState(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/client/render/entity/state/LivingEntityRenderState;F)V",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;getLerpedPitch(F)F")
     )
     public float fixPitch(LivingEntity instance, float v) {

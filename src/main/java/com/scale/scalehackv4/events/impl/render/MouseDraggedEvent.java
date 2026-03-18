@@ -12,6 +12,10 @@ public class MouseDraggedEvent extends Event {
         public double deltaX, deltaY;
     }
 
+    public MouseDraggedEvent(Module parent, Predicate<Params> predicate, int priority) {
+        super(parent, predicate, priority);
+    }
+
     public MouseDraggedEvent(Module parent, Predicate<Params> predicate) {
         super(parent, predicate);
     }

@@ -10,12 +10,18 @@ public class CheckClickEvent {
     public static class Params {}
 
     public static class Left extends Event {
+        public Left(Module module, Predicate<Params> predicate, int priority) {
+            super(module, predicate, priority);
+        }
         public Left(Module module, Predicate<Params> predicate) {
             super(module, predicate);
         }
     }
 
     public static class Right extends Event {
+        public Right(Module module, Predicate<Params> predicate, int priority) {
+            super(module, predicate, priority);
+        }
         public Right(Module module, Predicate<Params> predicate) {
             super(module, predicate);
         }

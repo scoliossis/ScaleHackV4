@@ -8,6 +8,10 @@ import java.util.function.Predicate;
 public class PlayerUpdateEvent extends Event {
     public static class Params {}
 
+    public PlayerUpdateEvent(Module parent, Predicate<Params> predicate, int priority) {
+        super(parent, predicate, priority);
+    }
+
     public PlayerUpdateEvent(Module parent, Predicate<Params> predicate) {
         super(parent, predicate);
     }

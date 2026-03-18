@@ -11,6 +11,10 @@ public class WorldJoinEvent extends Event {
     public static class Params {
     }
 
+    public WorldJoinEvent(Module parent, Predicate<Params> predicate, int priority) {
+        super(parent, predicate, priority);
+    }
+
     public WorldJoinEvent(Module parent, Predicate<Params> predicate) {
         super(parent, predicate);
     }

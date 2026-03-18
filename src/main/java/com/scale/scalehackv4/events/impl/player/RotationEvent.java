@@ -17,10 +17,15 @@ public class RotationEvent extends Event {
         super(parent, predicate);
     }
 
-    public static Rotation lastRotation;
-    public static Rotation currentRotation;
+    public RotationEvent(Module parent, Predicate<Params> predicate, int priority) {
+        super(parent, predicate, priority);
+    }
 
-    public static float lastHeadYaw;
-    public static float headYaw;
+    public static Rotation clientRotation;
+
+    public static Rotation lastRotation;
+
+    public static float lastPitch;
+    public static float currentPitch;
 }
 

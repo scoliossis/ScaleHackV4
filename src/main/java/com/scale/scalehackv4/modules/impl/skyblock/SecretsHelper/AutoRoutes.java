@@ -109,7 +109,7 @@ public class AutoRoutes extends SecretsHelper {
         return false;
     });
 
-    private final Event onLeftClicked = new LeftClickedEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+    private final Event onLeftClicked = new ClickedEvent.Left(ModuleUtil.getModule(SecretsHelper.class), params -> {
         if (skipOnClick && currentNode != null) {
             ChatUtil.prefixMessage("Skipping node: " + currentNode.type.name());
             finishedNode(true);

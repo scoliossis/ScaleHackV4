@@ -9,6 +9,10 @@ public class RenderWorldEvent extends Event {
     public record Params() {
     }
 
+    public RenderWorldEvent(Module module, Predicate<Params> predicate, int priority) {
+        super(module, predicate, priority);
+    }
+
     public RenderWorldEvent(Module module, Predicate<Params> predicate) {
         super(module, predicate);
     }

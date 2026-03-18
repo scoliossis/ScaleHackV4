@@ -12,8 +12,8 @@ import com.scale.scalehackv4.modules.RegisterModule;
 )
 public class AntiAimModule extends Module {
     public final Event GOD_BYPASS_TECH_20XX = new RotationEvent(this, params -> {
-        params.rotation.pitch = (float) ((Math.random() * 180) - 90);
-        params.rotation.yaw = (float) ((Math.random() * 360) - 180);
+        params.rotation.pitch += (float) ((Math.random() * 180) - 90);
+        params.rotation.yaw += (float) ((Math.random() * 360) - 180);
 
         return false;
     });

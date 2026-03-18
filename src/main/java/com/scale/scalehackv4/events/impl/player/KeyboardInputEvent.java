@@ -18,6 +18,10 @@ public class KeyboardInputEvent extends Event {
         public boolean sprintKey;
     }
 
+    public KeyboardInputEvent(Module parent, Predicate<Params> predicate, int priority) {
+        super(parent, predicate, priority);
+    }
+
     public KeyboardInputEvent(Module parent, Predicate<Params> predicate) {
         super(parent, predicate);
     }

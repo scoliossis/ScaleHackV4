@@ -14,6 +14,10 @@ public class SubModuleToggledEvent extends Event {
         public Object value;
     }
 
+    public SubModuleToggledEvent(Module module, Predicate<Params> predicate, int priority) {
+        super(module, predicate, priority);
+    }
+
     public SubModuleToggledEvent(Module module, Predicate<Params> predicate) {
         super(module, predicate);
     }

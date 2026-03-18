@@ -22,6 +22,10 @@ public class RenderScoreboardEvent extends Event {
         public SidebarEntry[] sidebarEntrys;
     }
 
+    public RenderScoreboardEvent(Module parent, Predicate<Params> predicate, int priority) {
+        super(parent, predicate, priority);
+    }
+
     public RenderScoreboardEvent(Module parent, Predicate<Params> predicate) {
         super(parent, predicate);
     }

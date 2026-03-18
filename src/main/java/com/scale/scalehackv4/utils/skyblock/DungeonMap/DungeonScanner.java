@@ -3,6 +3,7 @@ package com.scale.scalehackv4.utils.skyblock.DungeonMap;
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.skyblock.FinishedDungeonScanningEvent;
@@ -58,12 +59,9 @@ public class DungeonScanner {
     private static boolean wasInDungeon = false;
     private static boolean finishedScanning = false;
 
-    // infrequently posted event
+    // todo: change to chunk load event
     private final Event playerUpdateEvent = new PlayerUpdateEvent(null, params -> {
-        if (!AreaUtil.isInDungeons()) {
-            if (wasInDungeon) onLeaveDungeon();
-            return false;
-        }
+        if (!AreaUtil.isInDungeons()) return false;
         else if (!wasInDungeon) {
             wasInDungeon = true;
             onEnterDungeon();
@@ -80,6 +78,11 @@ public class DungeonScanner {
             finishedScanning = !Bus.post(FinishedDungeonScanningEvent.class, null);
         }
 
+        return false;
+    });
+
+    private final Event onJoinWorld = new WorldJoinEvent(null, params -> {
+        if (wasInDungeon) onLeaveDungeon();
         return false;
     });
 
@@ -158,7 +161,7 @@ public class DungeonScanner {
         return connectedRooms;
     }
 
-    private static boolean finishedScanning() {
+    public static boolean finishedScanning() {
         if (ROOMS.isEmpty() || MAP_DIVISIONS.isEmpty()) return false;
 
         for (int x : MAP_DIVISIONS.keySet()) {

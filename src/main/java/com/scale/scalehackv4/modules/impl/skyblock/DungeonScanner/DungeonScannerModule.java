@@ -17,5 +17,6 @@ public class DungeonScannerModule extends Module {
 
     @Override
     public void onDisable() {
+        BloodBlink.progress = null;
     }
 }

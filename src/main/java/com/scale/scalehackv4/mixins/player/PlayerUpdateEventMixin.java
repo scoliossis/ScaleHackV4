@@ -14,7 +14,5 @@ public class PlayerUpdateEventMixin {
     @Inject(method = "tick", at = @At("HEAD"))
     public void onTick(CallbackInfo ci) {
         Bus.post(PlayerUpdateEvent.class, new PlayerUpdateEvent.Params());
-
-        FixRotations.updateHeadYaw();
     }
 }
