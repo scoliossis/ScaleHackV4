@@ -42,6 +42,7 @@ import java.util.function.Predicate;
 //  locked chest check
 //  check surroundings, no redstone block/lever should be touching eachother (u should be touching me tho)
 //  check the room the SECRET is in, not the guy.
+//  swap to dungeon breaker to interact
 public class SecretAura extends SecretsHelper {
     @RegisterSubModule(name = "Secret Aura", hasKeybind = true)
     public static boolean secretAura = true;
@@ -129,7 +130,7 @@ public class SecretAura extends SecretsHelper {
         for (AuraBlock auraBlock : AuraBlock.values()) {
             for (Block block : auraBlock.validBlocks) {
                 for (BlockPos pos : BlockTracker.getBlockPositions(block)) {
-                    if (INTERACTED_POSITIONS.containsKey(pos)) continue;
+                    if (pos == null || INTERACTED_POSITIONS.containsKey(pos)) continue;
 
                     // basic reach check + condition check done after cause its more expensive on the cpu than the distance check
                     if (Math.sqrt(pos.getSquaredDistance(C.p().getEyePos()))-1 > reach || !auraBlock.condition.test(pos)) continue;
@@ -173,7 +174,7 @@ public class SecretAura extends SecretsHelper {
         return false;
     });
 
-    private final Event onRedstoneKeyPickup = new ChatEvent.Received(ModuleUtil.getModule(SecretsHelper.class), params -> {
+    private final Event onRedstoneKeyPickup = new ChatEvent.Received(null, params -> {
         if (Formatting.strip(params.message).equals("You found a Secret Redstone Key!")) {
             hasRedstoneKey = true;
         }
@@ -183,8 +184,9 @@ public class SecretAura extends SecretsHelper {
         return false;
     });
 
-    private final Event onWorldJoin = new WorldJoinEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+    private final Event onWorldJoin = new WorldJoinEvent(null, params -> {
         INTERACTED_POSITIONS.clear();
+        hasRedstoneKey = false;
 
         return false;
     });

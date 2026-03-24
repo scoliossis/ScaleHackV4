@@ -1,5 +1,8 @@
 package com.scale.scalehackv4.utils.player;
 
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.hit.BlockHitResult;

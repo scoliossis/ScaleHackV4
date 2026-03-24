@@ -14,12 +14,9 @@ public class BloodBlinkCommand extends Command {
         return "bb";
     }
 
-    public static boolean shouldBB = false;
-
     @Override
     public boolean handleCommand(String text) {
-        BloodBlink.progress = new BloodBlink.Progress();
-        shouldBB = !text.contains("scan");
+        BloodBlink.enableBB();
 
         return true;
     }

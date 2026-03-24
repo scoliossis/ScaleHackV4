@@ -3,7 +3,7 @@ package com.scale.scalehackv4.utils.player;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
-import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
+import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.utils.C;
 import lombok.Getter;
 import net.minecraft.block.Block;
@@ -47,9 +47,10 @@ public class BlockTracker {
     });
 
     // hope no modules which use the block tracker are time sensitive :pray:
-    public final Event onRenderWorld = new RenderWorldEvent(null, params -> {
+    public final Event onRenderWorld = new PlayerUpdateEvent(null, params -> {
         if (C.w() == null || currentlyUpdating) return false;
 
+        // todo: fix rare kick. blehhh idk how it happens
         C.ASYNC.execute(() -> {
             currentlyUpdating = true;
             ArrayList<Update> updates = (ArrayList<Update>) incomingUpdates.clone();

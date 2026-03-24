@@ -12,6 +12,7 @@
   "client": [
     "client.ChatReceivedMixin",
     "client.ChatSentMixin",
+    "client.ClientTickEventMixin",
     "client.KeyPressMixin",
     "client.WorldJoinEventMixin",
     "client.antibot.AntiBotMixin",

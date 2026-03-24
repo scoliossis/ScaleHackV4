@@ -6,17 +6,22 @@ import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
 import com.scale.scalehackv4.events.impl.player.ClickedEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
+import com.scale.scalehackv4.events.impl.skyblock.DungeonJoinEvent;
+import com.scale.scalehackv4.events.impl.skyblock.DungeonStartEvent;
+import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
+import com.scale.scalehackv4.utils.player.BlinkUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
+import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import net.minecraft.block.Blocks;
-import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.s2c.common.CommonPingS2CPacket;
 import net.minecraft.network.packet.s2c.play.WorldTimeUpdateS2CPacket;
@@ -29,7 +34,17 @@ import net.minecraft.world.RaycastContext;
 
 import java.util.Optional;
 
+// todo: fix other mods conflicting
+//  go up early and wait if bb
+//  predict dungeon join
+//  put pearls in hotbar, take off bonzo mask
+//  still somehow fails to pearl
 public class BloodBlink extends DungeonScannerModule {
+    @RegisterSubModule(name = "Auto Scan")
+    public static boolean autoScan = true;
+    @RegisterSubModule(name = "Auto Blood")
+    public static boolean autoBlood = true;
+
     public static class Progress {
         private int lastActionTick = -1;
         private int requiredPearls = -1;
@@ -40,6 +55,7 @@ public class BloodBlink extends DungeonScannerModule {
         private int rotationIndex = -1;
         private boolean goingBlood = false;
         private int pearlsIntoBlood = 0;
+        private boolean currentlyBlinking = false;
     }
 
     public static Progress progress = null;
@@ -47,14 +63,50 @@ public class BloodBlink extends DungeonScannerModule {
     private static long getServerTick = -1;
     private static final int REQUIRED_BLOOD_PEARLS = 2;
 
-    // todo: check if blood is scanned
+    private static final int BLOOD_ROOM_MIN_Y = 66;
+
+    public static void enableBB() {
+        progress = new Progress();
+    }
+
+    private final Event onDungeonJoin = new DungeonJoinEvent(ModuleUtil.getModule(DungeonScannerModule.class), params -> {
+        if (!autoScan) return false;
+
+        ChatUtil.prefixMessage("Scanning Dungeon");
+        enableBB();
+        return false;
+    });
+
+    private final Event onDungeonStart = new DungeonStartEvent(ModuleUtil.getModule(DungeonScannerModule.class), params -> {
+        if (!autoBlood) return false;
+
+        ChatUtil.prefixMessage("Going Blood");
+        enableBB();
+        return false;
+    });
+
+    /*
+    private final Event onReceiveTP = new PacketEvent.Received(ModuleUtil.getModule(DungeonScannerModule.class), params -> {
+        if (!(params.packet instanceof PlayerPositionLookS2CPacket posPacket) || !C.isInGame() || !EtherwarpUtil.isEtherwarpItem(C.p().getMainHandStack())) return false;
+        float pitch = posPacket.change().pitch() == 0 ? RotationEvent.lastRotation.pitch : posPacket.change().pitch();
+        float yaw = posPacket.change().yaw() == 0 ? RotationEvent.lastRotation.yaw : posPacket.change().yaw();
+        Vec3d aotePos = EtherwarpUtil.getAotePos(pitch, yaw, C.p().getEntityPos(), 12);
+
+        if (!posPacket.change().position().equals(aotePos)) {
+            ChatUtil.prefixMessage("Failed " + aotePos + " " + posPacket.change().position());
+        }
+
+        return false;
+    });
+     */
+
     private final Event setAppropriateRotation = new RotationEvent(null, params -> {
         if (progress == null) return false;
         if (progress.requiredPearls == -1) {
             progress.requiredPearls = getPearlsRequired();
-            if (progress.requiredPearls == -1) {
-                progress = null;
-                ChatUtil.prefixMessage("Invalid Position");
+            if (progress.requiredPearls == -1 || (AreaUtil.isDungeonStarted() && getBloodSquare() == null)) {
+                disable();
+                ChatUtil.prefixMessage("Invalid position or blood not found");
                 return false;
             }
         }
@@ -62,33 +114,33 @@ public class BloodBlink extends DungeonScannerModule {
         if (shouldPearl()) params.rotation.pitch = -90;
         else {
             if (backInSpawn()) {
-                progress = null;
+                disable();
                 ChatUtil.prefixMessage("we have returned.");
                 return false;
             }
 
             // wow, we made it out, id like to thank everyone, my mum, my sister, alan wood, 112batman, the whole gng yknow
-            if (getServerTick % OUT_OF_BOUNDS_TICKS == 0) {
+            if (progress.rotationChain == null && getServerTick % OUT_OF_BOUNDS_TICKS >= 20) {
                 progress.rotationChain = getRotationChain();
+                if (progress.rotationChain == null) {
+                    disable();
+                    ChatUtil.prefixMessage("Failed to find a valid rotation chain");
+                    return false;
+                }
+                ChatUtil.prefixMessage("blink time...");
+                BlinkUtil.pushBlink(true, false);
+                progress.currentlyBlinking = true;
+            }
+            if (progress.currentlyBlinking && getServerTick % OUT_OF_BOUNDS_TICKS < 20) {
+                ChatUtil.prefixMessage("we are DISABLING BLINKING!");
+                BlinkUtil.popBlink(true, false);
+                progress.currentlyBlinking = false;
             }
 
             if (progress.rotationChain != null) {
                 progress.rotationIndex++;
-                if (progress.rotationIndex >= progress.rotationChain.length) {
-                    if (shouldPearlIntoBlood()) {
-                        params.rotation = new Rotation(0, -90);
-                    }
-                    else if (progress.goingBlood) {
-                        ChunkPos bloodPos = getBloodSquare();
-                        if (bloodPos == null) return false;
-
-                        params.rotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), progress.predictedFinalPos, new Vec3d(bloodPos.x*16+7, 66, bloodPos.z*16+7));
-                    }
-                    else progress = null;
-                }
-                else {
-                    params.rotation = progress.rotationChain[progress.rotationIndex];
-                }
+                if (progress.rotationIndex >= progress.rotationChain.length) disable();
+                else params.rotation = progress.rotationChain[progress.rotationIndex];
             }
         }
 
@@ -105,10 +157,10 @@ public class BloodBlink extends DungeonScannerModule {
         }
 
         // once we are out, we just tp to set coordinates n we gud
-        if (progress.rotationChain != null && (progress.goingBlood || progress.rotationChain[progress.rotationIndex] != null)) {
-            if (shouldPearlIntoBlood() && Node.Type.PEARL.getItem.test(null)) {
+        if (progress.rotationChain != null) {
+            if (progress.goingBlood && progress.rotationIndex >= progress.rotationChain.length-REQUIRED_BLOOD_PEARLS-1 && Node.Type.PEARL.getItem.test(null)) {
                 progress.pearlsIntoBlood++;
-                if (progress.pearlsIntoBlood >= REQUIRED_BLOOD_PEARLS) progress = null;
+                if (progress.pearlsIntoBlood >= REQUIRED_BLOOD_PEARLS) disable();
             }
             else if (!Node.Type.ETHERWARP.getItem.test(null)) return false;
 
@@ -136,7 +188,7 @@ public class BloodBlink extends DungeonScannerModule {
     });
 
     private final Event cancelPearlInteract = new PacketEvent.Sent(null, params -> {
-        return C.isInGame() && progress != null && C.p().getMainHandStack().getItem() == Items.ENDER_PEARL && params.packet instanceof PlayerInteractBlockC2SPacket;
+        return C.isInGame() && progress != null && params.packet instanceof PlayerInteractBlockC2SPacket;
     });
 
     private static final int OUT_OF_BOUNDS_TICKS = 40;
@@ -165,48 +217,51 @@ public class BloodBlink extends DungeonScannerModule {
         else if (spawnSquare.z == -12) edgeOfMapYaw = 180;
         else edgeOfMapYaw = 270;
 
-        int requiredTeleports = EDGE_TELEPORTS + DOWN_TELEPORTS;
-
         Vec3d targetPos = goingBlood
-                ? new Vec3d(bloodRoom.x*16+7, 0, bloodRoom.z*16+7)
+                ? new Vec3d(bloodRoom.x*16+7, -10, bloodRoom.z*16+7)
                 : new Vec3d(-105, 0, -105);
 
         Vec3d tickPos = C.p().getEntityPos();
         // simulate the teleports to the edge of the map
-        for (int i = 0; i < EDGE_TELEPORTS; i++) tickPos = predictAOTE(tickPos, edgeOfMapYaw);
+        for (int i = 0; i < EDGE_TELEPORTS; i++) {
+            tickPos = EtherwarpUtil.getAotePos(0, edgeOfMapYaw, tickPos, 12);
+        }
+        for (int i = 0; i < DOWN_TELEPORTS; i++) {
+            tickPos = EtherwarpUtil.getAotePos(90, 0, tickPos, 12);
+        }
 
-        Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 10);
+        Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 5);
 
+        int teleportsToChunk = 0;
         for (int i = 0; i < OUT_OF_BOUNDS_TICKS; i++) {
-            if (tickPos.x >= targetPos.x-16 && tickPos.x <= targetPos.x+16 && tickPos.z >= targetPos.z-16 && tickPos.z <= targetPos.z+16) break;
+            if (Math.abs(tickPos.x - targetPos.x) <= 10 && Math.abs(tickPos.z - targetPos.z) <= 10) break;
 
             // simulate each aote teleport towards the target
-            tickPos = predictAOTE(tickPos, rotationToTarget.yaw);
-            requiredTeleports++;
+            tickPos = EtherwarpUtil.getAotePos(rotationToTarget.pitch, rotationToTarget.yaw, tickPos, 12);
+            teleportsToChunk++;
         }
+
+        int requiredUpTeleports = goingBlood ? Math.ceilDiv((int) (BLOOD_ROOM_MIN_Y - tickPos.y), 12)+REQUIRED_BLOOD_PEARLS : 0;
+        int requiredTeleports = EDGE_TELEPORTS+DOWN_TELEPORTS+teleportsToChunk+requiredUpTeleports;
         if (requiredTeleports >= OUT_OF_BOUNDS_TICKS) {
             ChatUtil.prefixMessage("too far...?");
             return null;
         }
 
-        progress.goingBlood = goingBlood;
-        // todo: calculate y
-        progress.predictedFinalPos = new Vec3d(tickPos.x, 10, tickPos.z);
+        if (goingBlood) progress.goingBlood = true;
+
+        progress.predictedFinalPos = tickPos;
 
         Rotation[] rotations = new Rotation[requiredTeleports];
 
         for (int i = 0; i < rotations.length; i++) {
             if (i < EDGE_TELEPORTS) rotations[i] = new Rotation(edgeOfMapYaw, 0);
             else if (i < EDGE_TELEPORTS + DOWN_TELEPORTS) rotations[i] = new Rotation(0, 90);
-            else rotations[i] = rotationToTarget;
+            else if (i < EDGE_TELEPORTS + DOWN_TELEPORTS + teleportsToChunk) rotations[i] = rotationToTarget;
+            else rotations[i] = new Rotation(0, -90);
         }
 
         return rotations;
-    }
-
-    private static boolean shouldPearlIntoBlood() {
-        // todo: bottom of blood is y66 check if it thinks ill be there.
-        return progress.goingBlood && progress.rotationIndex >= progress.rotationChain.length+DOWN_TELEPORTS;
     }
 
     private static ChunkPos getBloodSquare() {
@@ -260,13 +315,6 @@ public class BloodBlink extends DungeonScannerModule {
         return -1;
     }
 
-    // todo: move to another file + check aote distance + account for pitch
-    private static Vec3d predictAOTE(Vec3d pos, float yaw) {
-        float aoteDistance = 12;
-        Vec3d doublePos = pos.add(-Math.sin(Math.toRadians(yaw)) * aoteDistance, pos.y, Math.cos(Math.toRadians(yaw)) * aoteDistance);
-        return new Vec3d(Math.floor(doublePos.x)+0.5, pos.y, Math.floor(doublePos.z)+0.5);
-    }
-
     private static boolean shouldPearl() {
         if (!progress.escapedBox) {
             boolean escaped = isOpenAir(C.p().getBlockPos().up());
@@ -307,5 +355,14 @@ public class BloodBlink extends DungeonScannerModule {
                         RaycastContext.FluidHandling.NONE,
                         C.p()
                 )).getType() != HitResult.Type.MISS;
+    }
+
+    private static void disable() {
+        if (progress == null) return;
+        if (progress.currentlyBlinking) {
+            ChatUtil.prefixMessage("we are DISABLING BLINKING!");
+            BlinkUtil.popBlink(true, false);
+        }
+        progress = null;
     }
 }

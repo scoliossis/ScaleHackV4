@@ -1,19 +1,25 @@
 package com.scale.scalehackv4.utils.skyblock.SecretsHelper;
 
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.LoreComponent;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
+import java.util.ArrayList;
 import java.util.List;
 
+@RegisterListeners
 public class EtherwarpUtil {
     public static final double ETHERWARP_EYE_HEIGHT = 1.54;
 
@@ -34,6 +40,7 @@ public class EtherwarpUtil {
 
     // list from bloomcore
     private static final List<Block> ETHER_BLOCK_TYPES = List.of(
+            Blocks.VOID_AIR,
             Blocks.AIR,
             Blocks.FIRE,
             Blocks.RED_CARPET,
@@ -169,7 +176,7 @@ public class EtherwarpUtil {
             }
         }
 
-        return null;
+        return new Vec3i(currVoxelX, currVoxelY, currVoxelZ);
     }
 
     // i jerk off to this function some times 🤭
@@ -179,9 +186,37 @@ public class EtherwarpUtil {
         Vec3d endPos = lookVec.add(startPos);
 
         Vec3i etherSpot = traverseVoxels(startPos, endPos);
-        if(etherSpot == null || !isValidEtherwarpBlock(etherSpot)) return null;
+        if(!isValidEtherwarpBlock(etherSpot)) return null;
         return etherSpot;
     }
+
+    public static Vec3d getAotePos(float pitch, float yaw, Vec3d startPos_, double distance) {
+        Vec3d lookVec = scale(WorldUtil.fromPitchYaw(pitch, yaw), distance);
+        Vec3d startPos = startPos_.add(0, C.p().getEyeHeight(EntityPose.STANDING), 0);
+        Vec3d endPos = lookVec.add(startPos);
+        Vec3i aoteBlock = traverseVoxels(startPos, endPos);
+        // hypixel hates u under these conditions.
+        if (Math.abs(aoteBlock.getX() - startPos.x) < 1
+                && Math.abs(aoteBlock.getZ() - startPos.z) < 1
+                && Math.abs(aoteBlock.getY() - startPos.y) < 1
+                && pitch >= 60
+        ) {
+            // handling nulls is annoying, hypixel FOR NOW sends teleport even if u dont move, but ik thats changing
+            return startPos;
+        }
+
+        //PREDICTED_POSITIONS.add(new Vec3d(aoteBlock.getX() + 0.5, isValidEtherwarpBlock(aoteBlock) ? aoteBlock.getY()+1 : aoteBlock.getY(), aoteBlock.getZ() + 0.5));
+        return new Vec3d(aoteBlock.getX() + 0.5, isValidEtherwarpBlock(aoteBlock) ? aoteBlock.getY()+1 : aoteBlock.getY(), aoteBlock.getZ() + 0.5);
+    }
+
+    private static final ArrayList<Vec3d> PREDICTED_POSITIONS = new ArrayList<>();
+    private final Event onReceiveTP = new PacketEvent.Received(null, params -> {
+        //if (!(params.packet instanceof PlayerPositionLookS2CPacket posPacket) || !C.isInGame() || PREDICTED_POSITIONS.isEmpty()) return false;
+        //Vec3d aotePos = PREDICTED_POSITIONS.removeFirst();
+        //ChatUtil.prefixMessage("Predicted pos: " + aotePos + " real pos: " + posPacket.change().position());
+
+        return false;
+    });
 
     private static double frac0(double val) {
         return val - Math.floor(val);

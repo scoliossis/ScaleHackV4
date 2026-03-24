@@ -88,7 +88,7 @@ public class AutoRoutes extends SecretsHelper {
         findCurrentNode(currentRoom);
 
         if (currentNode == null) return false;
-        if ((currentNode.type == Node.Type.SECRET || !handleSwap()) && startedAwaiting == -1) startAwaiting = true;
+        if ((currentNode.type == Node.Type.SECRET || !handleSwap(params)) && startedAwaiting == -1) startAwaiting = true;
 
         return false;
     });
@@ -211,7 +211,7 @@ public class AutoRoutes extends SecretsHelper {
         }
     }
 
-    private boolean handleSwap() {
+    private boolean handleSwap(RotationEvent.Params rotationParams) {
         if (!swapped) {
             Rotation rotation = NodeUtil.flipRotation(currentNode.rotation, Direction.NORTH, AreaUtil.getCurrentRoom().facing);
             if (!isValid(currentNode)) {
@@ -227,8 +227,7 @@ public class AutoRoutes extends SecretsHelper {
                 return true;
             }
 
-            C.p().setYaw(rotation.yaw);
-            C.p().setPitch(rotation.pitch);
+            rotationParams.rotation = rotation;
             swapped = true;
             return true;
         }
