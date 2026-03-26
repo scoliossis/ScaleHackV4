@@ -63,6 +63,6 @@ public class TargetUtil {
         Integer validTicks = VALID_TARGETS.get(target.getUuid());
         boolean isValidEntry = !Targets.playerEntry || (validTicks != null && validTicks > 60);
         boolean isValidPing = !Targets.pingCheck || (ping > Targets.botPingMode.ping);
-        return isValidEntry && isValidPing;
+        return (isValidEntry && isValidPing) || target == C.p();
     }
 }

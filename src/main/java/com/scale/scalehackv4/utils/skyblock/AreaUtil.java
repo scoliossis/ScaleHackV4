@@ -4,6 +4,7 @@ import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.ChatEvent;
+import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.render.RenderScoreboardEvent;
@@ -13,7 +14,9 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import lombok.Getter;
+import net.minecraft.network.packet.s2c.common.CommonPingS2CPacket;
 import net.minecraft.network.packet.s2c.play.ScoreboardObjectiveUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldTimeUpdateS2CPacket;
 import net.minecraft.scoreboard.Scoreboard;
 import net.minecraft.scoreboard.ScoreboardObjective;
 import net.minecraft.util.math.ChunkPos;
@@ -24,17 +27,49 @@ public class AreaUtil {
     @Getter private static boolean dungeonStarted = false;
 
     public final Event onLoadWorld = new WorldJoinEvent(null, params -> {
+        reset();
+        return false;
+    });
+
+    private final Event onLeaveGame = new ClientTickEvent(null, params -> {
+        if (!C.isInGame()) reset();
+
+        return false;
+    });
+
+    private static void reset() {
         RenderScoreboardEvent.LAST_SIDEBAR = new RenderScoreboardEvent.SidebarEntry[0];
         dungeonStarted = false;
         inDungeons = false;
-        return false;
-    });
+        dungeonStartMs = Integer.MAX_VALUE;
+    }
+
+    @Getter private static long dungeonStartMs = Integer.MAX_VALUE;
 
     // todo: mods block these somehow
     public final Event onReceiveChat = new ChatEvent.Received(null, params -> {
         if (params.message.equals("§e[NPC] §bMort§f: Here, I found this map when I first entered the dungeon.")) {
             dungeonStarted = true;
+            dungeonStartMs = Integer.MAX_VALUE;
             Bus.post(DungeonStartEvent.class, null);
+        }
+        if (inDungeons && params.message.matches("^Starting in [0-5] seconds?\\.$")) {
+            dungeonStartMs = Integer.parseInt(params.message.split(" ")[2]) * 1000L;
+        }
+        return false;
+    });
+
+    @Getter private static long serverTick = -1;
+    private final Event trackTime = new PacketEvent.Received(null, params -> {
+        if (params.packet instanceof WorldTimeUpdateS2CPacket timePacket) {
+            serverTick = timePacket.time();
+            return false;
+        }
+        if (params.packet instanceof CommonPingS2CPacket) {
+            serverTick++;
+            if (dungeonStartMs != Integer.MAX_VALUE) dungeonStartMs -= 50;
+            // we went an entire 10 of these without an update on the time, we probably cancelled.
+            if (dungeonStartMs % 1000 == 0) dungeonStartMs = Integer.MAX_VALUE;
         }
         return false;
     });
@@ -71,6 +106,7 @@ public class AreaUtil {
         return C.p().getX() > bossX && C.p().getZ() > bossZ;
     }
 
+    // todo: make getCurrentRoom faster, maybe use a hashmap?
     public static Room getCurrentRoom() {
         if (!isInDungeons()) return null;
 

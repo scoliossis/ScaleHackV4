@@ -65,7 +65,9 @@ public class SecretAura extends SecretsHelper {
 
     private static final List<Integer> IGNORE_CHEST_ROOM_HASHES = List.of(
             -949494214, // three weirdos
-            -550739784 // ice path iirc
+            -550739784, // ice path iirc
+            -637013673, // tp maze
+            -160860033 // waterboard
     );
 
     @AllArgsConstructor

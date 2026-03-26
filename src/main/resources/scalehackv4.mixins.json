@@ -21,6 +21,7 @@
     "player.ClickEventMixin",
     "player.FastPlaceMixin",
     "player.KeyboardInputMixin",
+    "player.PacketSequenceBridgeMixin",
     "player.RotationEventMixin",
     "player.UseItemBridgeMixin",
     "player.BlockScanner.ChunkUnloadMixin",
