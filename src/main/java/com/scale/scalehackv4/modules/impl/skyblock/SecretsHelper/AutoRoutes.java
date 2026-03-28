@@ -1,25 +1,29 @@
 package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
-import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.player.*;
+import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
+import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
+import com.scale.scalehackv4.utils.skyblock.ChainUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.NodeUtil;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.passive.BatEntity;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
+import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.network.packet.s2c.play.ItemPickupAnimationS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
@@ -27,27 +31,22 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Comparator;
 
 // todo: fix secrets awaiting to allow secrets to be gotten before the node is reached
 //  change rotations to be serverside
+//
 public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Auto Routes", hasKeybind = true)
     public static boolean autoroutes = true;
 
-    @RegisterSubModule(name = "Skip On Click", parent = "Auto Routes")
-    public static boolean skipOnClick = true;
-
     @RegisterSubModule(name = "Timeout", parent = "Auto Routes", max = 5000, increment = 100)
     public static long timeout = 1000;
-    @RegisterSubModule(name = "Delay", parent = "Auto Routes", max = 2000, increment = 50)
-    public static long delay = 500;
-    @RegisterSubModule(name = "Retry Delay", parent = "Auto Routes", max = 2000, increment = 50)
-    public static long retryDelay = 1000;
-    @RegisterSubModule(name = "Max Secret Delay", parent = "Auto Routes", max = 10000, increment = 100)
-    public static long maxSecretDelay = 5000;
 
     @RegisterSubModule(name = "Show Auto Routes", hasKeybind = true)
     public static boolean showAutoRoutes = true;
@@ -62,67 +61,133 @@ public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Await Secret Colour", parent = "Show Auto Routes")
     public static Color awaitSecretColour = new Color(255, 215, 0, 92);
 
-    private static Node currentNode = null;
-    private static boolean swapped = false;
-    private static long startedAwaiting = -1;
-    private static long lastNode = -1;
-    private static boolean failed = false;
+    private static ChainUtil.InteractionChain interactionChain;
+    private static int interactionChainIndex = 0;
+    private static final ArrayList<Long> expectedPackets = new ArrayList<>();
+    private static final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
+    private static Node.Type lastNode = null;
 
-    private static int receivedSecretPackets = 0;
-    private static int lastNodeIndex = 0;
-    private static int ticksAwaiting = 0;
+    private static boolean finishedLastChain = true;
 
-    private static long lastItemPickup = -1;
-
-    private static boolean startAwaiting = false;
+    public static void disable() {
+        interactionChain = null;
+        interactionChainIndex = 0;
+    }
 
     private final Event onRotateEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (!autoroutes) return false;
+        // forget failed teleports
+        while (!expectedPackets.isEmpty() && System.currentTimeMillis() - expectedPackets.getFirst() > timeout) {
+            expectedPackets.removeFirst();
+        }
+        if (expectedPackets.isEmpty()) finishedLastChain = true;
 
         Room currentRoom = AreaUtil.getCurrentRoom();
-        if (currentRoom == null || currentRoom.nodes.isEmpty()) {
-            if (currentNode != null) finishedNode(true);
+        if (currentRoom == null) {
+            disable();
+            return false;
+        }
+        if (!finishedLastChain) return false;
+
+        interactionChain = getInteractionChain(C.p().getEntityPos().subtract(0, 1, 0));
+        if (interactionChain == null) return false;
+
+        Node.Type nodeItem = interactionChain.interactionChainNodes()[interactionChainIndex].itemType();
+        if (!nodeItem.getItem.test(null)) return false;
+
+        for (; interactionChainIndex < interactionChain.interactionChainNodes().length; interactionChainIndex++) {
+            ChainUtil.InteractionChainNode node = interactionChain.interactionChainNodes()[interactionChainIndex];
+            // take a tick gap between switching items
+            if (node.itemType() != nodeItem) return false;
+
+            pendingInteractions.add(node);
+            if (nodeItem == Node.Type.SECRET) {
+                for (int i = 0; i < node.targetPos().getX(); i++) {
+                    expectedPackets.add(System.currentTimeMillis());
+                }
+            }
+            else expectedPackets.add(System.currentTimeMillis());
+
+            finishedLastChain = false;
+            // todo: ik u can nuke somehow, but im VERY scared to test multi swinging cause i KNOW that insta bans outside sb
+            if (nodeItem == Node.Type.DUNGEON_BREAKER)
+                break;
+        }
+
+        disable();
+
+        return false;
+    });
+
+    private final Event fixMovement = new KeyboardInputEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (expectedPackets.isEmpty()) return false;
+        params.backKey = params.rightKey = params.leftKey = params.forwardKey = params.jumpKey = false;
+
+        params.sneakKey = !pendingInteractions.isEmpty() && pendingInteractions.getFirst().itemType() == Node.Type.ETHERWARP;
+
+        return false;
+    });
+
+    private final Event executeTeleports = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        while (!pendingInteractions.isEmpty()) {
+            if (pendingInteractions.getFirst().itemType() == Node.Type.ETHERWARP && !C.p().isSneaking()) return false;
+            ChainUtil.InteractionChainNode node = pendingInteractions.removeFirst();
+
+            Rotation rotation = NodeUtil.flipRotation(node.rotation(), Direction.NORTH, AreaUtil.getCurrentRoom().facing);
+            node.itemType().attemptRoute.test(rotation, node.targetPos());
+            lastNode = node.itemType();
+        }
+
+        return false;
+    });
+
+    private final Event handleReceive = new PacketEvent.Received(null, params -> {
+        if (expectedPackets.isEmpty() || lastNode == null) return false;
+
+        switch (lastNode) {
+            case ETHERWARP, PEARL -> {
+                if (params.packet instanceof PlayerPositionLookS2CPacket) {
+                    expectedPackets.removeFirst();
+                }
+            }
+            case DUNGEON_BREAKER -> {
+                if (params.packet instanceof BlockUpdateS2CPacket blockUpdateS2CPacket) {
+                    // todo: better check than distance <3
+                    if (Math.sqrt(blockUpdateS2CPacket.getPos().getSquaredDistance(C.p().getEntityPos())) < 4.5) {
+                        expectedPackets.removeFirst();
+                    }
+                }
+            }
+            case SECRET -> {
+                if (params.packet instanceof ItemPickupAnimationS2CPacket) {
+                    expectedPackets.removeFirst();
+                }
+                if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
+                    if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
+                        expectedPackets.removeFirst();
+                    }
+                }
+            }
+        }
+
+        if (expectedPackets.isEmpty() && pendingInteractions.isEmpty()) {
+            finishedLastChain = true;
             return false;
         }
 
-        findCurrentNode(currentRoom);
-
-        if (currentNode == null) return false;
-        if ((currentNode.type == Node.Type.SECRET || !handleSwap(params)) && startedAwaiting == -1) startAwaiting = true;
-
         return false;
     });
 
-    private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (!autoroutes || currentNode == null) {
-            forceStop();
-            return false;
+    private final Event awaitSecretInteraction = new PacketEvent.Sent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (expectedPackets.isEmpty() || lastNode != Node.Type.SECRET) return false;
+
+        if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
+            Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
+
+            if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
+                expectedPackets.removeFirst();
+            }
         }
 
-        ticksAwaiting++;
-
-        // handle double pearling
-        if (currentNode.type == Node.Type.PEARL && ticksAwaiting == currentNode.targetPos.getX()) UseItemBridge.from(C.mc).bridge$DoItemUse();
-        // perform action based on node type
-        if (startAwaiting && ticksAwaiting >= getTicksBeforeAwait()) startAwaiting();
-
-        return false;
-    });
-
-    private final Event onLeftClicked = new ClickedEvent.Left(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (skipOnClick && currentNode != null) {
-            ChatUtil.prefixMessage("Skipping node: " + currentNode.type.name());
-            finishedNode(true);
-        }
-
-        return false;
-    });
-
-    private final Event overrideMovement = new KeyboardInputEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (currentNode == null) return false;
-
-        params.backKey = params.leftKey = params.rightKey = params.forwardKey = params.sneakKey = params.jumpKey = false;
-        if (currentNode.type == Node.Type.ETHERWARP) params.sneakKey = true;
         return false;
     });
 
@@ -132,124 +197,73 @@ public class AutoRoutes extends SecretsHelper {
         return false;
     });
 
-    private final Event awaitAutoRouteSuccess = new PacketEvent.Received(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        // hypixel gives u the item before we expect it </3
-        if (params.packet instanceof ItemPickupAnimationS2CPacket) {
-            lastItemPickup = System.currentTimeMillis();
+    private ChainUtil.InteractionChain getInteractionChain(Vec3d playerPos) {
+        if (!autoroutes) return null;
+        if (interactionChain != null) return interactionChain;
+
+        Room currentRoom = AreaUtil.getCurrentRoom();
+        if (currentRoom == null) return null;
+
+        ArrayList<ChainUtil.InteractionChainNode> nodes = new ArrayList<>();
+        ArrayList<Node> passedNodes = new ArrayList<>();
+
+        int posPriority = 0;
+        Node currentNode = getNodeAt(currentRoom, playerPos, 0);
+        while (currentNode != null) {
+            // stops infinite looping routes crashing
+            if (passedNodes.contains(currentNode)) break;
+
+            passedNodes.add(currentNode);
+
+            nodes.add(new ChainUtil.InteractionChainNode(currentNode.rotation, currentNode.targetPos, currentNode.type));
+            if (currentNode.type == Node.Type.ETHERWARP || currentNode.type == Node.Type.PEARL) {
+                playerPos = NodeUtil.getNodePos(currentNode.targetPos, currentRoom).toBottomCenterPos();
+                posPriority = 0;
+            }
+            else posPriority++;
+            currentNode = getNodeAt(currentRoom, playerPos, posPriority);
         }
 
-        if (startedAwaiting == -1) return false;
-        if (System.currentTimeMillis() - startedAwaiting > (currentNode.type == Node.Type.SECRET ? maxSecretDelay : timeout)) {
-            finishedNode(false);
-            return false;
-        }
-        switch (currentNode.type) {
-            case ETHERWARP, PEARL -> {
-                if (params.packet instanceof PlayerPositionLookS2CPacket) {
-                    finishedNode(true);
-                }
-            }
-            case DUNGEON_BREAKER -> {
-                if (C.w().getBlockState(NodeUtil.getNodePos(currentNode.targetPos, AreaUtil.getCurrentRoom())).getBlock() == Blocks.AIR) {
-                    finishedNode(true);
-                }
-            }
-            case SECRET -> {
-                if (System.currentTimeMillis() - lastItemPickup < 1000) {
-                    finishedNode(true);
-                    lastItemPickup = -1;
-                }
-                if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
-                    if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
-                        finishedNode(true);
-                    }
-                }
-            }
-        }
-        return false;
-    });
-
-    private final Event awaitSecretInteraction = new PacketEvent.Sent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (currentNode == null || currentNode.type != Node.Type.SECRET) return false;
-
-        if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
-            Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
-
-            if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
-                finishedNode(true);
-            }
-        }
-
-        return false;
-    });
-
-    private int getTicksBeforeAwait() {
-        return switch (currentNode.type) {
-            case ETHERWARP -> {
-                // hypixel hates me for some reason if im looking at a block before etherwarping, likely mb
-                HitResult hitResult = C.mc.crosshairTarget;
-                yield hitResult == null || hitResult.getType() == HitResult.Type.MISS ? 2 : 3;
-            }
-            case PEARL, DUNGEON_BREAKER  -> 2;
-            case SECRET -> 1;
-        };
+        return nodes.isEmpty() ? null : new ChainUtil.InteractionChain(nodes.toArray(ChainUtil.InteractionChainNode[]::new), null);
     }
 
-    private void findCurrentNode(Room currentRoom) {
-        if (currentNode == null && System.currentTimeMillis() - lastNode > (failed ? retryDelay : delay)) {
-            for (int i = 0; i < currentRoom.nodes.size(); i++) {
-                int index = (i + lastNodeIndex + 1) % currentRoom.nodes.size();
-                Node node = currentRoom.nodes.get(index);
+    private Node getNodeAt(Room currentRoom, Vec3d playerPos, int posPriority) {
+        int currentPriority = Integer.MAX_VALUE;
+        ArrayList<Node> nodes = new ArrayList<>();
+        for (int i = 0; i < currentRoom.nodes.size(); i++) {
+            Node node = currentRoom.nodes.get(i);
 
-                BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
-                if (C.p().getBlockPos().offset(Direction.DOWN, 1).equals(nodePos) && isValid(node)) {
-                    currentNode = node;
-                    lastNodeIndex = index;
-                    break;
+            BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
+            if (BlockPos.ofFloored(playerPos).equals(nodePos) && isValid(node, playerPos)) {
+                if (node.type.priority < currentPriority) {
+                    currentPriority = node.type.priority;
+                    nodes.add(node);
                 }
             }
         }
+        nodes.sort(Comparator.comparingInt(e -> e.type.priority));
+
+        return posPriority >= nodes.size() || nodes.isEmpty() ? null : nodes.get(posPriority);
     }
 
-    private boolean handleSwap(RotationEvent.Params rotationParams) {
-        if (!swapped) {
-            Rotation rotation = NodeUtil.flipRotation(currentNode.rotation, Direction.NORTH, AreaUtil.getCurrentRoom().facing);
-            if (!isValid(currentNode)) {
-                ChatUtil.prefixMessage("Target node invalid for " + currentNode.type.name());
-                finishedNode(true);
-                return true;
-            }
-
-            if (!currentNode.type.getItem.test(null)) {
-                ChatUtil.prefixMessage("Missing item in hotbar: " + currentNode.type.name());
-                autoroutes = false;
-                finishedNode(false);
-                return true;
-            }
-
-            rotationParams.rotation = rotation;
-            swapped = true;
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean isValid(Node node) {
+    // todo: fuh ts prob
+    private boolean isValid(Node node, Vec3d playerPos) {
         Room room = AreaUtil.getCurrentRoom();
-
         if (room == null) return false;
+
+        if (node.type == Node.Type.SECRET && lastNode == Node.Type.SECRET) return false;
 
         BlockPos nodePos = NodeUtil.getNodePos(node.targetPos, room);
         Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, room.facing);
+        Vec3d playerPosVec = playerPos.add(0, 1, 0);
 
         switch (node.type) {
             case ETHERWARP -> {
-                Vec3i etherwarpBlock = EtherwarpUtil.getEtherwarpBlockSuccess(rotation.pitch, rotation.yaw, C.p().getEntityPos(), 57);
+                Vec3i etherwarpBlock = EtherwarpUtil.getEtherwarpBlockSuccess(rotation.pitch, rotation.yaw, playerPosVec, 57);
                 return etherwarpBlock != null && new BlockPos(etherwarpBlock).equals(nodePos);
             }
             case DUNGEON_BREAKER -> {
-                BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), rotation);
+                BlockHitResult blockHitResult = WorldUtil.raytrace(playerPosVec.add(0, C.p().getEyeHeight(EntityPose.STANDING), 0), C.p().getBlockInteractionRange(), rotation);
                 return blockHitResult.getType() != HitResult.Type.MISS && blockHitResult.getBlockPos().equals(nodePos);
             }
             // todo: check ender pearl is valid
@@ -257,47 +271,6 @@ public class AutoRoutes extends SecretsHelper {
 
         return true;
     }
-
-    private void startAwaiting() {
-        startAwaiting = false;
-        if (startedAwaiting != -1) return;
-
-        ticksAwaiting = 0;
-        switch (currentNode.type) {
-            case ETHERWARP, PEARL -> {
-                UseItemBridge.from(C.mc).bridge$DoItemUse();
-            }
-            case DUNGEON_BREAKER -> {
-                UseItemBridge.from(C.mc).bridge$doAttack();
-            }
-        }
-        startedAwaiting = System.currentTimeMillis();
-    }
-
-    private void finishedNode(boolean success) {
-        failed = !success;
-        // secrets nodes pass the amount of secrets as the the X coord
-        if (failed || currentNode.type != Node.Type.SECRET || receivedSecretPackets+1 >= currentNode.targetPos.getX()) {
-            if (failed) {
-                ChatUtil.prefixMessage(currentNode.type == Node.Type.SECRET ? "Secret not found" : "Node failed, oops *teehee*");
-            }
-            forceStop();
-        }
-        else {
-            ChatUtil.prefixMessage("Secret found: " + receivedSecretPackets+1);
-            receivedSecretPackets++;
-        }
-    }
-
-    protected static void forceStop() {
-        startedAwaiting = -1;
-        swapped = false;
-        currentNode = null;
-        lastNode = System.currentTimeMillis();
-        receivedSecretPackets = 0;
-        ticksAwaiting = 0;
-    }
-
 
     private static void renderAutoroutes() {
         if (!showAutoRoutes) return;

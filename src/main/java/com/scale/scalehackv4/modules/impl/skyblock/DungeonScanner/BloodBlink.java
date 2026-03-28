@@ -14,6 +14,7 @@ import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
+import com.scale.scalehackv4.utils.skyblock.ChainUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
@@ -32,36 +33,36 @@ import net.minecraft.world.RaycastContext;
 
 import java.util.ArrayList;
 import java.util.Optional;
-import java.util.function.Predicate;
 
 // todo: fix chat hiding mods conflicting
 //  bring back legit mode
+//  force stand still
 public class BloodBlink extends DungeonScannerModule {
     @RegisterSubModule(name = "Auto Scan")
     public static boolean autoScan = true;
     @RegisterSubModule(name = "Auto Blood")
     public static boolean autoBlood = true;
 
-    private record InteractionChainNode(Rotation rotation, Node.Type itemType) {}
-    private record InteractionChain(InteractionChainNode[] interactionChainNodes, Vec3d endPos) {}
-    private record QueuedInteractionChain(InteractionChain interactionChain, Predicate<?> activationPredicate) {}
-
-    private static InteractionChain interactionChain;
-    private static QueuedInteractionChain queuedInteractionChain;
-
-    private static int interactionChainIndex = 0;
+    @RegisterSubModule(name = "Timeout Delay", min = 500, max = 10000, increment = 100)
+    public static int timeoutDelay = 1000;
 
     private static final int BLOOD_ROOM_MIN_Y = 66;
     private static final int MAX_OUT_BOUNDS_TICKS = 40;
+    private static final Vec3d DUNGEON_MIDDLE = new Vec3d(-105, 0, -105);
 
-    private static int expectedTeleports = 0;
+    private static ChainUtil.InteractionChain interactionChain;
+    private static ChainUtil.QueuedInteractionChain queuedInteractionChain;
+
+    private static int interactionChainIndex = 0;
+
+    private static final ArrayList<Long> expectedTeleports = new ArrayList<>();
     private static boolean pearlResponded = true;
 
     private static int clipAttempts = 0;
 
     private static boolean attemptedScanning = false;
 
-    private static final Vec3d DUNGEON_MIDDLE = new Vec3d(-105, 0, -105);
+    private final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
 
     public static Vec3d getDefaultTarget() {
         if (!AreaUtil.isDungeonStarted()) return DUNGEON_MIDDLE;
@@ -85,8 +86,8 @@ public class BloodBlink extends DungeonScannerModule {
         if (interactionChain == null || hasEscapedBox) return;
 
         if (clipAttempts == 0 && scan && !AreaUtil.isDungeonStarted()) {
-            queuedInteractionChain = new QueuedInteractionChain(
-                    getTargetChain(interactionChain.endPos, DUNGEON_MIDDLE, false),
+            queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
+                    getTargetChain(interactionChain.endPos(), DUNGEON_MIDDLE, false),
                     e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5
             );
         }
@@ -98,8 +99,8 @@ public class BloodBlink extends DungeonScannerModule {
                 return;
             }
 
-            queuedInteractionChain = new QueuedInteractionChain(
-                    getTargetChain(interactionChain.endPos, new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true),
+            queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
+                    getTargetChain(interactionChain.endPos(), new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true),
                     e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2
             );
         }
@@ -119,8 +120,6 @@ public class BloodBlink extends DungeonScannerModule {
         return false;
     });
 
-    private final ArrayList<InteractionChainNode> pendingInteractions = new ArrayList<>();
-
     private static boolean shouldAutoClipOut() {
         if (queuedInteractionChain != null
                 || interactionChain != null
@@ -138,6 +137,11 @@ public class BloodBlink extends DungeonScannerModule {
     }
 
     private final Event handleHeldItem = new RotationEvent(null, params -> {
+        // forget failed teleports
+        while (!expectedTeleports.isEmpty() && System.currentTimeMillis() - expectedTeleports.getFirst() > timeoutDelay) {
+            expectedTeleports.removeFirst();
+        }
+
         if (shouldAutoClipOut()) {
             Optional<Room> spawnRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.SPAWN).findFirst();
             if (spawnRoom.isEmpty()) return false;
@@ -147,25 +151,25 @@ public class BloodBlink extends DungeonScannerModule {
         }
 
         if (interactionChain == null) {
-            if (queuedInteractionChain != null && queuedInteractionChain.activationPredicate.test(null)) {
-                interactionChain = queuedInteractionChain.interactionChain;
+            if (queuedInteractionChain != null && queuedInteractionChain.activationPredicate().test(null)) {
+                interactionChain = queuedInteractionChain.interactionChain();
                 queuedInteractionChain = null;
             }
             else return false;
         }
 
-        Node.Type nodeItem = interactionChain.interactionChainNodes[interactionChainIndex].itemType;
+        Node.Type nodeItem = interactionChain.interactionChainNodes()[interactionChainIndex].itemType();
         if (!nodeItem.getItem.test(null)) return false;
 
         // i never do for loops like this, how cool
-        for (; interactionChainIndex < interactionChain.interactionChainNodes.length; interactionChainIndex++) {
-            InteractionChainNode node = interactionChain.interactionChainNodes[interactionChainIndex];
+        for (; interactionChainIndex < interactionChain.interactionChainNodes().length; interactionChainIndex++) {
+            ChainUtil.InteractionChainNode node = interactionChain.interactionChainNodes()[interactionChainIndex];
             // take a tick gap between switching items / using pearls
-            if (node.itemType != nodeItem || !pearlResponded) return false;
+            if (node.itemType() != nodeItem || !pearlResponded) return false;
             if (nodeItem == Node.Type.PEARL) pearlResponded = false;
 
             pendingInteractions.add(node);
-            expectedTeleports++;
+            expectedTeleports.add(System.currentTimeMillis());
         }
 
         disable();
@@ -174,10 +178,10 @@ public class BloodBlink extends DungeonScannerModule {
     });
 
     private final Event onReceiveTP = new PacketEvent.Received(null, params -> {
-        if (!(params.packet instanceof PlayerPositionLookS2CPacket) || expectedTeleports < 0) return false;
+        if (!(params.packet instanceof PlayerPositionLookS2CPacket) || expectedTeleports.isEmpty()) return false;
 
-        expectedTeleports--;
-        if (expectedTeleports < 0 && !pearlResponded) {
+        expectedTeleports.removeFirst();
+        if (expectedTeleports.isEmpty() && !pearlResponded) {
             pearlResponded = true;
             return false;
         }
@@ -198,20 +202,20 @@ public class BloodBlink extends DungeonScannerModule {
     private static final int EDGE_TELEPORTS = 3;
     private static final int DOWN_TELEPORTS = 9;
 
-    private static InteractionChain getClipOutChain(Vec3d tickPos) {
-        ArrayList<InteractionChainNode> interactionChain = new ArrayList<>();
+    private static ChainUtil.InteractionChain getClipOutChain(Vec3d tickPos) {
+        ArrayList<ChainUtil.InteractionChainNode> interactionChain = new ArrayList<>();
 
         int ceilingY = getCeilingY();
         if (ceilingY != -1) {
             tickPos = new Vec3d(Math.floor(tickPos.x)+0.5, tickPos.y, Math.floor(tickPos.z)+0.5);
-            interactionChain.add(new InteractionChainNode(new Rotation(0, 90), Node.Type.ETHERWARP));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
 
             // teleport out of spawn
             while (interactionChain.size() < MAX_PACKETS) {
                 if (tickPos.y >= ceilingY-2) break;
 
                 tickPos = EtherwarpUtil.getAotePos(-90, 0, tickPos, 12);
-                interactionChain.add(new InteractionChainNode(new Rotation(0, -90), Node.Type.ETHERWARP));
+                interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
             }
 
             // pearl through ceiling
@@ -222,22 +226,22 @@ public class BloodBlink extends DungeonScannerModule {
             }
             for (int i = 0; i < pearlsRequired; i++) {
                 tickPos = tickPos.offset(Direction.UP, 2);
-                interactionChain.add(new InteractionChainNode(new Rotation(0, -90), Node.Type.PEARL));
+                interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
             }
-            return new InteractionChain(interactionChain.toArray(InteractionChainNode[]::new), tickPos);
+            return new ChainUtil.InteractionChain(interactionChain.toArray(ChainUtil.InteractionChainNode[]::new), tickPos);
         }
 
         return null;
     }
 
-    private static InteractionChain getTargetChain(Vec3d tickPos, Vec3d targetPos, boolean clipUp) {
+    private static ChainUtil.InteractionChain getTargetChain(Vec3d tickPos, Vec3d targetPos, boolean clipUp) {
         Optional<Room> spawnRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.SPAWN).findFirst();
         if (spawnRoom.isEmpty()) {
             ChatUtil.chat("Could not find spawn room??");
             return null;
         }
 
-        ArrayList<InteractionChainNode> interactionChain = new ArrayList<>();
+        ArrayList<ChainUtil.InteractionChainNode> interactionChain = new ArrayList<>();
 
         ChunkPos spawnSquare = spawnRoom.get().squares[0];
 
@@ -251,12 +255,12 @@ public class BloodBlink extends DungeonScannerModule {
         // teleport to the edge of the map
         for (int i = 0; i < EDGE_TELEPORTS; i++) {
             tickPos = EtherwarpUtil.getAotePos(0, edgeOfMapYaw, tickPos, 12);
-            interactionChain.add(new InteractionChainNode(new Rotation(edgeOfMapYaw, 0), Node.Type.ETHERWARP));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(edgeOfMapYaw, 0), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
         }
         // teleport down to the bottom of the map
         for (int i = 0; i < DOWN_TELEPORTS; i++) {
             tickPos = EtherwarpUtil.getAotePos(90, 0, tickPos, 12);
-            interactionChain.add(new InteractionChainNode(new Rotation(0, 90), Node.Type.ETHERWARP));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
         }
 
         Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 5);
@@ -266,7 +270,7 @@ public class BloodBlink extends DungeonScannerModule {
             if (Math.abs(tickPos.x - targetPos.x) <= 10 && Math.abs(tickPos.z - targetPos.z) <= 10) break;
 
             tickPos = EtherwarpUtil.getAotePos(rotationToTarget.pitch, rotationToTarget.yaw, tickPos, 12);
-            interactionChain.add(new InteractionChainNode(rotationToTarget, Node.Type.ETHERWARP));
+            interactionChain.add(new ChainUtil.InteractionChainNode(rotationToTarget, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
         }
 
         Rotation bloodFloorRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos);
@@ -276,12 +280,12 @@ public class BloodBlink extends DungeonScannerModule {
                 if (tickPos.y >= targetPos.y-2) break;
 
                 tickPos = EtherwarpUtil.getAotePos(bloodFloorRotation.pitch, bloodFloorRotation.yaw, tickPos, 12);
-                interactionChain.add(new InteractionChainNode(bloodFloorRotation, Node.Type.ETHERWARP));
+                interactionChain.add(new ChainUtil.InteractionChainNode(bloodFloorRotation, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
             }
             // 2 pearls up into blood
-            interactionChain.add(new InteractionChainNode(new Rotation(0, -90), Node.Type.PEARL));
-            interactionChain.add(new InteractionChainNode(new Rotation(0, -90), Node.Type.PEARL));
-            interactionChain.add(new InteractionChainNode(new Rotation(0, 90), Node.Type.ETHERWARP));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
             tickPos = tickPos.offset(Direction.UP, 2);
         }
         if (interactionChain.size() >= MAX_PACKETS) {
@@ -289,7 +293,7 @@ public class BloodBlink extends DungeonScannerModule {
             return null;
         }
 
-        return new InteractionChain(interactionChain.toArray(InteractionChainNode[]::new), tickPos);
+        return new ChainUtil.InteractionChain(interactionChain.toArray(ChainUtil.InteractionChainNode[]::new), tickPos);
     }
 
     private static ChunkPos getBloodSquare() {
@@ -365,7 +369,7 @@ public class BloodBlink extends DungeonScannerModule {
     public static void disable() {
         interactionChain = null;
         interactionChainIndex = 0;
-        expectedTeleports = 0;
+        expectedTeleports.clear();
         pearlResponded = true;
     }
 }

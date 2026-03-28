@@ -21,7 +21,7 @@ public class ClickGuiModule extends Module {
     @RegisterSubModule(
             name = "Menu Colour"
     )
-    public static Color guiColour = new Color(0x7B9818);
+    public static Color guiColour = new Color(0x95B806);
 
     @RegisterSubModule(name = "Colour Box Type")
     public static ColourBoxType colourBoxType = ColourBoxType.Normal;

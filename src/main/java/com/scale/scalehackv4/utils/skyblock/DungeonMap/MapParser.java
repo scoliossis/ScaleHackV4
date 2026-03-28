@@ -46,11 +46,12 @@ public class MapParser {
         return new Vector2f(MAP_ITEM_DIAMETER).sub(DungeonScanner.getDungeonRect().mul(MAP_SQUARE_SIZE));
     }
 
-    public static int pos3dTo2d(double pos, double width, double maxWidth) {
-        double multi = width / maxWidth;
+    public static int pos3dTo2d(double pos, double diameter, double maxDiameter) {
+        double multi = diameter / maxDiameter;
         return (int) ((pos + (DungeonScanner.DUNGEON_BLOCKS_OFFSET+DungeonScanner.MAX_DUNGEON_DIAMETER)) * multi);
     }
 
+    // todo: still whack, sometimes fails, hate.
     protected static void parseMap() {
         MapState mapState = getMapState();
         if (mapState == null) return;

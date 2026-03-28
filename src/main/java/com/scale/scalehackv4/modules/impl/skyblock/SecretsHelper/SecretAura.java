@@ -28,6 +28,7 @@ import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
@@ -40,9 +41,10 @@ import java.util.function.Predicate;
 // todo: add option to select whatever blocks
 //  check if the pos is blacklisted in the room
 //  locked chest check
-//  check surroundings, no redstone block/lever should be touching eachother (u should be touching me tho)
+//  check surroundings, no lever (idk why i choose that block, look into it) should be touching eachother (u should be touching me tho)
 //  check the room the SECRET is in, not the guy.
 //  swap to dungeon breaker to interact
+//  treat chests as full blocks
 public class SecretAura extends SecretsHelper {
     @RegisterSubModule(name = "Secret Aura", hasKeybind = true)
     public static boolean secretAura = true;
@@ -83,8 +85,21 @@ public class SecretAura extends SecretsHelper {
 
                     UUID skinID = skullBlockEntity.getOwner().getGameProfile().id();
 
-                    // only click wither essence or redstone key
-                    return skinID.toString().equals("e0f3e929-869e-3dca-9504-54c666ee6f23") || skinID.toString().equals("fed95410-aba1-39df-9b95-1d4f361eb66e");
+                    boolean isWitherEssence = skinID.toString().equals("e0f3e929-869e-3dca-9504-54c666ee6f23");
+                    if (isWitherEssence) return true;
+
+                    boolean isRedstoneSkull = skinID.toString().equals("fed95410-aba1-39df-9b95-1d4f361eb66e");
+                    // only skulls we want to click are wither essence and redstone skulls
+                    if (!isRedstoneSkull) return false;
+
+                    // ensure its not touching a redstone block
+                    for (Direction direction : Direction.values()) {
+                        BlockPos neighbourPos = pos.offset(direction);
+                        // evil redstone dtc, stop
+                        if (C.w().getBlockState(neighbourPos).getBlock() == Blocks.REDSTONE_BLOCK) return false;
+                    }
+
+                    return true;
                 }
         ),
         LEVER(
@@ -99,7 +114,13 @@ public class SecretAura extends SecretsHelper {
         ),
         REDSTONE_BLOCK(
                 new Block[]{Blocks.REDSTONE_BLOCK},
-                pos -> hasRedstoneKey && C.w().getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK
+                pos -> {
+                    for (Direction direction : Direction.values()) {
+                        BlockPos neighbourPos = pos.offset(direction);
+                        if (C.w().getBlockState(neighbourPos).getBlock() == Blocks.REDSTONE_BLOCK) return false;
+                    }
+                    return hasRedstoneKey && C.w().getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK;
+                }
         ),
         CHEST(
                 new Block[]{Blocks.CHEST, Blocks.TRAPPED_CHEST},

@@ -10,10 +10,13 @@ import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.Vec2f;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-@Mixin(KeyboardInput.class)
+// i h8 u docilelm, sry
+@Mixin(value = KeyboardInput.class, priority = 1)
 public abstract class KeyboardInputMixin extends Input {
     @Shadow
     @Final
@@ -24,12 +27,8 @@ public abstract class KeyboardInputMixin extends Input {
         return 0;
     }
 
-    /**
-     * @author Scale
-     * @reason to stop movement when freelook is enabled (ai autofilled this reason and was actually right, ai will take over the world its over)
-     */
-    @Overwrite
-    public void tick() {
+    @Inject(method = "tick", at = @At("HEAD"), cancellable = true)
+    public void tick(CallbackInfo ci) {
         KeyboardInputEvent.Params params = new KeyboardInputEvent.Params(
                 this.settings.forwardKey.isPressed(),
                 this.settings.backKey.isPressed(),
@@ -48,5 +47,7 @@ public abstract class KeyboardInputMixin extends Input {
         float f = getMovementMultiplier(this.playerInput.forward(), this.playerInput.backward());
         float g = getMovementMultiplier(this.playerInput.left(), this.playerInput.right());
         this.movementVector = new Vec2f(g, f).normalize();
+
+        ci.cancel();
     }
 }

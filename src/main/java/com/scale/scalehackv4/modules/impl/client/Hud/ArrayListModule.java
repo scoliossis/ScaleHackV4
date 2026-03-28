@@ -11,7 +11,7 @@ import java.util.Comparator;
 import java.util.List;
 
 // todo: show keybind submodules
-public class ArrayList extends HudModule {
+public class ArrayListModule extends HudModule {
     @RegisterSubModule(
             name = "Array List"
     )
