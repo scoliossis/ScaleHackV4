@@ -10,5 +10,5 @@ import java.util.function.Predicate;
 public class ChainUtil {
     public record InteractionChainNode(Rotation rotation, BlockPos targetPos, Node.Type itemType) {}
     public record InteractionChain(InteractionChainNode[] interactionChainNodes, Vec3d endPos) {}
-    public record QueuedInteractionChain(InteractionChain interactionChain, Predicate<?> activationPredicate) {}
+    public record QueuedInteractionChain(InteractionChain interactionChain, Predicate<?> activationPredicate, Predicate<?> deactivationPredicate) {}
 }

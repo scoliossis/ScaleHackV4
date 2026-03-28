@@ -68,7 +68,9 @@ public class AutoGFS extends Module {
                 if (System.currentTimeMillis() - request.requestTime < withdrawDelay) continue;
 
                 ItemStack itemStack = C.p().getInventory().getStack(request.itemSlot);
-                if (itemStack != null && (itemStack.isEmpty() || (itemStack.getCount() < sackItem.maxStack && sackItem.predicate.test(itemStack)))) {
+                // if ur using all 16 pearls, stop.
+                boolean stillNeeded = itemStack.getCount() < sackItem.maxStack && !itemStack.isEmpty() && sackItem.predicate.test(itemStack);
+                if (stillNeeded) {
                     // we are READY, withdraw, gogogo
                     C.p().networkHandler.sendChatCommand("gfs " + sackItem.name + " " + (sackItem.maxStack - itemStack.getCount()));
                     lastWithdraw = System.currentTimeMillis();

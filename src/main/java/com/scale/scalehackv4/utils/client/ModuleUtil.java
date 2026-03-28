@@ -92,6 +92,9 @@ public class ModuleUtil {
 
         loadConfig(Main.BASE_CONFIG);
         loadGuiPositions();
+
+        saveGuiPositions();
+        saveConfig(Main.BASE_CONFIG);
     }
 
     private static final String GUI_POSITIONS_FILE = "GUI_POSITIONS";
@@ -110,51 +113,49 @@ public class ModuleUtil {
     public static void loadGuiPositions() {
         String configFileText = readConfig(GUI_POSITIONS_FILE);
 
-        if (configFileText != null) {
-            HashMap<String, LinkedTreeMap<String, Object>> positions = C.gson.fromJson(configFileText, HashMap.class);
+        HashMap<String, LinkedTreeMap<String, Object>> positions = configFileText == null ? new HashMap<>() : C.gson.fromJson(configFileText, HashMap.class);
 
-            for (Category category : Category.values()) {
-                List<Module> categoryModules = getModulesByCategory(category);
+        for (Category category : Category.values()) {
+            List<Module> categoryModules = getModulesByCategory(category);
 
-                for (Module module : categoryModules) {
-                    LinkedTreeMap<String, Object> rect = positions.get(module.getAnnotation().name());
+            for (Module module : categoryModules) {
+                LinkedTreeMap<String, Object> rect = positions.get(module.getAnnotation().name());
 
-                    if (rect != null) {
-                        module.x = getInt("x", rect);
-                        module.y = getInt("y", rect);
-                        module.width = getInt("width", rect);
-                        module.height = getInt("height", rect);
-                    } else {
-                        // if 1 module fails, just reset all the positions. how intuitive.
-                        int modules = categoryModules.size();
+                if (rect != null) {
+                    module.x = getInt("x", rect);
+                    module.y = getInt("y", rect);
+                    module.width = getInt("width", rect);
+                    module.height = getInt("height", rect);
+                } else {
+                    // if 1 module fails, just reset all the positions. how intuitive.
+                    int modules = categoryModules.size();
 
-                        // sorted to be in the same order as before, just different sizes.
-                        categoryModules = categoryModules.stream()
-                                .sorted(Comparator.comparingInt(m -> m.y))
-                                .sorted(Comparator.comparingInt(m -> m.x))
-                                .toList();
+                    // sorted to be in the same order as before, just different sizes.
+                    categoryModules = categoryModules.stream()
+                            .sorted(Comparator.comparingInt(m -> m.y))
+                            .sorted(Comparator.comparingInt(m -> m.x))
+                            .toList();
 
-                        int squareWidth = (int) Math.round(Math.sqrt(modules));
-                        int squareHeight = (int) Math.ceil(Math.sqrt(modules));
+                    int squareWidth = (int) Math.round(Math.sqrt(modules));
+                    int squareHeight = (int) Math.ceil(Math.sqrt(modules));
 
-                        int moduleWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / squareWidth) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / squareWidth);
-                        int moduleHeight = (ClickGuiScreen.HEIGHT / squareHeight) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / squareHeight);
+                    int moduleWidth = (ModuleRenderer.MODULES_SECTION_WIDTH / squareWidth) - ModuleRenderer.MODULE_X_GAP - (ModuleRenderer.MODULE_X_GAP / squareWidth);
+                    int moduleHeight = (ClickGuiScreen.HEIGHT / squareHeight) - ModuleRenderer.MODULE_Y_GAP - (ModuleRenderer.MODULE_Y_GAP / squareHeight);
 
-                        for (int i = 0; i < modules; i++) {
-                            Module m = categoryModules.get(i);
+                    for (int i = 0; i < modules; i++) {
+                        Module m = categoryModules.get(i);
 
-                            int xOrdinal = i % squareWidth;
-                            int yOrdinal = i / squareWidth;
+                        int xOrdinal = i % squareWidth;
+                        int yOrdinal = i / squareWidth;
 
-                            m.x = (xOrdinal * moduleWidth) + ((xOrdinal+1) * ModuleRenderer.MODULE_X_GAP);
-                            m.y = (yOrdinal * moduleHeight) + ((yOrdinal+1) * ModuleRenderer.MODULE_Y_GAP);
+                        m.x = (xOrdinal * moduleWidth) + ((xOrdinal+1) * ModuleRenderer.MODULE_X_GAP);
+                        m.y = (yOrdinal * moduleHeight) + ((yOrdinal+1) * ModuleRenderer.MODULE_Y_GAP);
 
-                            m.width = moduleWidth;
-                            m.height = moduleHeight;
-                        }
-
-                        break;
+                        m.width = moduleWidth;
+                        m.height = moduleHeight;
                     }
+
+                    break;
                 }
             }
         }

@@ -16,6 +16,16 @@ public class KeyboardInputEvent extends Event {
         public boolean jumpKey;
         public boolean sneakKey;
         public boolean sprintKey;
+
+        public void reset() {
+            forwardKey = false;
+            backKey = false;
+            leftKey = false;
+            rightKey = false;
+            jumpKey = false;
+            sneakKey = false;
+            sprintKey = false;
+        }
     }
 
     public KeyboardInputEvent(Module parent, Predicate<Params> predicate, int priority) {

@@ -95,6 +95,12 @@ public class ModelModifierModule extends Module {
             ModelUtil.getModel("/assets/scalehackv4/models/rayman/rightfoot.obj")
     );
 
+    private enum ModelPhase {
+        GLOW,
+        MODEL,
+        OVERLAY
+    }
+
     private static Body currentModel = RAYMAN;
 
     // todo: figure out where this number is from, idk how i came to this
@@ -106,20 +112,25 @@ public class ModelModifierModule extends Module {
 
         ModelModifierModule.entityModel = model;
         ModelModifierModule.matrices = matrices;
-        ModelModifierModule.colours = new Color[]{color, overlayColour, outlineColour};
 
         doTranslations();
 
-        drawPart(EntityModelPartNames.HEAD, currentModel.head, Vec3f.middle(currentModel.head.box));
-        drawPart(EntityModelPartNames.BODY, currentModel.body, Vec3f.middle(currentModel.body.box));
-
-        drawPart(EntityModelPartNames.LEFT_ARM, currentModel.rightArm, Vec3f.lerpBox(currentModel.body.box, 1, 1, 0.5f));
-        drawPart(EntityModelPartNames.RIGHT_ARM, currentModel.leftArm, Vec3f.lerpBox(currentModel.body.box, 0, 1, 0.5f));
-
-        drawPart(EntityModelPartNames.LEFT_LEG, currentModel.rightLeg, Vec3f.lerpBox(currentModel.rightLeg.box, 1, 1, 0.5f));
-        drawPart(EntityModelPartNames.RIGHT_LEG, currentModel.leftLeg, Vec3f.lerpBox(currentModel.leftLeg.box, 0, 1, 0.5f));
+        if (outlineColour != null) drawParts(outlineColour, ModelPhase.GLOW);
+        drawParts(color, ModelPhase.MODEL);
+        if (overlayColour != null) drawParts(overlayColour, ModelPhase.OVERLAY);
 
         matrices.pop();
+    }
+
+    private static void drawParts(Color colour, ModelPhase modelPhase) {
+        drawPart(EntityModelPartNames.HEAD, currentModel.head, Vec3f.middle(currentModel.head.box), colour, modelPhase);
+        drawPart(EntityModelPartNames.BODY, currentModel.body, Vec3f.middle(currentModel.body.box), colour, modelPhase);
+
+        drawPart(EntityModelPartNames.LEFT_ARM, currentModel.rightArm, Vec3f.lerpBox(currentModel.body.box, 1, 1, 0.5f), colour, modelPhase);
+        drawPart(EntityModelPartNames.RIGHT_ARM, currentModel.leftArm, Vec3f.lerpBox(currentModel.body.box, 0, 1, 0.5f), colour, modelPhase);
+
+        drawPart(EntityModelPartNames.LEFT_LEG, currentModel.rightLeg, Vec3f.lerpBox(currentModel.rightLeg.box, 1, 1, 0.5f), colour, modelPhase);
+        drawPart(EntityModelPartNames.RIGHT_LEG, currentModel.leftLeg, Vec3f.lerpBox(currentModel.leftLeg.box, 0, 1, 0.5f), colour, modelPhase);
     }
 
     private static void doTranslations() {
@@ -134,7 +145,6 @@ public class ModelModifierModule extends Module {
 
     private static EntityModel<?> entityModel;
     private static MatrixStack matrices;
-    private static Color[] colours;
 
     private static final RenderLayer OUTLINE_LAYER = RenderLayer.of(
             Main.MOD_ID + "glowpipeline3d",
@@ -151,20 +161,28 @@ public class ModelModifierModule extends Module {
                     .build()
     );
 
-    private static void drawPart(String part, ModelUtil.Model objModel, Vec3f pivot) {
+    private static void drawPart(String part, ModelUtil.Model objModel, Vec3f pivot, Color colour, ModelPhase modelPhase) {
         ModelPart modelPart = entityModel.getChildPart(part);
 
         matrices.push();
         matrices.multiply(new Quaternionf().rotationZYX(-modelPart.roll, -modelPart.yaw, modelPart.pitch), pivot.x, pivot.y, pivot.z);
 
-        if (colours[2] != null) drawGlow(objModel);
-        Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, colours[0]);
-        if (colours[1] != null) Render3dUtil.drawModel(0, 0, 0, objModel, colours[1]);
+        switch (modelPhase) {
+            case GLOW -> {
+                drawGlow(objModel, colour);
+            }
+            case MODEL -> {
+                Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, colour);
+            }
+            case OVERLAY -> {
+                Render3dUtil.drawModel(0, 0, 0, objModel, colour);
+            }
+        }
 
         matrices.pop();
     }
 
-    private static void drawGlow(ModelUtil.Model objModel) {
+    private static void drawGlow(ModelUtil.Model objModel, Color colour) {
         Vec3d modelCenter = new Vec3d(
                 (objModel.box.maxX + objModel.box.minX) / 2,
                 (objModel.box.maxY + objModel.box.minY) / 2,
@@ -184,7 +202,7 @@ public class ModelModifierModule extends Module {
         matrices.translate(modelCenter.x, modelCenter.y, modelCenter.z);
         matrices.scale(1.1f, 1.1f, 1.1f);
         matrices.translate(-modelCenter.x, -modelCenter.y, -modelCenter.z);
-        Render3dUtil.drawModel(0, 0, 0, objModel, colours[2], OUTLINE_LAYER);
+        Render3dUtil.drawModel(0, 0, 0, objModel, colour, OUTLINE_LAYER);
         matrices.pop();
     }
 

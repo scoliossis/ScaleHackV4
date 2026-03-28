@@ -1,10 +1,9 @@
 package com.scale.scalehackv4.modules.impl.skyblock.DungeonScanner;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
-import com.scale.scalehackv4.events.impl.player.PacketEvent;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
-import com.scale.scalehackv4.events.impl.player.RotationEvent;
+import com.scale.scalehackv4.events.impl.player.*;
 import com.scale.scalehackv4.events.impl.skyblock.DungeonJoinEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
@@ -19,9 +18,11 @@ import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
+import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
+import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -45,7 +46,7 @@ public class BloodBlink extends DungeonScannerModule {
     public static boolean autoBlood = true;
 
     @RegisterSubModule(name = "Timeout Delay", min = 500, max = 10000, increment = 100)
-    public static int timeoutDelay = 1000;
+    public static int timeoutDelay = 1500;
 
     private static final int BLOOD_ROOM_MIN_Y = 66;
     private static final int MAX_OUT_BOUNDS_TICKS = 40;
@@ -63,6 +64,11 @@ public class BloodBlink extends DungeonScannerModule {
 
     private static boolean attemptedScanning = false;
 
+    private static long lastDungeonJoinMessage = 0;
+    private static boolean joiningDungeon = false;
+
+    private static final int DUNGEON_JOIN_TIMEOUT = 10000;
+
     private final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
 
     public static Vec3d getDefaultTarget() {
@@ -70,15 +76,30 @@ public class BloodBlink extends DungeonScannerModule {
 
         ChunkPos bloodRoom = getBloodSquare();
         if (bloodRoom == null) {
-            ChatUtil.chat("Could not find blood room!");
+            ChatUtil.prefixMessage("Could not find blood room!");
             return null;
         }
 
         return new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7);
     }
 
-    // todo: check if they have pearls + aote in hotbar
+    private static boolean cannotBB() {
+        return SkyblockItems.ETHERWARP.getItemStack() == -1 || SkyblockItems.PEARL.getItemStack() == -1;
+    }
+
+    private final Event onAttemptJoinDungeon = new ChatEvent.Received(null, params -> {
+        // regex ig bro...
+        if (Formatting.strip(params.message).matches("-+\\n\\s*[^\\n]*? entered (?:MM )?The Catacombs, Floor (?:I|II|III|IV|V|VI|VII)!\\n-+")) {
+            lastDungeonJoinMessage = System.currentTimeMillis();
+        }
+
+        return false;
+    });
+
     public static void enableBB(boolean blood, boolean scan, boolean clipUp) {
+        // todo: force aote and pearls into hotbar
+        if (cannotBB()) return;
+
         boolean hasEscapedBox = getCeilingY() == -1;
         interactionChain = hasEscapedBox ? getTargetChain(C.p().getEntityPos(), getDefaultTarget(), clipUp) : getClipOutChain(C.p().getEntityPos());
         interactionChainIndex = 0;
@@ -89,20 +110,22 @@ public class BloodBlink extends DungeonScannerModule {
         if (clipAttempts == 0 && scan && !AreaUtil.isDungeonStarted()) {
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
                     getTargetChain(interactionChain.endPos(), DUNGEON_MIDDLE, false),
-                    e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5
+                    e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5 && AreaUtil.getDungeonStartMs() > 2000,
+                    e -> AreaUtil.isDungeonStarted()
             );
         }
         else if (blood) {
             ChunkPos bloodRoom = getBloodSquare();
             if (bloodRoom == null) {
                 interactionChain = null;
-                ChatUtil.chat("Could not find blood room!");
+                ChatUtil.prefixMessage("Could not find blood room!");
                 return;
             }
 
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
                     getTargetChain(interactionChain.endPos(), new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true),
-                    e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2
+                    e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2,
+                    e -> getBloodSquare() == null && insideRoom()
             );
         }
 
@@ -118,7 +141,22 @@ public class BloodBlink extends DungeonScannerModule {
         clipAttempts = 0;
         attemptedScanning = false;
         disable();
+        if (System.currentTimeMillis() - lastDungeonJoinMessage < DUNGEON_JOIN_TIMEOUT) {
+            joiningDungeon = true;
+        }
         return false;
+    });
+
+    private final Event overrideKeyInputs = new KeyboardInputEvent(null, params -> {
+        if (queuedInteractionChain != null || interactionChain != null || joiningDungeon) {
+            params.reset();
+        }
+
+        return false;
+    }, 2000); // higher priority, to stop macros or wtv overthrowing it
+
+    private final Event stopClicking = new ClickedEvent.Right(null, params -> {
+        return queuedInteractionChain != null || interactionChain != null || joiningDungeon;
     });
 
     private static boolean shouldAutoClipOut() {
@@ -126,9 +164,10 @@ public class BloodBlink extends DungeonScannerModule {
                 || interactionChain != null
                 || !ModuleUtil.isEnabled(DungeonScannerModule.class)
                 || !insideRoom()
+                || AreaUtil.isDungeonStarted()
         ) return false;
 
-        boolean canScan = autoScan && !AreaUtil.isDungeonStarted() && !attemptedScanning;
+        boolean canScan = autoScan && !attemptedScanning;
         boolean canBB = autoBlood && DungeonScanner.ROOMS.stream().anyMatch(e -> e.type == Room.Type.BLOOD);
 
         if (!canScan && !canBB) return false;
@@ -138,9 +177,24 @@ public class BloodBlink extends DungeonScannerModule {
     }
 
     private final Event handleHeldItem = new RotationEvent(null, params -> {
+        if (System.currentTimeMillis() - lastDungeonJoinMessage > DUNGEON_JOIN_TIMEOUT) {
+            joiningDungeon = false;
+        }
+
+        // stop it ig bro
+        if ((cannotBB() && (joiningDungeon || interactionChain != null || queuedInteractionChain != null)) || (interactionChain == null && queuedInteractionChain != null && queuedInteractionChain.deactivationPredicate().test(null))) {
+            disable();
+            return false;
+        }
+
         // forget failed teleports
         while (!expectedTeleports.isEmpty() && System.currentTimeMillis() - expectedTeleports.getFirst() > timeoutDelay) {
             expectedTeleports.removeFirst();
+        }
+        if (expectedTeleports.isEmpty() && !pearlResponded) {
+            ChatUtil.prefixMessage("Failed to teleport, disabling.");
+            disable();
+            return false;
         }
 
         if (shouldAutoClipOut()) {
@@ -148,6 +202,7 @@ public class BloodBlink extends DungeonScannerModule {
             if (spawnRoom.isEmpty()) return false;
 
             enableBB(autoBlood, autoScan, false);
+            lastDungeonJoinMessage = 0;
             attemptedScanning = true;
         }
 
@@ -173,7 +228,7 @@ public class BloodBlink extends DungeonScannerModule {
             expectedTeleports.add(System.currentTimeMillis());
         }
 
-        disable();
+        finishInteract();
 
         return false;
     });
@@ -182,10 +237,7 @@ public class BloodBlink extends DungeonScannerModule {
         if (!(params.packet instanceof PlayerPositionLookS2CPacket) || expectedTeleports.isEmpty()) return false;
 
         expectedTeleports.removeFirst();
-        if (expectedTeleports.isEmpty() && !pearlResponded) {
-            pearlResponded = true;
-            return false;
-        }
+        pearlResponded |= expectedTeleports.isEmpty();
 
         return false;
     });
@@ -222,7 +274,7 @@ public class BloodBlink extends DungeonScannerModule {
             // pearl through ceiling
             int pearlsRequired = getPearlsRequired();
             if (pearlsRequired == -1) {
-                ChatUtil.chat("Invalid position, there should be an even amount of blocks above you.");
+                ChatUtil.prefixMessage("Invalid position, there should be an even amount of blocks above you.");
                 return null;
             }
             for (int i = 0; i < pearlsRequired; i++) {
@@ -238,7 +290,7 @@ public class BloodBlink extends DungeonScannerModule {
     private static ChainUtil.InteractionChain getTargetChain(Vec3d tickPos, Vec3d targetPos, boolean clipUp) {
         Optional<Room> spawnRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.SPAWN).findFirst();
         if (spawnRoom.isEmpty()) {
-            ChatUtil.chat("Could not find spawn room??");
+            ChatUtil.prefixMessage("Could not find spawn room??");
             return null;
         }
 
@@ -268,13 +320,18 @@ public class BloodBlink extends DungeonScannerModule {
 
         // try and tp to below blood
         while (interactionChain.size() < MAX_PACKETS) {
-            if (Math.abs(tickPos.x - targetPos.x) <= 10 && Math.abs(tickPos.z - targetPos.z) <= 10) break;
+            int maxDistance = 24;
+            double xDistance = Math.abs(tickPos.x - targetPos.x);
+            double zDistance = Math.abs(tickPos.z - targetPos.z);
+
+            if (xDistance+zDistance <= maxDistance) break;
 
             tickPos = EtherwarpUtil.getAotePos(rotationToTarget.pitch, rotationToTarget.yaw, tickPos, 12);
             interactionChain.add(new ChainUtil.InteractionChainNode(rotationToTarget, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
         }
 
         Rotation bloodFloorRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos);
+        // todo: make scan keep u in the dungeon ig
         if (clipUp) {
             // aote up to blood floor
             while (interactionChain.size() < MAX_PACKETS) {
@@ -368,9 +425,14 @@ public class BloodBlink extends DungeonScannerModule {
     }
 
     public static void disable() {
+        pearlResponded = true;
+        queuedInteractionChain = null;
+        expectedTeleports.clear();
+        finishInteract();
+    }
+
+    public static void finishInteract() {
         interactionChain = null;
         interactionChainIndex = 0;
-        expectedTeleports.clear();
-        pearlResponded = true;
     }
 }
