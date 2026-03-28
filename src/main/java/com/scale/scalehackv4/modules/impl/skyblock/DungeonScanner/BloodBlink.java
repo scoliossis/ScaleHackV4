@@ -37,6 +37,7 @@ import java.util.Optional;
 // todo: fix chat hiding mods conflicting
 //  bring back legit mode
 //  force stand still
+//  sometimes fails to scan fully...
 public class BloodBlink extends DungeonScannerModule {
     @RegisterSubModule(name = "Auto Scan")
     public static boolean autoScan = true;

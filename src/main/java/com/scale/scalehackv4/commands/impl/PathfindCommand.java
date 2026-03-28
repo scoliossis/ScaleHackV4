@@ -3,6 +3,7 @@ package com.scale.scalehackv4.commands.impl;
 import com.mojang.brigadier.suggestion.Suggestions;
 import com.scale.scalehackv4.commands.Command;
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
@@ -18,6 +19,11 @@ import java.util.concurrent.CompletableFuture;
 
 public class PathfindCommand extends Command {
     ArrayList<BlockPos> blocks = null;
+
+    private final Event resetPathfinding = new WorldJoinEvent(null, params -> {
+        blocks = null;
+        return false;
+    });
 
     private final Event drawPath = new RenderWorldEvent(null, params -> {
         if (blocks == null) return false;

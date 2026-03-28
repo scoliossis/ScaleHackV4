@@ -64,6 +64,8 @@ public class AutoRoutes extends SecretsHelper {
     private static ChainUtil.InteractionChain interactionChain;
     private static int interactionChainIndex = 0;
     private static final ArrayList<Long> expectedPackets = new ArrayList<>();
+    // u can receive secrets before we expect them, so make sure we take care of that
+    private static final ArrayList<Long> interactedSecrets = new ArrayList<>();
     private static final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
     private static Node.Type lastNode = null;
 
@@ -75,6 +77,12 @@ public class AutoRoutes extends SecretsHelper {
     }
 
     private final Event onRotateEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        // handle received secrets
+        while (lastNode == Node.Type.SECRET && !interactedSecrets.isEmpty()) {
+            interactedSecrets.removeFirst();
+            expectedPackets.removeFirst();
+        }
+
         // forget failed teleports
         while (!expectedPackets.isEmpty() && System.currentTimeMillis() - expectedPackets.getFirst() > timeout) {
             expectedPackets.removeFirst();
@@ -141,6 +149,14 @@ public class AutoRoutes extends SecretsHelper {
     });
 
     private final Event handleReceive = new PacketEvent.Received(null, params -> {
+        if (!autoroutes) return false;
+        if (params.packet instanceof ItemPickupAnimationS2CPacket) {
+            interactedSecrets.add(System.currentTimeMillis());
+        }
+        if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket && entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
+            interactedSecrets.add(System.currentTimeMillis());
+        }
+
         if (expectedPackets.isEmpty() || lastNode == null) return false;
 
         switch (lastNode) {
@@ -157,16 +173,6 @@ public class AutoRoutes extends SecretsHelper {
                     }
                 }
             }
-            case SECRET -> {
-                if (params.packet instanceof ItemPickupAnimationS2CPacket) {
-                    expectedPackets.removeFirst();
-                }
-                if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket) {
-                    if (entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
-                        expectedPackets.removeFirst();
-                    }
-                }
-            }
         }
 
         if (expectedPackets.isEmpty() && pendingInteractions.isEmpty()) {
@@ -178,13 +184,13 @@ public class AutoRoutes extends SecretsHelper {
     });
 
     private final Event awaitSecretInteraction = new PacketEvent.Sent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (expectedPackets.isEmpty() || lastNode != Node.Type.SECRET) return false;
+        if (!autoroutes) return false;
 
         if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
             Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
 
             if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
-                expectedPackets.removeFirst();
+                interactedSecrets.add(System.currentTimeMillis());
             }
         }
 
@@ -224,21 +230,18 @@ public class AutoRoutes extends SecretsHelper {
             currentNode = getNodeAt(currentRoom, playerPos, posPriority);
         }
 
+        interactionChainIndex = 0;
         return nodes.isEmpty() ? null : new ChainUtil.InteractionChain(nodes.toArray(ChainUtil.InteractionChainNode[]::new), null);
     }
 
     private Node getNodeAt(Room currentRoom, Vec3d playerPos, int posPriority) {
-        int currentPriority = Integer.MAX_VALUE;
         ArrayList<Node> nodes = new ArrayList<>();
         for (int i = 0; i < currentRoom.nodes.size(); i++) {
             Node node = currentRoom.nodes.get(i);
 
             BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
             if (BlockPos.ofFloored(playerPos).equals(nodePos) && isValid(node, playerPos)) {
-                if (node.type.priority < currentPriority) {
-                    currentPriority = node.type.priority;
-                    nodes.add(node);
-                }
+                nodes.add(node);
             }
         }
         nodes.sort(Comparator.comparingInt(e -> e.type.priority));
