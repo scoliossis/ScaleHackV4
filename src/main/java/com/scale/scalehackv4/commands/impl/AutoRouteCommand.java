@@ -49,6 +49,7 @@ public class AutoRouteCommand extends Command {
         String command = text.substring(0, text.indexOf(" ")).trim().toLowerCase();
         String extraInfo = text.substring(text.indexOf(" ") + 1).trim();
         int extraInt = extraInfo.matches("\\d+") ? Integer.parseInt(extraInfo) : 0;
+        boolean first = room.nodes.isEmpty();
 
         switch (command) {
             case "etherwarp" -> {
@@ -59,12 +60,21 @@ public class AutoRouteCommand extends Command {
                 }
 
                 ChatUtil.prefixMessage("Etherwarp successfully found!");
-                room.nodes.add(new Node(nodePos, getNodePos(room, new BlockPos(etherwarpPos)), rotation, Node.Type.ETHERWARP));
+                room.nodes.add(new Node(nodePos, getNodePos(room, new BlockPos(etherwarpPos)), rotation, Node.Type.ETHERWARP, first));
             }
             case "pearl" -> {
-                ChatUtil.prefixMessage("Pearl spot added" + (extraInt == 0 ? "!" : " with a second pearl sent after " + extraInt + " ticks!"));
                 // todo: calculate pearl trajectory
-                room.nodes.add(new Node(nodePos, new BlockPos(extraInt, 0, 0), rotation, Node.Type.PEARL));
+                room.nodes.add(new Node(nodePos, BlockPos.ORIGIN, rotation, Node.Type.PEARL, first));
+                ChatUtil.prefixMessage("Pearl node added!");
+            }
+            case "superboom" -> {
+                BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), 4.5, RotationUtil.getClientRotation());
+                if (blockHitResult.getType() != HitResult.Type.BLOCK) {
+                    ChatUtil.prefixMessage("Superboom target block not found!");
+                    return true;
+                }
+                room.nodes.add(new Node(nodePos, getNodePos(room, blockHitResult.getBlockPos()), rotation, Node.Type.SUPERBOOM, first));
+                ChatUtil.prefixMessage("Superboom node success, jump around");
             }
             case "stonk" -> {
                 BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), C.p().getBlockInteractionRange(), RotationUtil.getClientRotation());
@@ -74,7 +84,7 @@ public class AutoRouteCommand extends Command {
                 }
 
                 ChatUtil.prefixMessage("Stonk success");
-                room.nodes.add(new Node(nodePos, getNodePos(room, blockHitResult.getBlockPos()), rotation, Node.Type.DUNGEON_BREAKER));
+                room.nodes.add(new Node(nodePos, getNodePos(room, blockHitResult.getBlockPos()), rotation, Node.Type.DUNGEON_BREAKER, first));
             }
             case "remove" -> {
                 // removes last node at pos
@@ -94,7 +104,7 @@ public class AutoRouteCommand extends Command {
                 int secretAmount = Math.max(1, extraInt);
 
                 ChatUtil.prefixMessage(secretAmount + " secret await node(s) successfully added!");
-                room.nodes.add(new Node(nodePos, new BlockPos(secretAmount, 0, 0), rotation, Node.Type.SECRET));
+                room.nodes.add(new Node(nodePos, new BlockPos(secretAmount, 0, 0), rotation, Node.Type.SECRET, first));
             }
             default -> {
                 ChatUtil.prefixMessage("Invalid node type, try: " + Arrays.toString(Node.Type.values()));
@@ -121,6 +131,8 @@ public class AutoRouteCommand extends Command {
             CommandManager.addCommand("pearl", range, pendingSuggestions);
             CommandManager.addCommand("stonk", range, pendingSuggestions);
             CommandManager.addCommand("secret", range, pendingSuggestions);
+            CommandManager.addCommand("bat", range, pendingSuggestions);
+            CommandManager.addCommand("superboom", range, pendingSuggestions);
             CommandManager.addCommand("remove", range, pendingSuggestions);
         }
     }

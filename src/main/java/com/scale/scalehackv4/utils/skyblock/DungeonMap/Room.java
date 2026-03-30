@@ -83,9 +83,8 @@ public class Room {
         HashMap<String, String> routesMap = getRoutes();
 
         String routes = routesMap.get(this.hash+"");
-        if (routes == null) return;
-
-        getNodes(routes);
+        if (routes != null) getNodes(routes);
+        //if (routes == null) getRsaRoutes();
     }
 
     private void getFacing(Object hashes) {
@@ -114,12 +113,13 @@ public class Room {
         if (nodesString.isEmpty()) return;
 
         String[] nodes = nodesString.split(",");
-        for (int i = 0; i < nodes.length; i+=9) {
+        for (int i = 0; i < nodes.length; i+=10) {
             this.nodes.add(new Node(
                     new BlockPos(Integer.parseInt(nodes[i]), Integer.parseInt(nodes[i+1]), Integer.parseInt(nodes[i+2])),
                     new BlockPos(Integer.parseInt(nodes[i+3]), Integer.parseInt(nodes[i+4]), Integer.parseInt(nodes[i+5])),
                     new Rotation(Float.parseFloat(nodes[i+6]), Float.parseFloat(nodes[i+7])),
-                    Node.Type.valueOf(nodes[i+8])
+                    Node.Type.valueOf(nodes[i+8]),
+                    Boolean.parseBoolean(nodes[i+9])
             ));
         }
     }
@@ -148,7 +148,7 @@ public class Room {
                         e.startPos.getX()+","+e.startPos.getY()+","+e.startPos.getZ()+","
                                 + e.targetPos.getX()+","+e.targetPos.getY()+","+e.targetPos.getZ()+","
                                 + e.rotation.yaw+","+e.rotation.pitch+","
-                                + e.type.name()
+                                + e.type.name() + "," + e.firstNode
                 ).collect(Collectors.joining(","));
 
         routes.put(this.hash+"", nodesString);

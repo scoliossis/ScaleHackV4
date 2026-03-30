@@ -1,5 +1,7 @@
 package com.scale.scalehackv4.mixins.player.BlockScanner;
 
+import com.scale.scalehackv4.events.Bus;
+import com.scale.scalehackv4.events.impl.client.ChunkLoadEvent;
 import com.scale.scalehackv4.utils.player.BlockTracker;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.HeightLimitView;
@@ -28,5 +30,6 @@ public class ChunkLoadMixin {
             CallbackInfo ci
     ) {
         BlockTracker.addLoadedChunk(pos);
+        Bus.post(ChunkLoadEvent.class, new ChunkLoadEvent.Params(pos));
     }
 }

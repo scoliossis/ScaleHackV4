@@ -33,12 +33,11 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Optional;
 
 // todo: fix chat hiding mods conflicting
 //  bring back legit mode
-//  force stand still
-//  sometimes fails to scan fully...
 public class BloodBlink extends DungeonScannerModule {
     @RegisterSubModule(name = "Auto Scan")
     public static boolean autoScan = true;
@@ -50,7 +49,6 @@ public class BloodBlink extends DungeonScannerModule {
 
     private static final int BLOOD_ROOM_MIN_Y = 66;
     private static final int MAX_OUT_BOUNDS_TICKS = 40;
-    private static final Vec3d DUNGEON_MIDDLE = new Vec3d(-105, 0, -105);
 
     private static ChainUtil.InteractionChain interactionChain;
     private static ChainUtil.QueuedInteractionChain queuedInteractionChain;
@@ -72,7 +70,7 @@ public class BloodBlink extends DungeonScannerModule {
     private final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
 
     public static Vec3d getDefaultTarget() {
-        if (!AreaUtil.isDungeonStarted()) return DUNGEON_MIDDLE;
+        if (!AreaUtil.isDungeonStarted()) return getBestScanningPos();
 
         ChunkPos bloodRoom = getBloodSquare();
         if (bloodRoom == null) {
@@ -83,8 +81,29 @@ public class BloodBlink extends DungeonScannerModule {
         return new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7);
     }
 
-    private static boolean cannotBB() {
-        return SkyblockItems.ETHERWARP.getItemStack() == -1 || SkyblockItems.PEARL.getItemStack() == -1;
+    private static Vec3d getBestScanningPos() {
+        Room currentRoom = AreaUtil.getCurrentRoom();
+        double middleX = -105;
+        double middleZ = -105;
+
+        if (currentRoom == null) return new Vec3d(middleX, 0, middleZ);
+        ChunkPos currentSquare = currentRoom.squares[0];
+
+        // since we are INSIDE the room, the chunk offset is 1 extra
+        int bottomChunk = -(DungeonScanner.DUNGEON_CHUNK_OFFSET+1);
+
+        // go an extra chunk forward if ur on a corner, because that whole row (SHOULD) have been fully scanned
+        if (currentSquare.x == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleX += 16;
+        else if (currentSquare.x == bottomChunk) middleX -= 16;
+
+        if (currentSquare.z == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleZ += 16;
+        else if (currentSquare.z == bottomChunk) middleZ -= 16;
+
+        return new Vec3d(middleX, 0, middleZ);
+    }
+
+    private static boolean canBB() {
+        return SkyblockItems.ETHERWARP.getItemStack() != -1 && SkyblockItems.PEARL.getItemStack() != -1;
     }
 
     private final Event onAttemptJoinDungeon = new ChatEvent.Received(null, params -> {
@@ -98,7 +117,10 @@ public class BloodBlink extends DungeonScannerModule {
 
     public static void enableBB(boolean blood, boolean scan, boolean clipUp) {
         // todo: force aote and pearls into hotbar
-        if (cannotBB()) return;
+        if (!canBB()) {
+            ChatUtil.prefixMessage("hey god, you need AOTE and Pearls in your hotbar to use bb, dont dm me to make it auto put them in hotbar, im working on it!");
+            return;
+        }
 
         boolean hasEscapedBox = getCeilingY() == -1;
         interactionChain = hasEscapedBox ? getTargetChain(C.p().getEntityPos(), getDefaultTarget(), clipUp) : getClipOutChain(C.p().getEntityPos());
@@ -109,7 +131,7 @@ public class BloodBlink extends DungeonScannerModule {
 
         if (clipAttempts == 0 && scan && !AreaUtil.isDungeonStarted()) {
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
-                    getTargetChain(interactionChain.endPos(), DUNGEON_MIDDLE, false),
+                    getTargetChain(interactionChain.endPos(), getBestScanningPos(), false),
                     e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5 && AreaUtil.getDungeonStartMs() > 2000,
                     e -> AreaUtil.isDungeonStarted()
             );
@@ -142,7 +164,7 @@ public class BloodBlink extends DungeonScannerModule {
         attemptedScanning = false;
         disable();
         if (System.currentTimeMillis() - lastDungeonJoinMessage < DUNGEON_JOIN_TIMEOUT) {
-            joiningDungeon = true;
+            joiningDungeon = autoScan && canBB() && ModuleUtil.isEnabled(DungeonScannerModule.class);
         }
         return false;
     });
@@ -182,7 +204,7 @@ public class BloodBlink extends DungeonScannerModule {
         }
 
         // stop it ig bro
-        if ((cannotBB() && (joiningDungeon || interactionChain != null || queuedInteractionChain != null)) || (interactionChain == null && queuedInteractionChain != null && queuedInteractionChain.deactivationPredicate().test(null))) {
+        if ((!canBB() && (joiningDungeon || interactionChain != null || queuedInteractionChain != null)) || (interactionChain == null && queuedInteractionChain != null && queuedInteractionChain.deactivationPredicate().test(null))) {
             disable();
             return false;
         }
@@ -320,7 +342,7 @@ public class BloodBlink extends DungeonScannerModule {
 
         // try and tp to below blood
         while (interactionChain.size() < MAX_PACKETS) {
-            int maxDistance = 24;
+            int maxDistance = 12;
             double xDistance = Math.abs(tickPos.x - targetPos.x);
             double zDistance = Math.abs(tickPos.z - targetPos.z);
 
@@ -355,8 +377,31 @@ public class BloodBlink extends DungeonScannerModule {
     }
 
     private static ChunkPos getBloodSquare() {
-        Optional<Room> bloodRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.BLOOD).findFirst();
-        return bloodRoom.map(room -> room.squares[0]).orElse(null);
+        for (int x : DungeonScanner.MAP_DIVISIONS.keySet()) {
+            for (int z : DungeonScanner.MAP_DIVISIONS.get(x).keySet()) {
+                DungeonScanner.MapDivision mapDivision = DungeonScanner.MAP_DIVISIONS.get(x).get(z);
+                if (mapDivision.doorType() != DungeonScanner.DoorType.BLOOD) continue;
+
+                ArrayList<Room> connectedRooms = DungeonScanner.getConnectedRooms(x, z);
+                if (connectedRooms.isEmpty()) return null;
+                // blood already found ig bro
+                Room room = connectedRooms.stream().filter(e -> e.type == Room.Type.BLOOD).findFirst().orElse(null);
+                if (room != null) return room.squares[0];
+
+                ChunkPos oppositeSquare = Arrays.stream(connectedRooms.getFirst().squares)
+                        .filter(e -> DungeonScanner.isChunkConnected(e, x, z))
+                        .findFirst()
+                        .orElse(null);
+
+                // shouldnt happen but wtv
+                if (oppositeSquare == null) return null;
+
+                // get opposite of the connected square offset.
+                return new ChunkPos((int) (x + Math.signum(x-oppositeSquare.x)), (int) (z + Math.signum(z-oppositeSquare.z)));
+            }
+        }
+
+        return null;
     }
 
     private static int getPearlsRequired() {
@@ -428,6 +473,7 @@ public class BloodBlink extends DungeonScannerModule {
         pearlResponded = true;
         queuedInteractionChain = null;
         expectedTeleports.clear();
+
         finishInteract();
     }
 

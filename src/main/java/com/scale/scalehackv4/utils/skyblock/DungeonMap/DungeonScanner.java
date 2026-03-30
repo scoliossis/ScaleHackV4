@@ -52,9 +52,9 @@ public class DungeonScanner {
 
     public static final int MAX_DUNGEON_DIAMETER = 190;
     public static Vector2f CURRENT_DUNGEON_DIAMETER = new Vector2f(MAX_DUNGEON_DIAMETER, MAX_DUNGEON_DIAMETER);
-    protected static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
+    public static final int MAX_DUNGEON_CHUNKS = Math.ceilDiv(MAX_DUNGEON_DIAMETER, 16);
     public static final int DUNGEON_BLOCKS_OFFSET = 10;
-    protected static final int DUNGEON_CHUNK_OFFSET = Math.ceilDiv(DUNGEON_BLOCKS_OFFSET, 16);
+    public static final int DUNGEON_CHUNK_OFFSET = Math.ceilDiv(DUNGEON_BLOCKS_OFFSET, 16);
 
     private static boolean wasInDungeon = false;
     private static boolean finishedScanning = false;
@@ -147,11 +147,7 @@ public class DungeonScanner {
             if (connectedRooms.size() == 2) continue;
 
             for (ChunkPos chunkPos : room.squares) {
-                if (chunkPos.x == x-1 && chunkPos.z == z
-                        || chunkPos.x == x+1 && chunkPos.z == z
-                        || chunkPos.x == x && chunkPos.z == z+1
-                        || chunkPos.x == x && chunkPos.z == z-1
-                ) {
+                if (isChunkConnected(chunkPos, x, z)) {
                     connectedRooms.add(room);
                     break;
                 }
@@ -159,6 +155,10 @@ public class DungeonScanner {
         }
 
         return connectedRooms;
+    }
+
+    public static boolean isChunkConnected(ChunkPos chunkPos, int x, int z) {
+        return (chunkPos.x == x-1 && chunkPos.z == z) || (chunkPos.x == x+1 && chunkPos.z == z) || (chunkPos.x == x && chunkPos.z == z+1) || (chunkPos.x == x && chunkPos.z == z-1);
     }
 
     public static boolean finishedScanning() {

@@ -8,12 +8,16 @@ import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import lombok.AllArgsConstructor;
+import net.minecraft.block.BlockState;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
+import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
 
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
@@ -25,6 +29,7 @@ public class Node {
     public BlockPos targetPos;
     public Rotation rotation;
     public Type type;
+    public boolean firstNode;
 
     @AllArgsConstructor
     // todo: move these predicates, idk where yet.
@@ -32,19 +37,52 @@ public class Node {
         ETHERWARP(e -> SkyblockItems.ETHERWARP.switchToItem(), (rotation, targetPos) -> {
             PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, rotation.yaw, rotation.pitch));
             return true;
-        }, 3),
+        }),
+        AOTE(e -> SkyblockItems.ETHERWARP.switchToItem(), (rotation, targetPos) -> {
+            PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, rotation.yaw, rotation.pitch));
+            return true;
+        }),
+        HYPERION(e -> SkyblockItems.HYPERION.switchToItem(), (rotation, targetPos) -> {
+            PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, rotation.yaw, rotation.pitch));
+            return true;
+        }),
         PEARL(e -> SkyblockItems.PEARL.switchToItem(), (rotation, targetPos) -> {
             PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, rotation.yaw, rotation.pitch));
             return true;
-        }, 2),
+        }),
+        SUPERBOOM(e -> SkyblockItems.SUPERBOOM.switchToItem(), (rotation, targetPos) -> {
+            BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), 4.5, rotation);
+            if (blockHitResult.getType() != HitResult.Type.BLOCK || !targetPos.equals(blockHitResult.getBlockPos())) return false;
+
+            // handling from net.minecraft.client.MinecraftClient.doItemUse
+            ActionResult actionResult = C.im().interactBlock(C.p(), Hand.MAIN_HAND, blockHitResult);
+            if (actionResult instanceof ActionResult.Success success) {
+                if (success.swingSource() == ActionResult.SwingSource.CLIENT) {
+                    C.p().swingHand(Hand.MAIN_HAND);
+                    return true;
+                }
+            }
+            return false;
+        }),
         DUNGEON_BREAKER(e -> SkyblockItems.DUNGEON_BREAKER.switchToItem(), (rotation,targetPos) -> {
             Room currentRoom = AreaUtil.getCurrentRoom();
             if (currentRoom == null) return false;
 
             BlockPos relativeTarget = NodeUtil.getNodePos(targetPos, currentRoom);
-            BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), 4.5, rotation);
+            BlockState blockState = C.w().getBlockState(relativeTarget);
+            VoxelShape voxelShape = blockState.getOutlineShape(C.w(), relativeTarget);
+            if (voxelShape.isEmpty()) return false;
 
-            if (blockHitResult.getType() == HitResult.Type.MISS || !blockHitResult.getBlockPos().equals(relativeTarget)) return false;
+            Vec3d targetMiddle = new Vec3d(relativeTarget.getX(), relativeTarget.getY(), relativeTarget.getZ()).add(voxelShape.getBoundingBox().getCenter());
+            BlockHitResult blockHitResult = C.w().raycastBlock(
+                    C.p().getEyePos(),
+                    targetMiddle,
+                    relativeTarget,
+                    voxelShape,
+                    blockState
+            );
+
+            if (blockHitResult == null || blockHitResult.getType() == HitResult.Type.MISS || !blockHitResult.getBlockPos().equals(relativeTarget)) return false;
 
             C.p().swingHand(Hand.MAIN_HAND);
             PacketUtil.sendSequencedPacket(sequence -> {
@@ -56,11 +94,10 @@ public class Node {
                 return new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.START_DESTROY_BLOCK, relativeTarget, blockHitResult.getSide(), sequence);
             });
             return true;
-        }, 1),
-        SECRET(e -> DUNGEON_BREAKER.getItem.test(null), (rotation, targetPos) -> true, 0);
+        }),
+        SECRET(e -> DUNGEON_BREAKER.getItem.test(null), (rotation, targetPos) -> true);
 
         public final Predicate<?> getItem;
         public final BiPredicate<Rotation, BlockPos> attemptRoute;
-        public final int priority;
     }
 }

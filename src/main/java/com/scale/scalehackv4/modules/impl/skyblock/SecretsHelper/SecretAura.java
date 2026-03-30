@@ -1,10 +1,13 @@
 package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
+import com.scale.scalehackv4.bridge.UseItemBridge;
+import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
+import com.scale.scalehackv4.events.impl.player.ClickedEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
@@ -14,6 +17,7 @@ import com.scale.scalehackv4.utils.player.BlockTracker;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
+import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -23,18 +27,17 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.block.entity.SkullBlockEntity;
 import net.minecraft.component.type.ProfileComponent;
+import net.minecraft.entity.passive.BatEntity;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
@@ -43,18 +46,23 @@ import java.util.function.Predicate;
 //  locked chest check
 //  check surroundings, no lever (idk why i choose that block, look into it) should be touching eachother (u should be touching me tho)
 //  check the room the SECRET is in, not the guy.
-//  swap to dungeon breaker to interact
-//  treat chests as full blocks
+//  other players using spirit sceptre fricks up bat aura
 public class SecretAura extends SecretsHelper {
     @RegisterSubModule(name = "Secret Aura", hasKeybind = true)
     public static boolean secretAura = true;
 
     @RegisterSubModule(name = "Rotate", parent = "Secret Aura")
     public static boolean rotate = true;
+    @RegisterSubModule(name = "Swap To Stonk", parent = "Secret Aura")
+    public static boolean swapStonk = true;
+    @RegisterSubModule(name = "Full Block Range Check", parent = "Secret Aura", hasKeybind = true)
+    public static boolean fullBlockRangeCheck = true;
     @RegisterSubModule(name = "Dungeons Only", parent = "Secret Aura")
     public static boolean dungeonsOnly = true;
     @RegisterSubModule(name = "Reach", parent = "Secret Aura", increment = 0.1, min = 1, max = 6)
     public static double reach = 4.5;
+    @RegisterSubModule(name = "Bat Aura", parent = "Secret Aura", hasKeybind = true)
+    public static boolean batAura = true;
 
     @RegisterSubModule(name = "Retry Delay", parent = "Secret Aura", increment = 50, min = 100, max = 5000)
     public static long delay = 1000;
@@ -64,6 +72,14 @@ public class SecretAura extends SecretsHelper {
     private static boolean hasRedstoneKey = false;
     private static CurrentTarget currentTarget = null;
     private record CurrentTarget(BlockPos pos, AuraBlock block, BlockHitResult hitResult) {}
+    private static int prevSlot = -1;
+
+    private static final ArrayList<Long> expectedBats = new ArrayList<>();
+    private static boolean batTime = false;
+    private static final long MAX_BAT_TIME = 1500;
+    private static final int SPIRIT_SCEPTRE_EXPLOSION_RADIUS = 4;
+    private static final int possibleBatRadius = 8;
+    private static final int batScanRadius = 15;
 
     private static final List<Integer> IGNORE_CHEST_ROOM_HASHES = List.of(
             -949494214, // three weirdos
@@ -141,6 +157,11 @@ public class SecretAura extends SecretsHelper {
     }
 
     private final Event onRotationEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (prevSlot != -1) {
+            C.p().getInventory().setSelectedSlot(prevSlot);
+            prevSlot = -1;
+        }
+
         if (!secretAura || C.mc.currentScreen != null || (dungeonsOnly && !AreaUtil.isInDungeons())) return false;
 
         for (BlockPos blockPos : INTERACTED_POSITIONS.keySet()) {
@@ -149,6 +170,9 @@ public class SecretAura extends SecretsHelper {
 
             INTERACTED_POSITIONS.remove(blockPos);
         }
+
+        // get rid of bats
+        while (!expectedBats.isEmpty() && System.currentTimeMillis() - expectedBats.getFirst() > MAX_BAT_TIME) expectedBats.removeFirst();
 
         for (AuraBlock auraBlock : AuraBlock.values()) {
             for (Block block : auraBlock.validBlocks) {
@@ -170,20 +194,89 @@ public class SecretAura extends SecretsHelper {
                     );
 
                     // make CERTAIN we are UP
-                    if (blockHitResult == null || blockHitResult.getType() == HitResult.Type.MISS || Math.sqrt(C.p().getEyePos().squaredDistanceTo(blockHitResult.getPos())) > reach) continue;
+                    if (blockHitResult == null) continue;
+
+                    double distance = fullBlockRangeCheck
+                            ? Math.sqrt(C.p().getEyePos().squaredDistanceTo(pos.toCenterPos())) - 0.5
+                            : Math.sqrt(C.p().getEyePos().squaredDistanceTo(blockHitResult.getPos()));
+                    if (blockHitResult.getType() == HitResult.Type.MISS || distance > reach) continue;
 
                     currentTarget = new CurrentTarget(pos, auraBlock, blockHitResult);
                     if (rotate) params.rotation = RotationUtil.getRotation(blockHitResult.getPos());
+                    if (swapStonk) {
+                        int prevSlot = C.p().getInventory().getSelectedSlot();
+                        if (SkyblockItems.DUNGEON_BREAKER.switchToItem()) SecretAura.prevSlot = prevSlot;
+                    }
 
                     return false;
                 }
             }
         }
 
+        // ignore any spirit sceptre bats
+        int minBats = expectedBats.isEmpty() ? 0 : expectedBats.size();
+        if (shouldBatAura(minBats)) {
+            List<BatEntity> batsPositions = getBatsInRange(possibleBatRadius);
+
+            // look for really close block that is in range of bat
+            Optional<BlockPos> closestBlock = BlockPos.findClosest(C.p().getBlockPos().up(2), 3, 3, blockPos -> {
+                BatEntity closestBat = batsPositions.stream().min(Comparator.comparingDouble(bat -> blockPos.getSquaredDistance(bat.getEntityPos()))).orElse(null);
+                if (closestBat == null) return false;
+
+                double closestBatDistance = Math.sqrt(blockPos.getSquaredDistance(closestBat.getEntityPos()));
+                return C.w().getBlockState(blockPos).isSolidBlock(C.w(), blockPos) && closestBatDistance <= SPIRIT_SCEPTRE_EXPLOSION_RADIUS;
+            });
+
+            if (closestBlock.isEmpty()) return false;
+            Vec3d blockCentre = C.w().getBlockState(closestBlock.get()).getOutlineShape(C.w(), closestBlock.get()).getBoundingBox().getCenter();
+
+            int prevSlot = C.p().getInventory().getSelectedSlot();
+            if (!SkyblockItems.SPIRIT_SCEPTRE.switchToItem()) return false;
+            SecretAura.prevSlot = prevSlot;
+
+            params.rotation = RotationUtil.getRotation(params.rotation, C.p().getEyePos(), blockCentre);
+            batTime = true;
+            // ignore spirit sceptre bat AND the one we about to kill
+            expectedBats.add(System.currentTimeMillis());
+            expectedBats.add(System.currentTimeMillis());
+        }
+
         return false;
     });
 
+    private final Event onRightClickSpiritSceptre = new ClickedEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (Bus.isEventCancelled(ClickedEvent.Right.class)) return false;
+        if (SkyblockItems.SPIRIT_SCEPTRE.isItem.test(C.p().getMainHandStack())) {
+            expectedBats.add(System.currentTimeMillis());
+        }
+
+        return false;
+    }, 2000);
+
+
+    private static boolean shouldBatAura(int minBats) {
+        if (!batAura) return false;
+
+        long totalBatCount = getBatsInRange(batScanRadius).size();
+        // if there is 4 bats, thats too many lwk, doors open using bats for some reason
+        if (totalBatCount <= minBats || totalBatCount >= 4) return false;
+
+        // check that we are actually killing a bat...
+        return !getBatsInRange(possibleBatRadius).isEmpty();
+    }
+
+    private static List<BatEntity> getBatsInRange(double radius) {
+        return C.w().getOtherEntities(C.p(), Box.from(C.p().getEntityPos()).expand(radius)).stream().filter(e -> e instanceof BatEntity).map(e -> (BatEntity) e).toList();
+    }
+
     private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (batTime) {
+            UseItemBridge.from(C.mc).bridge$DoItemUse();
+            batTime = false;
+            ChatUtil.prefixMessage("KILLING THE BATMAN");
+            return false;
+        }
+
         if (secretAura && C.mc.currentScreen == null && currentTarget != null) {
             // ideally we should use packets, but they are scary
             C.im().interactBlock(C.p(), Hand.MAIN_HAND, currentTarget.hitResult);
