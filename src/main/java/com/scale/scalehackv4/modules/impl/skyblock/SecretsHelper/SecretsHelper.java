@@ -14,6 +14,6 @@ public class SecretsHelper extends Module {
     }
     @Override public void onDisable() {
         if (SecretAura.secretAura) SecretAura.onSetSecretAura(false);
-        AutoRoutes.disable();
+        AutoRoutes.disable(true);
     }
 }

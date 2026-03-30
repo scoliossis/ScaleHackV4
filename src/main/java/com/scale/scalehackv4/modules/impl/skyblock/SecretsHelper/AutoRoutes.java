@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
@@ -8,6 +9,7 @@ import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.WorldUtil;
@@ -38,9 +40,6 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.Comparator;
 
-// todo: fix secrets awaiting to allow secrets to be gotten before the node is reached
-//  change rotations to be serverside
-//
 public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Auto Routes", hasKeybind = true)
     public static boolean autoroutes = true;
@@ -50,16 +49,20 @@ public class AutoRoutes extends SecretsHelper {
 
     @RegisterSubModule(name = "Show Auto Routes", hasKeybind = true)
     public static boolean showAutoRoutes = true;
-    @RegisterSubModule(name = "Etherwarp Node Colour", parent = "Show Auto Routes")
+    @RegisterSubModule(name = "Zero Tick Etherwarp", hasKeybind = true)
+    public static boolean zeroTickEtherwarp = true;
+    @RegisterSubModule(name = "Etherwarp Colour", parent = "Show Auto Routes")
     public static Color etherwarpNodeColour = new Color(135, 148, 255, 92);
     @RegisterSubModule(name = "Line Colour", parent = "Show Auto Routes")
     public static Color lineColours = new Color(198, 0, 255, 92);
-    @RegisterSubModule(name = "Pearl Colour", parent = "Show Auto Routes")
-    public static Color pearlColour = new Color(113, 0, 255, 92);
     @RegisterSubModule(name = "Stonk Colour", parent = "Show Auto Routes")
     public static Color stonkColour = new Color(255, 51, 51, 92);
-    @RegisterSubModule(name = "Await Secret Colour", parent = "Show Auto Routes")
-    public static Color awaitSecretColour = new Color(255, 215, 0, 92);
+    @RegisterSubModule(name = "Secrets Colour", parent = "Show Auto Routes")
+    public static Color awaitSecretColour = new Color(67, 150, 0, 92);
+    @RegisterSubModule(name = "Pearl Colour", parent = "Show Auto Routes")
+    public static Color pearlColour = new Color(160, 0, 255, 92);
+    @RegisterSubModule(name = "First Node Colour", parent = "Show Auto Routes")
+    public static Color firstNodeColour = new Color(196, 107, 255, 255);
 
     private static ChainUtil.InteractionChain interactionChain;
     private static int interactionChainIndex = 0;
@@ -68,19 +71,22 @@ public class AutoRoutes extends SecretsHelper {
     private static final ArrayList<Long> interactedSecrets = new ArrayList<>();
     private static final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
     private static Node.Type lastNode = null;
+    private static Node.Type lastCheckedNode = null;
 
     private static boolean finishedLastChain = true;
+    private static int prevPriority = 0;
 
-    public static void disable() {
+    public static void disable(boolean resetPriority) {
         interactionChain = null;
         interactionChainIndex = 0;
+        if (resetPriority) prevPriority = 0;
     }
 
     private final Event onRotateEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         // handle received secrets
         while (lastNode == Node.Type.SECRET && !interactedSecrets.isEmpty()) {
             interactedSecrets.removeFirst();
-            expectedPackets.removeFirst();
+            if (!expectedPackets.isEmpty()) expectedPackets.removeFirst();
         }
 
         // forget failed teleports
@@ -91,7 +97,7 @@ public class AutoRoutes extends SecretsHelper {
 
         Room currentRoom = AreaUtil.getCurrentRoom();
         if (currentRoom == null) {
-            disable();
+            disable(true);
             return false;
         }
         if (!finishedLastChain) return false;
@@ -99,8 +105,12 @@ public class AutoRoutes extends SecretsHelper {
         interactionChain = getInteractionChain(C.p().getEntityPos().subtract(0, 1, 0));
         if (interactionChain == null) return false;
 
-        Node.Type nodeItem = interactionChain.interactionChainNodes()[interactionChainIndex].itemType();
-        if (!nodeItem.getItem.test(null)) return false;
+        ChainUtil.InteractionChainNode interactionChainNode = interactionChain.interactionChainNodes()[interactionChainIndex];
+        Node.Type nodeItem = interactionChainNode.itemType();
+        if (!nodeItem.getItem.test(null)) {
+            ChatUtil.prefixMessage("NODE ITEM REQUIRED: " + nodeItem.name());
+            return false;
+        }
 
         for (; interactionChainIndex < interactionChain.interactionChainNodes().length; interactionChainIndex++) {
             ChainUtil.InteractionChainNode node = interactionChain.interactionChainNodes()[interactionChainIndex];
@@ -116,12 +126,13 @@ public class AutoRoutes extends SecretsHelper {
             else expectedPackets.add(System.currentTimeMillis());
 
             finishedLastChain = false;
+
             // todo: ik u can nuke somehow, but im VERY scared to test multi swinging cause i KNOW that insta bans outside sb
-            if (nodeItem == Node.Type.DUNGEON_BREAKER)
+            if (nodeItem != Node.Type.ETHERWARP || !zeroTickEtherwarp)
                 break;
         }
 
-        disable();
+        disable(interactionChainIndex >= interactionChain.interactionChainNodes().length);
 
         return false;
     });
@@ -135,11 +146,13 @@ public class AutoRoutes extends SecretsHelper {
         return false;
     });
 
-    private final Event executeTeleports = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+    // execute as in run, but also as in KILLING THEM by removing them from the list
+    private final Event executeNodes = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         while (!pendingInteractions.isEmpty()) {
-            if (pendingInteractions.getFirst().itemType() == Node.Type.ETHERWARP && !C.p().isSneaking()) return false;
-            ChainUtil.InteractionChainNode node = pendingInteractions.removeFirst();
+            Node.Type nodeType = pendingInteractions.getFirst().itemType();
+            if (nodeType == Node.Type.ETHERWARP && !C.p().isSneaking()) return false;
 
+            ChainUtil.InteractionChainNode node = pendingInteractions.removeFirst();
             Rotation rotation = NodeUtil.flipRotation(node.rotation(), Direction.NORTH, AreaUtil.getCurrentRoom().facing);
             node.itemType().attemptRoute.test(rotation, node.targetPos());
             lastNode = node.itemType();
@@ -175,11 +188,6 @@ public class AutoRoutes extends SecretsHelper {
             }
         }
 
-        if (expectedPackets.isEmpty() && pendingInteractions.isEmpty()) {
-            finishedLastChain = true;
-            return false;
-        }
-
         return false;
     });
 
@@ -203,6 +211,13 @@ public class AutoRoutes extends SecretsHelper {
         return false;
     });
 
+    private final Event onToggleRoutes = new SubModuleToggledEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (!params.field.getName().equals("autoroutes")) return false;
+
+        if (!(boolean) params.value) disable(true);
+        return false;
+    });
+
     private ChainUtil.InteractionChain getInteractionChain(Vec3d playerPos) {
         if (!autoroutes) return null;
         if (interactionChain != null) return interactionChain;
@@ -213,28 +228,34 @@ public class AutoRoutes extends SecretsHelper {
         ArrayList<ChainUtil.InteractionChainNode> nodes = new ArrayList<>();
         ArrayList<Node> passedNodes = new ArrayList<>();
 
-        int posPriority = 0;
-        Node currentNode = getNodeAt(currentRoom, playerPos, 0);
+        Node currentNode = getNodeAt(currentRoom, playerPos);
+        Node.Type nodeType = currentNode != null ? currentNode.type : null;
         while (currentNode != null) {
+            lastCheckedNode = currentNode.type;
             // stops infinite looping routes crashing
             if (passedNodes.contains(currentNode)) break;
 
             passedNodes.add(currentNode);
 
             nodes.add(new ChainUtil.InteractionChainNode(currentNode.rotation, currentNode.targetPos, currentNode.type));
-            if (currentNode.type == Node.Type.ETHERWARP || currentNode.type == Node.Type.PEARL) {
+            if (currentNode.type == Node.Type.ETHERWARP || currentNode.type == Node.Type.PEARL || currentNode.type == Node.Type.AOTE) {
                 playerPos = NodeUtil.getNodePos(currentNode.targetPos, currentRoom).toBottomCenterPos();
-                posPriority = 0;
+                prevPriority = 0;
             }
-            else posPriority++;
-            currentNode = getNodeAt(currentRoom, playerPos, posPriority);
+            else prevPriority++;
+            currentNode = getNodeAt(currentRoom, playerPos);
+            if (currentNode != null && currentNode.type != nodeType) break;
         }
 
         interactionChainIndex = 0;
-        return nodes.isEmpty() ? null : new ChainUtil.InteractionChain(nodes.toArray(ChainUtil.InteractionChainNode[]::new), null);
+        if (nodes.isEmpty()) {
+            prevPriority = 0;
+            return null;
+        }
+        return new ChainUtil.InteractionChain(nodes.toArray(ChainUtil.InteractionChainNode[]::new), null);
     }
 
-    private Node getNodeAt(Room currentRoom, Vec3d playerPos, int posPriority) {
+    private Node getNodeAt(Room currentRoom, Vec3d playerPos) {
         ArrayList<Node> nodes = new ArrayList<>();
         for (int i = 0; i < currentRoom.nodes.size(); i++) {
             Node node = currentRoom.nodes.get(i);
@@ -244,9 +265,12 @@ public class AutoRoutes extends SecretsHelper {
                 nodes.add(node);
             }
         }
-        nodes.sort(Comparator.comparingInt(e -> e.type.priority));
+        nodes.sort(Comparator.comparingInt(e -> -e.type.ordinal()));
 
-        return posPriority >= nodes.size() || nodes.isEmpty() ? null : nodes.get(posPriority);
+        if (nodes.isEmpty()) return null;
+        if (prevPriority >= nodes.size()) prevPriority = 0;
+
+        return nodes.get(prevPriority);
     }
 
     // todo: fuh ts prob
@@ -254,7 +278,7 @@ public class AutoRoutes extends SecretsHelper {
         Room room = AreaUtil.getCurrentRoom();
         if (room == null) return false;
 
-        if (node.type == Node.Type.SECRET && lastNode == Node.Type.SECRET) return false;
+        if (node.type == Node.Type.SECRET && lastCheckedNode == Node.Type.SECRET) return false;
 
         BlockPos nodePos = NodeUtil.getNodePos(node.targetPos, room);
         Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, room.facing);
@@ -282,7 +306,8 @@ public class AutoRoutes extends SecretsHelper {
         if (currentRoom == null) return;
 
         for (Node node : currentRoom.nodes) {
-            Color startNodeColour = node.type == Node.Type.SECRET ? awaitSecretColour
+            Color startNodeColour = node.firstNode ? firstNodeColour
+                    : node.type == Node.Type.SECRET ? awaitSecretColour
                     : node.type == Node.Type.PEARL ? pearlColour
                     : node.type == Node.Type.DUNGEON_BREAKER ? stonkColour
                     : etherwarpNodeColour;
@@ -290,10 +315,13 @@ public class AutoRoutes extends SecretsHelper {
             BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
             Render3dUtil.drawBox(nodePos.getX(), nodePos.getY(), nodePos.getZ(), 1, 1, 1, startNodeColour, false);
 
-            if (node.type != Node.Type.ETHERWARP) continue;
-
             BlockPos targetNodePos = NodeUtil.getNodePos(node.targetPos, currentRoom);
-            Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetNodePos.toCenterPos().toVector3f(), lineColours);
+            if (node.type == Node.Type.ETHERWARP) {
+                Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetNodePos.toCenterPos().toVector3f(), lineColours);
+            }
+            else if (node.type == Node.Type.DUNGEON_BREAKER) {
+                Render3dUtil.drawBox(targetNodePos.getX(), targetNodePos.getY(), targetNodePos.getZ(), 1, 1, 1, startNodeColour.darker(), false);
+            }
         }
     }
 }
