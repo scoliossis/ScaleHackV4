@@ -51,8 +51,12 @@ public class Node {
             return true;
         }),
         SUPERBOOM(e -> SkyblockItems.SUPERBOOM.switchToItem(), (rotation, targetPos) -> {
+            Room currentRoom = AreaUtil.getCurrentRoom();
+            if (currentRoom == null) return false;
+
             BlockHitResult blockHitResult = WorldUtil.raytrace(C.p().getEyePos(), 4.5, rotation);
-            if (blockHitResult.getType() != HitResult.Type.BLOCK || !targetPos.equals(blockHitResult.getBlockPos())) return false;
+            BlockPos relativeTarget = NodeUtil.getNodePos(targetPos, currentRoom);
+            if (blockHitResult.getType() != HitResult.Type.BLOCK || !relativeTarget.equals(blockHitResult.getBlockPos())) return false;
 
             // handling from net.minecraft.client.MinecraftClient.doItemUse
             ActionResult actionResult = C.im().interactBlock(C.p(), Hand.MAIN_HAND, blockHitResult);

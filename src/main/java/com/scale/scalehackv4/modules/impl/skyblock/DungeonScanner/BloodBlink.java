@@ -38,6 +38,7 @@ import java.util.Optional;
 
 // todo: fix chat hiding mods conflicting
 //  bring back legit mode
+//  pearls drop now...?
 public class BloodBlink extends DungeonScannerModule {
     @RegisterSubModule(name = "Auto Scan")
     public static boolean autoScan = true;
@@ -86,18 +87,18 @@ public class BloodBlink extends DungeonScannerModule {
         double middleX = -105;
         double middleZ = -105;
 
-        if (currentRoom == null) return new Vec3d(middleX, 0, middleZ);
+        if (currentRoom == null || !autoBlood) return new Vec3d(middleX, 0, middleZ);
         ChunkPos currentSquare = currentRoom.squares[0];
 
         // since we are INSIDE the room, the chunk offset is 1 extra
         int bottomChunk = -(DungeonScanner.DUNGEON_CHUNK_OFFSET+1);
 
         // go an extra chunk forward if ur on a corner, because that whole row (SHOULD) have been fully scanned
-        if (currentSquare.x == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleX += 16;
-        else if (currentSquare.x == bottomChunk) middleX -= 16;
+        if (currentSquare.x == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleX += 32;
+        else if (currentSquare.x == bottomChunk) middleX -= 32;
 
-        if (currentSquare.z == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleZ += 16;
-        else if (currentSquare.z == bottomChunk) middleZ -= 16;
+        if (currentSquare.z == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleZ += 32;
+        else if (currentSquare.z == bottomChunk) middleZ -= 32;
 
         return new Vec3d(middleX, 0, middleZ);
     }
@@ -190,7 +191,7 @@ public class BloodBlink extends DungeonScannerModule {
         ) return false;
 
         boolean canScan = autoScan && !attemptedScanning;
-        boolean canBB = autoBlood && DungeonScanner.ROOMS.stream().anyMatch(e -> e.type == Room.Type.BLOOD);
+        boolean canBB = autoBlood && getBloodSquare() != null;
 
         if (!canScan && !canBB) return false;
 
@@ -283,8 +284,6 @@ public class BloodBlink extends DungeonScannerModule {
         int ceilingY = getCeilingY();
         if (ceilingY != -1) {
             tickPos = new Vec3d(Math.floor(tickPos.x)+0.5, tickPos.y, Math.floor(tickPos.z)+0.5);
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
-
             // teleport out of spawn
             while (interactionChain.size() < MAX_PACKETS) {
                 if (tickPos.y >= ceilingY-2) break;
@@ -338,7 +337,7 @@ public class BloodBlink extends DungeonScannerModule {
             interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
         }
 
-        Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 5);
+        Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, -5);
 
         // try and tp to below blood
         while (interactionChain.size() < MAX_PACKETS) {
@@ -353,19 +352,20 @@ public class BloodBlink extends DungeonScannerModule {
         }
 
         Rotation bloodFloorRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos);
-        // todo: make scan keep u in the dungeon ig
-        if (clipUp) {
-            // aote up to blood floor
-            while (interactionChain.size() < MAX_PACKETS) {
-                if (tickPos.y >= targetPos.y-2) break;
+        // aote up to blood floor
+        while (interactionChain.size() < MAX_PACKETS) {
+            // todo: requires 1 less aote than expected, find out why...
+            if (tickPos.y >= targetPos.y-14) break;
 
-                tickPos = EtherwarpUtil.getAotePos(bloodFloorRotation.pitch, bloodFloorRotation.yaw, tickPos, 12);
-                interactionChain.add(new ChainUtil.InteractionChainNode(bloodFloorRotation, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
-            }
+            tickPos = EtherwarpUtil.getAotePos(bloodFloorRotation.pitch, bloodFloorRotation.yaw, tickPos, 12);
+            interactionChain.add(new ChainUtil.InteractionChainNode(bloodFloorRotation, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+        }
+
+        if (clipUp) {
             // 2 pearls up into blood
             interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
             interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
             tickPos = tickPos.offset(Direction.UP, 2);
         }
         if (interactionChain.size() >= MAX_PACKETS) {
@@ -439,7 +439,7 @@ public class BloodBlink extends DungeonScannerModule {
 
     private static int getCeilingY() {
         BlockHitResult aboveBlock = C.w().raycast(new RaycastContext(
-                C.p().getBlockPos().toBottomCenterPos().offset(Direction.UP, 2),
+                C.p().getBlockPos().toBottomCenterPos().offset(Direction.UP, 1),
                 new Vec3d(C.p().getX(), C.w().getHeight(), C.p().getZ()),
                 RaycastContext.ShapeType.COLLIDER,
                 RaycastContext.FluidHandling.NONE,

@@ -38,7 +38,7 @@ public enum SkyblockItems {
 
         Text itemName = itemStack.getComponents().get(DataComponentTypes.CUSTOM_NAME);
         // idealy they should have superboom, but infiniboom is probably fine sometimes
-        return itemName == null || !itemName.getString().contains("boom TNT");
+        return itemName != null && itemName.getString().contains("boom TNT");
     }),
     SPIRIT_SCEPTRE(itemStack -> {
         if (itemStack.getItem() != Items.ALLIUM) return false;

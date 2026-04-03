@@ -2,6 +2,7 @@ package com.scale.scalehackv4.modules.impl.client.Hud;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
@@ -18,6 +19,10 @@ import java.awt.*;
 public class Watermark extends HudModule {
     @RegisterSubModule(name = "Watermark")
     public static boolean watermark = true;
+    // some anticheats dont like the ping packet, including watchdog...
+    @RegisterSubModule(name = "Show Ping")
+    public static boolean ping = false;
+
 
     private static final String CLIENT_NAME = Main.MOD_NAME.split(" ")[0];
     private static final String GAMESENSE_TAG = "Sense";
@@ -33,7 +38,7 @@ public class Watermark extends HudModule {
             () -> {
                 String server = C.mc.isInSingleplayer() ? "singleplayer" : C.mc.getCurrentServerEntry() != null ? C.mc.getCurrentServerEntry().address : "unknown";
 
-                String remainingHudText = " | " + C.mc.getCurrentFps() + "fps | " + server + " | " + currentPing + "ms";
+                String remainingHudText = " | " + C.mc.getCurrentFps() + "fps | " + server + (ping ? " | " + currentPing + "ms" : "");
 
                 int clientNameWidth = FontUtil.getStringWidth(CLIENT_NAME, GAMESENSE_FONT_SIZE);
                 int gamesenseWidth = FontUtil.getStringWidth(GAMESENSE_TAG, GAMESENSE_FONT_SIZE);
@@ -61,21 +66,30 @@ public class Watermark extends HudModule {
     );
 
     private static long lastPingTime = 0;
+    private static boolean receivedPing = false;
 
-    private final Event receivePing = new PacketEvent.Received(ModuleUtil.getModule(HudModule.class), (params -> {
-        if (!watermark) return false;
+    // todo: better way to get ping
+    private final Event receivePing = new PacketEvent.Received(ModuleUtil.getModule(HudModule.class), (params) -> {
+        if (!watermark || !ping) return false;
 
         if (params.packet instanceof StatisticsS2CPacket) {
-            // divide by 2 because half the time is spent sending, half the time is spent receiving, in theory.
-            // ^ above theory is wrong, wtv ig
             currentPing = System.currentTimeMillis() - lastPingTime;
+            receivedPing = true;
         }
 
-        if (System.currentTimeMillis()-lastPingTime > Math.max(2000, currentPing*2)) {
+        if (receivedPing && System.currentTimeMillis()-lastPingTime > Math.max(1000, currentPing*2)) {
             lastPingTime = System.currentTimeMillis();
-            PacketUtil.sendImmediately(new ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS));
+            PacketUtil.sendPacket(new ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS));
+            receivedPing = false;
         }
 
         return false;
-    }));
+    });
+
+    private final Event resetPing = new WorldJoinEvent(ModuleUtil.getModule(HudModule.class), (params) -> {
+        currentPing = 0;
+        lastPingTime = System.currentTimeMillis();
+        receivedPing = false;
+        return false;
+    });
 }

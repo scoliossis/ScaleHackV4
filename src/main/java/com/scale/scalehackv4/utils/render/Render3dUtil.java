@@ -129,24 +129,32 @@ public class Render3dUtil extends RenderUtil {
 
         MatrixStack.Entry entry = getEntry();
 
-        addSquare(x, y, z, width, height, depth, colour, vertexConsumer, entry);
+        addSquare(x, y, z, width, height, depth, colour, vertexConsumer, entry, false);
 
         vertexConsumers.drawCurrentLayer();
     }
 
     public static void drawBox(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(cull ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS) : QUADS_NO_CULL);
+        drawBox(x, y, z, width, height, depth, colour, cull, false);
+    }
+
+    public static void drawBox(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull, boolean outline) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
+                cull
+                        ? outline ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES) : getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+                        : outline ? DEBUG_LINES_NO_CULL : QUADS_NO_CULL
+        );
 
         MatrixStack.Entry entry = getEntry();
 
-        addSquare(x, y, z, width, height, 0, colour, vertexConsumer, entry);
-        addSquare(x, y, z+depth, width, height, 0, colour, vertexConsumer, entry);
+        addSquare(x, y, z, width, height, 0, colour, vertexConsumer, entry, outline);
+        addSquare(x, y, z+depth, width, height, 0, colour, vertexConsumer, entry, outline);
 
-        addSquare(x, y, z, 0, height, depth, colour, vertexConsumer, entry);
-        addSquare(x+width, y, z, 0, height, depth, colour, vertexConsumer, entry);
+        addSquare(x, y, z, 0, height, depth, colour, vertexConsumer, entry, outline);
+        addSquare(x+width, y, z, 0, height, depth, colour, vertexConsumer, entry, outline);
 
-        addSquare(x, y, z, width, 0, depth, colour, vertexConsumer, entry);
-        addSquare(x, y+height, z, width, 0, depth, colour, vertexConsumer, entry);
+        addSquare(x, y, z, width, 0, depth, colour, vertexConsumer, entry, outline);
+        addSquare(x, y+height, z, width, 0, depth, colour, vertexConsumer, entry, outline);
 
         vertexConsumers.drawCurrentLayer();
     }
@@ -162,18 +170,20 @@ public class Render3dUtil extends RenderUtil {
         vertexConsumers.drawCurrentLayer();
     }
 
-    private static void addSquare(float x, float y, float z, float width, float height, float depth, Color colour, VertexConsumer vertexConsumer, MatrixStack.Entry entry) {
+    private static void addSquare(float x, float y, float z, float width, float height, float depth, Color colour, VertexConsumer vertexConsumer, MatrixStack.Entry entry, boolean lines) {
         if (depth == 0) {
             vertexConsumer.vertex(entry, x, y, z).color(colour.getRGB());
             vertexConsumer.vertex(entry, x, y+height, z).color(colour.getRGB());
             vertexConsumer.vertex(entry, x+width, y+height, z).color(colour.getRGB());
             vertexConsumer.vertex(entry, x+width, y, z).color(colour.getRGB());
+            if (lines) vertexConsumer.vertex(entry, x, y, z).color(colour.getRGB());
         }
         else {
             vertexConsumer.vertex(entry, x, y, z+depth).color(colour.getRGB());
             vertexConsumer.vertex(entry, x+width, y+height, z+depth).color(colour.getRGB());
             vertexConsumer.vertex(entry, x+width, y+height, z).color(colour.getRGB());
             vertexConsumer.vertex(entry, x, y, z).color(colour.getRGB());
+            if (lines) vertexConsumer.vertex(entry, x, y, z+depth).color(colour.getRGB());
         }
     }
 

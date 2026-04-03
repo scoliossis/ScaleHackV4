@@ -2,6 +2,7 @@ package com.scale.scalehackv4.utils.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.player.ClickedEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.player.WorldUtil;
@@ -38,42 +39,21 @@ public class EtherwarpUtil {
         return new Vec3d(v.x * scalar, v.y * scalar, v.z * scalar);
     }
 
-    // list from bloomcore
+    // list from bloomcore, updated by me for the March 31st aotv changes
     private static final List<Block> ETHER_BLOCK_TYPES = List.of(
             Blocks.VOID_AIR,
             Blocks.AIR,
             Blocks.FIRE,
-            Blocks.RED_CARPET,
-            Blocks.PURPLE_CARPET,
-            Blocks.BLUE_CARPET,
-            Blocks.GREEN_CARPET,
-            Blocks.YELLOW_CARPET,
-            Blocks.GRAY_CARPET,
-            Blocks.LIGHT_GRAY_CARPET,
-            Blocks.MAGENTA_CARPET,
-            Blocks.BLACK_CARPET,
-            Blocks.BROWN_CARPET,
-            Blocks.CYAN_CARPET,
-            Blocks.LIME_CARPET,
-            Blocks.ORANGE_CARPET,
-            Blocks.PINK_CARPET,
-            Blocks.WHITE_CARPET,
-            Blocks.LIGHT_BLUE_CARPET,
-            Blocks.CYAN_CARPET,
-            Blocks.SKELETON_SKULL,
-            Blocks.SKELETON_WALL_SKULL,
-            Blocks.WITHER_SKELETON_SKULL,
-            Blocks.WITHER_SKELETON_WALL_SKULL,
-            Blocks.PLAYER_HEAD,
-            Blocks.PLAYER_WALL_HEAD,
             Blocks.LEVER,
+            Blocks.OAK_SIGN,
+            Blocks.OAK_WALL_SIGN,
+            Blocks.DARK_OAK_SIGN,
             Blocks.STONE_BUTTON,
             Blocks.BIRCH_BUTTON,
             Blocks.OAK_BUTTON,
             Blocks.SPRUCE_BUTTON,
             Blocks.ACACIA_BUTTON,
             Blocks.DARK_OAK_BUTTON,
-            Blocks.TORCH,
             Blocks.TRIPWIRE_HOOK,
             Blocks.TRIPWIRE,
             Blocks.RAIL,
@@ -97,6 +77,8 @@ public class EtherwarpUtil {
             Blocks.FLOWER_POT,
             Blocks.DEAD_BUSH,
             Blocks.TALL_GRASS,
+            Blocks.SHORT_GRASS,
+            Blocks.FERN,
             Blocks.LADDER,
             Blocks.PEONY,
             Blocks.ROSE_BUSH,
@@ -205,8 +187,7 @@ public class EtherwarpUtil {
             return startPos;
         }
 
-        //PREDICTED_POSITIONS.add(new Vec3d(aoteBlock.getX() + 0.5, isValidEtherwarpBlock(aoteBlock) ? aoteBlock.getY()+1 : aoteBlock.getY(), aoteBlock.getZ() + 0.5));
-        return new Vec3d(aoteBlock.getX() + 0.5, isValidEtherwarpBlock(aoteBlock) ? aoteBlock.getY()+1 : aoteBlock.getY(), aoteBlock.getZ() + 0.5);
+        return new Vec3d(aoteBlock.getX() + 0.5, isValidEtherwarpBlock(aoteBlock) ? aoteBlock.getY()+1 : aoteBlock.getY()-1, aoteBlock.getZ() + 0.5);
     }
 
     private static final ArrayList<Vec3d> PREDICTED_POSITIONS = new ArrayList<>();
@@ -217,6 +198,14 @@ public class EtherwarpUtil {
 
         return false;
     });
+
+    private final Event onSendTP = new ClickedEvent.Right(null, params -> {
+        //if (!SkyblockItems.ETHERWARP.isItem.test(C.p().getMainHandStack())) return false;
+        //PREDICTED_POSITIONS.add(getAotePos(C.p().getPitch(), C.p().getYaw(), C.p().getEntityPos(), 12));
+
+        return false;
+    });
+
 
     private static double frac0(double val) {
         return val - Math.floor(val);

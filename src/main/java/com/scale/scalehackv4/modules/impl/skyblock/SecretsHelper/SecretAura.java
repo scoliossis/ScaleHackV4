@@ -1,13 +1,11 @@
 package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.bridge.UseItemBridge;
-import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
-import com.scale.scalehackv4.events.impl.player.ClickedEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
@@ -17,6 +15,7 @@ import com.scale.scalehackv4.utils.player.BlockTracker;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
+import com.scale.scalehackv4.utils.skyblock.SecretsHelper.NodeUtil;
 import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import lombok.AllArgsConstructor;
 import net.minecraft.block.Block;
@@ -39,6 +38,7 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
 
 // todo: add option to select whatever blocks
@@ -59,8 +59,10 @@ public class SecretAura extends SecretsHelper {
     public static boolean fullBlockRangeCheck = true;
     @RegisterSubModule(name = "Dungeons Only", parent = "Secret Aura")
     public static boolean dungeonsOnly = true;
-    @RegisterSubModule(name = "Reach", parent = "Secret Aura", increment = 0.1, min = 1, max = 6)
-    public static double reach = 4.5;
+    @RegisterSubModule(name = "Chest Reach", parent = "Secret Aura", increment = 0.1, min = 1, max = 6)
+    public static double chestReach = 5;
+    @RegisterSubModule(name = "Skull/Lever Reach", parent = "Secret Aura", increment = 0.1, min = 1, max = 6)
+    public static double skullLeverReach = 4.5;
     @RegisterSubModule(name = "Bat Aura", parent = "Secret Aura", hasKeybind = true)
     public static boolean batAura = true;
 
@@ -81,10 +83,12 @@ public class SecretAura extends SecretsHelper {
     private static final int possibleBatRadius = 8;
     private static final int batScanRadius = 15;
 
+    private static final int SECRET_BAT_HEALTH = 100;
+
     private static final List<Integer> IGNORE_CHEST_ROOM_HASHES = List.of(
             -949494214, // three weirdos
             -550739784, // ice path iirc
-            -637013673, // tp maze
+            637013673, // tp maze
             -160860033 // waterboard
     );
 
@@ -116,7 +120,8 @@ public class SecretAura extends SecretsHelper {
                     }
 
                     return true;
-                }
+                },
+                () -> skullLeverReach
         ),
         LEVER(
                 new Block[]{Blocks.LEVER},
@@ -126,7 +131,8 @@ public class SecretAura extends SecretsHelper {
 
                     BlockState blockState = C.w().getBlockState(pos);
                     return blockState.getBlock() instanceof LeverBlock && !blockState.get(LeverBlock.POWERED);
-                }
+                },
+                () -> skullLeverReach
         ),
         REDSTONE_BLOCK(
                 new Block[]{Blocks.REDSTONE_BLOCK},
@@ -136,7 +142,8 @@ public class SecretAura extends SecretsHelper {
                         if (C.w().getBlockState(neighbourPos).getBlock() == Blocks.REDSTONE_BLOCK) return false;
                     }
                     return hasRedstoneKey && C.w().getBlockState(pos).getBlock() == Blocks.REDSTONE_BLOCK;
-                }
+                },
+                () -> chestReach
         ),
         CHEST(
                 new Block[]{Blocks.CHEST, Blocks.TRAPPED_CHEST},
@@ -149,11 +156,13 @@ public class SecretAura extends SecretsHelper {
                         return chestBlockEntity.getAnimationProgress(0) == 0;
                     }
                     return false;
-                }
+                },
+                () -> chestReach
         );
 
         private final Block[] validBlocks;
         private final Predicate<BlockPos> condition;
+        private final DoubleSupplier reach;
     }
 
     private final Event onRotationEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
@@ -180,7 +189,11 @@ public class SecretAura extends SecretsHelper {
                     if (pos == null || INTERACTED_POSITIONS.containsKey(pos)) continue;
 
                     // basic reach check + condition check done after cause its more expensive on the cpu than the distance check
-                    if (Math.sqrt(pos.getSquaredDistance(C.p().getEyePos()))-1 > reach || !auraBlock.condition.test(pos)) continue;
+                    if (Math.sqrt(pos.getSquaredDistance(C.p().getEyePos()))-1 > 6 || !auraBlock.condition.test(pos)) continue;
+
+                    // check its not an evil block
+                    Room currentRoom = AreaUtil.getCurrentRoom();
+                    if (currentRoom != null && currentRoom.secretAuraBlacklist.contains(NodeUtil.reverseNodePos(pos, currentRoom))) continue;
 
                     BlockState blockState = C.w().getBlockState(pos);
                     Vec3d targetMiddle = new Vec3d(pos.getX(), pos.getY(), pos.getZ()).add(blockState.getOutlineShape(C.w(), pos).getBoundingBox().getCenter());
@@ -199,7 +212,7 @@ public class SecretAura extends SecretsHelper {
                     double distance = fullBlockRangeCheck
                             ? Math.sqrt(C.p().getEyePos().squaredDistanceTo(pos.toCenterPos())) - 0.5
                             : Math.sqrt(C.p().getEyePos().squaredDistanceTo(blockHitResult.getPos()));
-                    if (blockHitResult.getType() == HitResult.Type.MISS || distance > reach) continue;
+                    if (blockHitResult.getType() == HitResult.Type.MISS || distance > auraBlock.reach.getAsDouble()) continue;
 
                     currentTarget = new CurrentTarget(pos, auraBlock, blockHitResult);
                     if (rotate) params.rotation = RotationUtil.getRotation(blockHitResult.getPos());
@@ -236,37 +249,24 @@ public class SecretAura extends SecretsHelper {
 
             params.rotation = RotationUtil.getRotation(params.rotation, C.p().getEyePos(), blockCentre);
             batTime = true;
-            // ignore spirit sceptre bat AND the one we about to kill
-            expectedBats.add(System.currentTimeMillis());
             expectedBats.add(System.currentTimeMillis());
         }
 
         return false;
     });
 
-    private final Event onRightClickSpiritSceptre = new ClickedEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (Bus.isEventCancelled(ClickedEvent.Right.class)) return false;
-        if (SkyblockItems.SPIRIT_SCEPTRE.isItem.test(C.p().getMainHandStack())) {
-            expectedBats.add(System.currentTimeMillis());
-        }
-
-        return false;
-    }, 2000);
-
-
     private static boolean shouldBatAura(int minBats) {
         if (!batAura) return false;
 
         long totalBatCount = getBatsInRange(batScanRadius).size();
-        // if there is 4 bats, thats too many lwk, doors open using bats for some reason
-        if (totalBatCount <= minBats || totalBatCount >= 4) return false;
+        if (totalBatCount <= minBats) return false;
 
         // check that we are actually killing a bat...
         return !getBatsInRange(possibleBatRadius).isEmpty();
     }
 
     private static List<BatEntity> getBatsInRange(double radius) {
-        return C.w().getOtherEntities(C.p(), Box.from(C.p().getEntityPos()).expand(radius)).stream().filter(e -> e instanceof BatEntity).map(e -> (BatEntity) e).toList();
+        return C.w().getOtherEntities(C.p(), Box.from(C.p().getEntityPos()).expand(radius)).stream().filter(e -> e instanceof BatEntity bat && bat.getHealth() == SECRET_BAT_HEALTH).map(e -> (BatEntity) e).toList();
     }
 
     private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {

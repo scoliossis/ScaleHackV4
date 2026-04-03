@@ -2,10 +2,7 @@ package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
-import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
-import com.scale.scalehackv4.events.impl.player.PacketEvent;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
-import com.scale.scalehackv4.events.impl.player.RotationEvent;
+import com.scale.scalehackv4.events.impl.player.*;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
@@ -14,6 +11,7 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.ChainUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
@@ -37,32 +35,32 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
 import java.awt.*;
-import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.*;
+import java.util.List;
 
+// todo: doesnt do them in order correctly still im done
 public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Auto Routes", hasKeybind = true)
     public static boolean autoroutes = true;
 
     @RegisterSubModule(name = "Timeout", parent = "Auto Routes", max = 5000, increment = 100)
     public static long timeout = 1000;
+    @RegisterSubModule(name = "Secret Timeout", parent = "Auto Routes", max = 5000, increment = 100)
+    public static long secretTimeout = 2000;
+
+    @RegisterSubModule(name = "Left Click Skip", parent = "Auto Routes")
+    public static boolean leftClickSkip = true;
+    @RegisterSubModule(name = "Zero Tick Etherwarp", parent = "Auto Routes", hasKeybind = true)
+    public static boolean zeroTickEtherwarp = true;
 
     @RegisterSubModule(name = "Show Auto Routes", hasKeybind = true)
     public static boolean showAutoRoutes = true;
-    @RegisterSubModule(name = "Zero Tick Etherwarp", hasKeybind = true)
-    public static boolean zeroTickEtherwarp = true;
-    @RegisterSubModule(name = "Etherwarp Colour", parent = "Show Auto Routes")
-    public static Color etherwarpNodeColour = new Color(135, 148, 255, 92);
-    @RegisterSubModule(name = "Line Colour", parent = "Show Auto Routes")
-    public static Color lineColours = new Color(198, 0, 255, 92);
     @RegisterSubModule(name = "Stonk Colour", parent = "Show Auto Routes")
     public static Color stonkColour = new Color(255, 51, 51, 92);
     @RegisterSubModule(name = "Secrets Colour", parent = "Show Auto Routes")
-    public static Color awaitSecretColour = new Color(67, 150, 0, 92);
-    @RegisterSubModule(name = "Pearl Colour", parent = "Show Auto Routes")
-    public static Color pearlColour = new Color(160, 0, 255, 92);
-    @RegisterSubModule(name = "First Node Colour", parent = "Show Auto Routes")
-    public static Color firstNodeColour = new Color(196, 107, 255, 255);
+    public static Color secretsColour = new Color(0, 76, 255, 92);
+    @RegisterSubModule(name = "Other Node Colour", parent = "Show Auto Routes")
+    public static Color otherNodeColour = new Color(140, 0, 255, 92);
 
     private static ChainUtil.InteractionChain interactionChain;
     private static int interactionChainIndex = 0;
@@ -82,6 +80,15 @@ public class AutoRoutes extends SecretsHelper {
         if (resetPriority) prevPriority = 0;
     }
 
+    private final Event handleLeftClick = new ClickedEvent.Left(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (!leftClickSkip) return false;
+        if (!expectedPackets.isEmpty()) {
+            expectedPackets.clear();
+            return true;
+        }
+        return false;
+    });
+
     private final Event onRotateEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         // handle received secrets
         while (lastNode == Node.Type.SECRET && !interactedSecrets.isEmpty()) {
@@ -90,7 +97,7 @@ public class AutoRoutes extends SecretsHelper {
         }
 
         // forget failed teleports
-        while (!expectedPackets.isEmpty() && System.currentTimeMillis() - expectedPackets.getFirst() > timeout) {
+        while (!expectedPackets.isEmpty() && System.currentTimeMillis() - expectedPackets.getFirst() > (lastNode == Node.Type.SECRET ? secretTimeout : timeout)) {
             expectedPackets.removeFirst();
         }
         if (expectedPackets.isEmpty()) finishedLastChain = true;
@@ -173,7 +180,7 @@ public class AutoRoutes extends SecretsHelper {
         if (expectedPackets.isEmpty() || lastNode == null) return false;
 
         switch (lastNode) {
-            case ETHERWARP, PEARL -> {
+            case ETHERWARP, PEARL, AOTE -> {
                 if (params.packet instanceof PlayerPositionLookS2CPacket) {
                     expectedPackets.removeFirst();
                 }
@@ -200,6 +207,7 @@ public class AutoRoutes extends SecretsHelper {
             if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
                 interactedSecrets.add(System.currentTimeMillis());
             }
+            else if (lastNode == Node.Type.SUPERBOOM && !expectedPackets.isEmpty()) expectedPackets.removeFirst();
         }
 
         return false;
@@ -299,28 +307,63 @@ public class AutoRoutes extends SecretsHelper {
         return true;
     }
 
+    // bad code quality ig bro
     private static void renderAutoroutes() {
         if (!showAutoRoutes) return;
 
         Room currentRoom = AreaUtil.getCurrentRoom();
         if (currentRoom == null) return;
 
-        for (Node node : currentRoom.nodes) {
-            Color startNodeColour = node.firstNode ? firstNodeColour
-                    : node.type == Node.Type.SECRET ? awaitSecretColour
-                    : node.type == Node.Type.PEARL ? pearlColour
-                    : node.type == Node.Type.DUNGEON_BREAKER ? stonkColour
-                    : etherwarpNodeColour;
+        ArrayList<ArrayList<Node>> nodes = new ArrayList<>();
+        // only just found this guy, ive been using hashmaps for ages ig
+        HashMap<BlockPos, Node> positions = new HashMap<>();
 
-            BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
-            Render3dUtil.drawBox(nodePos.getX(), nodePos.getY(), nodePos.getZ(), 1, 1, 1, startNodeColour, false);
+        List<Node> etherwarpNodes = currentRoom.nodes.stream().filter(node -> node.type == Node.Type.ETHERWARP).toList();
+        etherwarpNodes.forEach(node -> positions.put(node.startPos, node));
 
-            BlockPos targetNodePos = NodeUtil.getNodePos(node.targetPos, currentRoom);
-            if (node.type == Node.Type.ETHERWARP) {
-                Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetNodePos.toCenterPos().toVector3f(), lineColours);
+        HashSet<Node> uncheckedNodes = new HashSet<>(etherwarpNodes);
+
+        for (Node node : etherwarpNodes) {
+            if (!uncheckedNodes.contains(node)) continue;
+
+            nodes.add(new ArrayList<>(Collections.singletonList(node)));
+            while (true) {
+                uncheckedNodes.remove(node);
+                positions.remove(node.startPos);
+                Node targetNode = positions.get(node.targetPos);
+                if (targetNode == null) break;
+
+                nodes.getLast().add(targetNode);
+                node = targetNode;
             }
-            else if (node.type == Node.Type.DUNGEON_BREAKER) {
-                Render3dUtil.drawBox(targetNodePos.getX(), targetNodePos.getY(), targetNodePos.getZ(), 1, 1, 1, startNodeColour.darker(), false);
+        }
+
+        List<Node> nonEtherwarpNodes = currentRoom.nodes.stream().filter(node -> node.type != Node.Type.ETHERWARP).toList();
+        for (Node nonEtherwarpNode : nonEtherwarpNodes) {
+            BlockPos nodePos = NodeUtil.getNodePos(nonEtherwarpNode.startPos, currentRoom);
+            Color nodeColour = nonEtherwarpNode.type == Node.Type.SECRET ? secretsColour : otherNodeColour;
+            Render3dUtil.drawBox(nodePos.getX(), nodePos.getY(), nodePos.getZ(), 1, 1, 1, nodeColour, false, false);
+
+            BlockPos targetPos = NodeUtil.getNodePos(nonEtherwarpNode.targetPos, currentRoom);
+            switch (nonEtherwarpNode.type) {
+                case DUNGEON_BREAKER -> {
+                    Render3dUtil.drawBox(targetPos.getX(), targetPos.getY(), targetPos.getZ(), 1, 1, 1, stonkColour, false, true);
+                }
+                case AOTE -> {
+                    Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetPos.toCenterPos().toVector3f(), new Color(nodeColour.getRed(), nodeColour.getGreen(), nodeColour.getBlue(), 255));
+                }
+            }
+        }
+
+        for (ArrayList<Node> nodeList : nodes) {
+            for (int i = 0; i < nodeList.size(); i++) {
+                Node node = nodeList.get(i);
+                Color nodeColour = RenderUtil.TRANS[i % RenderUtil.TRANS.length];
+                BlockPos nodePos = NodeUtil.getNodePos(node.startPos, currentRoom);
+                BlockPos nodeTargetPos = NodeUtil.getNodePos(node.targetPos, currentRoom);
+
+                Render3dUtil.drawBox(nodePos.getX(), nodePos.getY(), nodePos.getZ(), 1, 1, 1, nodeColour, false, !node.firstNode);
+                Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), nodeTargetPos.toCenterPos().toVector3f(), nodeColour);
             }
         }
     }

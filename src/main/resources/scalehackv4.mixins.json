@@ -13,6 +13,7 @@
     "client.ChatReceivedMixin",
     "client.ChatSentMixin",
     "client.ClientTickEventMixin",
+    "client.KeybindingBridgeMixin",
     "client.KeyPressMixin",
     "client.WorldJoinEventMixin",
     "client.antibot.AntiBotMixin",

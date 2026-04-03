@@ -13,6 +13,14 @@ public class NodeUtil {
         return corner.add(nodeRotated.getX(), nodeRotated.getY(), nodeRotated.getZ());
     }
 
+    public static BlockPos reverseNodePos(BlockPos pos, Room room) {
+        BlockPos roomCorner = NodeUtil.getRoomDefaultCorner(room);
+        BlockPos relativePos = pos.subtract(roomCorner);
+
+        return NodeUtil.rotateNode(relativePos, room.facing, Direction.NORTH);
+    }
+
+
     public static BlockPos getRoomDefaultCorner(Room room) {
         return DungeonScanner.getChunkCenter(room.squares[room.lowestHashIndex]);
     }

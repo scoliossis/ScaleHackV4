@@ -22,7 +22,7 @@ public class AutoCloseChests extends SecretsHelper {
                 !autoCloseChests
                 || !(C.mc.currentScreen instanceof GenericContainerScreen)
                 || (dungeonsOnly && !AreaUtil.isInDungeons())
-                || (titleCheck && !C.mc.currentScreen.getTitle().getString().equals("Chest"))
+                || (titleCheck && !C.mc.currentScreen.getTitle().getString().equals("Chest") && !C.mc.currentScreen.getTitle().getString().equals("Large Chest"))
         ) return false;
 
         C.p().closeHandledScreen();

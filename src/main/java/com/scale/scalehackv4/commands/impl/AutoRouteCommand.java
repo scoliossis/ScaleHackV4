@@ -18,6 +18,7 @@ import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
 
 import java.util.Arrays;
@@ -42,14 +43,14 @@ public class AutoRouteCommand extends Command {
             return true;
         }
         BlockPos playerPos = C.p().getBlockPos().offset(Direction.DOWN, 1);
-        BlockPos nodePos = getNodePos(room, playerPos);
+        BlockPos nodePos = NodeUtil.reverseNodePos(playerPos, room);
         Rotation rotation = NodeUtil.flipRotation(RotationUtil.getClientRotation(), room.facing, Direction.NORTH);
         if (nodePos == null) return true;
 
         String command = text.substring(0, text.indexOf(" ")).trim().toLowerCase();
         String extraInfo = text.substring(text.indexOf(" ") + 1).trim();
         int extraInt = extraInfo.matches("\\d+") ? Integer.parseInt(extraInfo) : 0;
-        boolean first = room.nodes.isEmpty();
+        boolean first = room.nodes.isEmpty() || text.contains(" first");
 
         switch (command) {
             case "etherwarp" -> {
@@ -60,7 +61,13 @@ public class AutoRouteCommand extends Command {
                 }
 
                 ChatUtil.prefixMessage("Etherwarp successfully found!");
-                room.nodes.add(new Node(nodePos, getNodePos(room, new BlockPos(etherwarpPos)), rotation, Node.Type.ETHERWARP, first));
+                room.nodes.add(new Node(nodePos, NodeUtil.reverseNodePos(new BlockPos(etherwarpPos), room), rotation, Node.Type.ETHERWARP, first));
+            }
+            case "aote" -> {
+                Vec3d aotePos = EtherwarpUtil.getAotePos(C.p().getPitch(), C.p().getYaw(), C.p().getEntityPos(), 12);
+
+                ChatUtil.prefixMessage("aote success ig bro!");
+                room.nodes.add(new Node(nodePos, NodeUtil.reverseNodePos(BlockPos.ofFloored(aotePos), room), rotation, Node.Type.AOTE, first));
             }
             case "pearl" -> {
                 // todo: calculate pearl trajectory
@@ -73,7 +80,7 @@ public class AutoRouteCommand extends Command {
                     ChatUtil.prefixMessage("Superboom target block not found!");
                     return true;
                 }
-                room.nodes.add(new Node(nodePos, getNodePos(room, blockHitResult.getBlockPos()), rotation, Node.Type.SUPERBOOM, first));
+                room.nodes.add(new Node(nodePos, NodeUtil.reverseNodePos(blockHitResult.getBlockPos(), room), rotation, Node.Type.SUPERBOOM, first));
                 ChatUtil.prefixMessage("Superboom node success, jump around");
             }
             case "stonk" -> {
@@ -84,7 +91,7 @@ public class AutoRouteCommand extends Command {
                 }
 
                 ChatUtil.prefixMessage("Stonk success");
-                room.nodes.add(new Node(nodePos, getNodePos(room, blockHitResult.getBlockPos()), rotation, Node.Type.DUNGEON_BREAKER, first));
+                room.nodes.add(new Node(nodePos, NodeUtil.reverseNodePos(blockHitResult.getBlockPos(), room), rotation, Node.Type.DUNGEON_BREAKER, first));
             }
             case "remove" -> {
                 // removes last node at pos
@@ -116,24 +123,17 @@ public class AutoRouteCommand extends Command {
         return true;
     }
 
-    private static BlockPos getNodePos(Room room, BlockPos pos) {
-        BlockPos roomCorner = NodeUtil.getRoomDefaultCorner(room);
-        BlockPos relativePos = pos.subtract(roomCorner);
-
-        return NodeUtil.rotateNode(relativePos, room.facing, Direction.NORTH);
-    }
-
     @Override
     public void handleTab(String text, int pos, CompletableFuture<Suggestions> pendingSuggestions) {
         if (!text.contains(" ")) {
             StringRange range = StringRange.between(pos, pos+text.length());
             CommandManager.addCommand("etherwarp", range, pendingSuggestions);
+            CommandManager.addCommand("remove", range, pendingSuggestions);
+            CommandManager.addCommand("aote", range, pendingSuggestions);
             CommandManager.addCommand("pearl", range, pendingSuggestions);
             CommandManager.addCommand("stonk", range, pendingSuggestions);
             CommandManager.addCommand("secret", range, pendingSuggestions);
-            CommandManager.addCommand("bat", range, pendingSuggestions);
             CommandManager.addCommand("superboom", range, pendingSuggestions);
-            CommandManager.addCommand("remove", range, pendingSuggestions);
         }
     }
 }

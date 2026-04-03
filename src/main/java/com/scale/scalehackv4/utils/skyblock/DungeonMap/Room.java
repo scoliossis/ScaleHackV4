@@ -20,9 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -54,6 +52,7 @@ public class Room {
     public Direction facing = Direction.NORTH;
     public int lowestHashIndex = 0;
     public ArrayList<Node> nodes = new ArrayList<>();
+    public HashSet<BlockPos> secretAuraBlacklist = new HashSet<>();
     public State state = State.UNVISITED;
 
     public String name = "";
@@ -80,11 +79,22 @@ public class Room {
         this.type = Type.valueOf((String) room.getOrDefault("type", "RARE"));
         getFacing(room.getOrDefault("hashes", new int[0]));
 
+        // dumb
+        if (room.containsKey("aurablacklist")) {
+            String auraBlacklist = (String) room.get("aurablacklist");
+            String[] blockPos = auraBlacklist.split("BlockPos\\{");
+            for (int i = 1; i < blockPos.length; i++) {
+                int x = Integer.parseInt(blockPos[i].split(",")[0].split("=")[1]);
+                int y = Integer.parseInt(blockPos[i].split(",")[1].split("=")[1]);
+                int z = Integer.parseInt(blockPos[i].split(",")[2].split("=")[1].split("}")[0]);
+                this.secretAuraBlacklist.add(new BlockPos(x, y, z));
+            }
+        }
+
         HashMap<String, String> routesMap = getRoutes();
 
         String routes = routesMap.get(this.hash+"");
         if (routes != null) getNodes(routes);
-        //if (routes == null) getRsaRoutes();
     }
 
     private void getFacing(Object hashes) {
@@ -140,6 +150,7 @@ public class Room {
         room.put("type", type.name());
         room.put("secrets", secrets);
         room.putIfAbsent("hashes", Arrays.toString(this.facingHashes));
+        room.put("aurablacklist", Arrays.toString(this.secretAuraBlacklist.stream().map(BlockPos::toString).toArray(String[]::new)));
         rooms.put(hash+"", room);
 
         HashMap<String, String> routes = getRoutes();

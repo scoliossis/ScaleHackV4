@@ -37,6 +37,7 @@ public class RenderUtil {
     private static final Queue<SimpleGuiElementRenderState> RENDER_QUEUE = new ConcurrentLinkedQueue<>();
 
     public static final Color[] TRANS = new Color[] {new Color(91, 206, 250), new Color(245, 169, 184), new Color(255, 255, 255), new Color(245, 169, 184)};
+    public static final Color[] GAY = new Color[] {new Color(255, 0, 0), new Color(255, 145, 0), new Color(255, 255, 0), new Color(0, 255, 0), new Color(0, 0, 255), new Color(150, 0, 255)};
 
     protected static RenderPipeline getRenderPipeline(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode) {
         HashMap<VertexFormat.DrawMode, RenderPipeline> pipelineMap = PIPELINES.get(vertexFormat);
