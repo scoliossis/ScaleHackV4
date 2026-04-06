@@ -20,6 +20,7 @@ public abstract class TabCompleteMixin{
     @Shadow @Final TextFieldWidget textField;
     @Shadow private ChatInputSuggestor.SuggestionWindow window;
 
+    // todo: make custom tab complete
     @Inject(method = "refresh", at = @At(value = "HEAD"), cancellable = true)
     public void listSuggestions(CallbackInfo ci) {
         if (this.pendingSuggestions == null) return;

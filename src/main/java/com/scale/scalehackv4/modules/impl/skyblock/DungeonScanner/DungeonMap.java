@@ -129,6 +129,8 @@ public class DungeonMap extends DungeonScannerModule {
             int secretsFound = room.state == Room.State.GREEN_FN ? room.secrets : room.secretsFound;
             String secretsText = room.secrets == -1 ? "N/A" : room.secrets == 0 ? "0" : secretsFound+ "/" + room.secrets;
             FontUtil.drawString(secretsText, highestXY.x, highestXY.y, 6, secretsColour, true);
+            if (room.nodes.isEmpty() && room.secrets > 0 && (room.type == Room.Type.MOB || room.type == Room.Type.MINI))
+                FontUtil.drawString("DO", highestXY.x, highestXY.y+5, 6, Color.cyan, true);
         }
     }
 

@@ -66,7 +66,6 @@ public class Watermark extends HudModule {
     );
 
     private static long lastPingTime = 0;
-    private static boolean receivedPing = false;
 
     // todo: better way to get ping
     private final Event receivePing = new PacketEvent.Received(ModuleUtil.getModule(HudModule.class), (params) -> {
@@ -74,13 +73,11 @@ public class Watermark extends HudModule {
 
         if (params.packet instanceof StatisticsS2CPacket) {
             currentPing = System.currentTimeMillis() - lastPingTime;
-            receivedPing = true;
         }
 
-        if (receivedPing && System.currentTimeMillis()-lastPingTime > Math.max(1000, currentPing*2)) {
+        if (System.currentTimeMillis()-lastPingTime > Math.max(1000, currentPing*2)) {
             lastPingTime = System.currentTimeMillis();
             PacketUtil.sendPacket(new ClientStatusC2SPacket(ClientStatusC2SPacket.Mode.REQUEST_STATS));
-            receivedPing = false;
         }
 
         return false;
@@ -89,7 +86,6 @@ public class Watermark extends HudModule {
     private final Event resetPing = new WorldJoinEvent(ModuleUtil.getModule(HudModule.class), (params) -> {
         currentPing = 0;
         lastPingTime = System.currentTimeMillis();
-        receivedPing = false;
         return false;
     });
 }

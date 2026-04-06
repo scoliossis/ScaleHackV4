@@ -12,6 +12,7 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.BlockTracker;
+import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
@@ -84,6 +85,7 @@ public class SecretAura extends SecretsHelper {
     private static final int batScanRadius = 15;
 
     private static final int SECRET_BAT_HEALTH = 100;
+    private Rotation batRotation = null;
 
     private static final List<Integer> IGNORE_CHEST_ROOM_HASHES = List.of(
             -949494214, // three weirdos
@@ -183,6 +185,15 @@ public class SecretAura extends SecretsHelper {
         // get rid of bats
         while (!expectedBats.isEmpty() && System.currentTimeMillis() - expectedBats.getFirst() > MAX_BAT_TIME) expectedBats.removeFirst();
 
+        // todo: rotate more
+        // rotate for an extra tick so we LOCKED IN on that bat.
+        if (batRotation != null) {
+            params.rotation.yaw = batRotation.yaw;
+            params.rotation.pitch = batRotation.pitch;
+            batRotation = null;
+            return false;
+        }
+
         for (AuraBlock auraBlock : AuraBlock.values()) {
             for (Block block : auraBlock.validBlocks) {
                 for (BlockPos pos : BlockTracker.getBlockPositions(block)) {
@@ -231,13 +242,12 @@ public class SecretAura extends SecretsHelper {
         if (shouldBatAura(minBats)) {
             List<BatEntity> batsPositions = getBatsInRange(possibleBatRadius);
 
-            // look for really close block that is in range of bat
-            Optional<BlockPos> closestBlock = BlockPos.findClosest(C.p().getBlockPos().up(2), 3, 3, blockPos -> {
-                BatEntity closestBat = batsPositions.stream().min(Comparator.comparingDouble(bat -> blockPos.getSquaredDistance(bat.getEntityPos()))).orElse(null);
-                if (closestBat == null) return false;
+            BatEntity closestBat = batsPositions.stream().min(Comparator.comparingDouble(bat -> C.p().getBlockPos().up(2).getSquaredDistance(bat.getEntityPos()))).orElse(null);
+            if (closestBat == null) return false;
 
-                double closestBatDistance = Math.sqrt(blockPos.getSquaredDistance(closestBat.getEntityPos()));
-                return C.w().getBlockState(blockPos).isSolidBlock(C.w(), blockPos) && closestBatDistance <= SPIRIT_SCEPTRE_EXPLOSION_RADIUS;
+            // look for really close block that is in range of bat
+            Optional<BlockPos> closestBlock = BlockPos.findClosest(closestBat.getBlockPos(), SPIRIT_SCEPTRE_EXPLOSION_RADIUS, SPIRIT_SCEPTRE_EXPLOSION_RADIUS, blockPos -> {
+                return C.w().getBlockState(blockPos).isSolidBlock(C.w(), blockPos) && C.p().getEyePos().distanceTo(blockPos.toCenterPos()) <= C.p().getBlockInteractionRange();
             });
 
             if (closestBlock.isEmpty()) return false;
@@ -248,6 +258,7 @@ public class SecretAura extends SecretsHelper {
             SecretAura.prevSlot = prevSlot;
 
             params.rotation = RotationUtil.getRotation(params.rotation, C.p().getEyePos(), blockCentre);
+            batRotation = params.rotation;
             batTime = true;
             expectedBats.add(System.currentTimeMillis());
         }

@@ -9,7 +9,6 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
-import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
@@ -19,8 +18,8 @@ import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.NodeUtil;
 import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.entity.EntityPose;
 import net.minecraft.entity.passive.BatEntity;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
@@ -33,6 +32,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.Vec3i;
+import net.minecraft.util.shape.VoxelShape;
 
 import java.awt.*;
 import java.util.*;
@@ -52,6 +52,8 @@ public class AutoRoutes extends SecretsHelper {
     public static boolean leftClickSkip = true;
     @RegisterSubModule(name = "Zero Tick Etherwarp", parent = "Auto Routes", hasKeybind = true)
     public static boolean zeroTickEtherwarp = true;
+    @RegisterSubModule(name = "Zero Tick Stonk", parent = "Auto Routes", hasKeybind = true)
+    public static boolean zeroTickStonk = true;
 
     @RegisterSubModule(name = "Show Auto Routes", hasKeybind = true)
     public static boolean showAutoRoutes = true;
@@ -134,8 +136,7 @@ public class AutoRoutes extends SecretsHelper {
 
             finishedLastChain = false;
 
-            // todo: ik u can nuke somehow, but im VERY scared to test multi swinging cause i KNOW that insta bans outside sb
-            if (nodeItem != Node.Type.ETHERWARP || !zeroTickEtherwarp)
+            if ((nodeItem != Node.Type.ETHERWARP || !zeroTickEtherwarp) && (nodeItem != Node.Type.DUNGEON_BREAKER || !zeroTickStonk))
                 break;
         }
 
@@ -185,7 +186,7 @@ public class AutoRoutes extends SecretsHelper {
                     expectedPackets.removeFirst();
                 }
             }
-            case DUNGEON_BREAKER -> {
+            case DUNGEON_BREAKER, SUPERBOOM -> {
                 if (params.packet instanceof BlockUpdateS2CPacket blockUpdateS2CPacket) {
                     // todo: better check than distance <3
                     if (Math.sqrt(blockUpdateS2CPacket.getPos().getSquaredDistance(C.p().getEntityPos())) < 4.5) {
@@ -207,7 +208,6 @@ public class AutoRoutes extends SecretsHelper {
             if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
                 interactedSecrets.add(System.currentTimeMillis());
             }
-            else if (lastNode == Node.Type.SUPERBOOM && !expectedPackets.isEmpty()) expectedPackets.removeFirst();
         }
 
         return false;
@@ -298,8 +298,20 @@ public class AutoRoutes extends SecretsHelper {
                 return etherwarpBlock != null && new BlockPos(etherwarpBlock).equals(nodePos);
             }
             case DUNGEON_BREAKER -> {
-                BlockHitResult blockHitResult = WorldUtil.raytrace(playerPosVec.add(0, C.p().getEyeHeight(EntityPose.STANDING), 0), C.p().getBlockInteractionRange(), rotation);
-                return blockHitResult.getType() != HitResult.Type.MISS && blockHitResult.getBlockPos().equals(nodePos);
+                BlockState blockState = C.w().getBlockState(nodePos);
+                VoxelShape voxelShape = blockState.getOutlineShape(C.w(), nodePos);
+                if (voxelShape.isEmpty()) return false;
+
+                Vec3d targetMiddle = new Vec3d(nodePos.getX(), nodePos.getY(), nodePos.getZ()).add(voxelShape.getBoundingBox().getCenter());
+                BlockHitResult blockHitResult = C.w().raycastBlock(
+                        C.p().getEyePos(),
+                        targetMiddle,
+                        nodePos,
+                        voxelShape,
+                        blockState
+                );
+
+                return blockHitResult != null && blockHitResult.getType() != HitResult.Type.MISS && blockHitResult.getBlockPos().equals(nodePos);
             }
             // todo: check ender pearl is valid
         }
@@ -307,34 +319,44 @@ public class AutoRoutes extends SecretsHelper {
         return true;
     }
 
+    private static final ArrayList<ArrayList<Node>> CONNECTED_ETHERWARP_NODES = new ArrayList<>();
+    private static Room lastRoom = null;
+    private static int roomNodeAmount = -1;
+
     // bad code quality ig bro
     private static void renderAutoroutes() {
         if (!showAutoRoutes) return;
 
         Room currentRoom = AreaUtil.getCurrentRoom();
         if (currentRoom == null) return;
+        if (lastRoom != currentRoom || roomNodeAmount != currentRoom.nodes.size()) {
+            CONNECTED_ETHERWARP_NODES.clear();
+            lastRoom = currentRoom;
+            roomNodeAmount = currentRoom.nodes.size();
+        }
 
-        ArrayList<ArrayList<Node>> nodes = new ArrayList<>();
-        // only just found this guy, ive been using hashmaps for ages ig
-        HashMap<BlockPos, Node> positions = new HashMap<>();
+        if (CONNECTED_ETHERWARP_NODES.isEmpty()) {
+            // only just found this guy, ive been using hashmaps for ages ig
+            HashMap<BlockPos, Node> positions = new HashMap<>();
 
-        List<Node> etherwarpNodes = currentRoom.nodes.stream().filter(node -> node.type == Node.Type.ETHERWARP).toList();
-        etherwarpNodes.forEach(node -> positions.put(node.startPos, node));
+            List<Node> etherwarpNodes = currentRoom.nodes.stream().filter(node -> node.type == Node.Type.ETHERWARP).toList();
+            etherwarpNodes.forEach(node -> positions.put(node.startPos, node));
 
-        HashSet<Node> uncheckedNodes = new HashSet<>(etherwarpNodes);
+            HashSet<Node> uncheckedNodes = new HashSet<>(etherwarpNodes);
 
-        for (Node node : etherwarpNodes) {
-            if (!uncheckedNodes.contains(node)) continue;
+            for (Node node : etherwarpNodes) {
+                if (!uncheckedNodes.contains(node)) continue;
 
-            nodes.add(new ArrayList<>(Collections.singletonList(node)));
-            while (true) {
-                uncheckedNodes.remove(node);
-                positions.remove(node.startPos);
-                Node targetNode = positions.get(node.targetPos);
-                if (targetNode == null) break;
+                CONNECTED_ETHERWARP_NODES.add(new ArrayList<>(Collections.singletonList(node)));
+                while (true) {
+                    uncheckedNodes.remove(node);
+                    positions.remove(node.startPos);
+                    Node targetNode = positions.get(node.targetPos);
+                    if (targetNode == null) break;
 
-                nodes.getLast().add(targetNode);
-                node = targetNode;
+                    CONNECTED_ETHERWARP_NODES.getLast().add(targetNode);
+                    node = targetNode;
+                }
             }
         }
 
@@ -355,7 +377,7 @@ public class AutoRoutes extends SecretsHelper {
             }
         }
 
-        for (ArrayList<Node> nodeList : nodes) {
+        for (ArrayList<Node> nodeList : CONNECTED_ETHERWARP_NODES) {
             for (int i = 0; i < nodeList.size(); i++) {
                 Node node = nodeList.get(i);
                 Color nodeColour = RenderUtil.TRANS[i % RenderUtil.TRANS.length];

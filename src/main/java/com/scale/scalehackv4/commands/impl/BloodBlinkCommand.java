@@ -16,7 +16,7 @@ public class BloodBlinkCommand extends Command {
 
     @Override
     public boolean handleCommand(String text) {
-        BloodBlink.enableBB(true, true, AreaUtil.isDungeonStarted() || DungeonScanner.finishedScanning());
+        BloodBlink.enableBB(true, AreaUtil.isDungeonStarted() || DungeonScanner.finishedScanning());
 
         return true;
     }

@@ -39,13 +39,15 @@ import java.util.Optional;
 // todo: fix chat hiding mods conflicting
 //  bring back legit mode
 //  pearls drop now...?
+//  check pearl pos
+//  i dont think its working
 public class BloodBlink extends DungeonScannerModule {
     @RegisterSubModule(name = "Auto Scan")
     public static boolean autoScan = true;
-    @RegisterSubModule(name = "Auto Blood")
+    @RegisterSubModule(name = "Auto Blood", parent = "Auto Scan")
     public static boolean autoBlood = true;
 
-    @RegisterSubModule(name = "Timeout Delay", min = 500, max = 10000, increment = 100)
+    @RegisterSubModule(name = "Timeout Delay", min = 500, max = 10000, increment = 100, parent = "Auto Scan")
     public static int timeoutDelay = 1500;
 
     private static final int BLOOD_ROOM_MIN_Y = 66;
@@ -116,7 +118,7 @@ public class BloodBlink extends DungeonScannerModule {
         return false;
     });
 
-    public static void enableBB(boolean blood, boolean scan, boolean clipUp) {
+    public static void enableBB(boolean blood, boolean clipUp) {
         // todo: force aote and pearls into hotbar
         if (!canBB()) {
             ChatUtil.prefixMessage("hey god, you need AOTE and Pearls in your hotbar to use bb, dont dm me to make it auto put them in hotbar, im working on it!");
@@ -130,10 +132,10 @@ public class BloodBlink extends DungeonScannerModule {
 
         if (interactionChain == null || hasEscapedBox) return;
 
-        if (clipAttempts == 0 && scan && !AreaUtil.isDungeonStarted()) {
+        if (clipAttempts == 0 && !AreaUtil.isDungeonStarted()) {
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
                     getTargetChain(interactionChain.endPos(), getBestScanningPos(), false),
-                    e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5 && AreaUtil.getDungeonStartMs() > 2000,
+                    e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5 && AreaUtil.getDungeonStartMs() > 2000 && !insideRoom(),
                     e -> AreaUtil.isDungeonStarted()
             );
         }
@@ -147,7 +149,7 @@ public class BloodBlink extends DungeonScannerModule {
 
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
                     getTargetChain(interactionChain.endPos(), new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true),
-                    e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2,
+                    e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2 && !insideRoom(),
                     e -> getBloodSquare() == null && insideRoom()
             );
         }
@@ -183,6 +185,8 @@ public class BloodBlink extends DungeonScannerModule {
     });
 
     private static boolean shouldAutoClipOut() {
+        if (!autoScan) return false;
+
         if (queuedInteractionChain != null
                 || interactionChain != null
                 || !ModuleUtil.isEnabled(DungeonScannerModule.class)
@@ -190,7 +194,7 @@ public class BloodBlink extends DungeonScannerModule {
                 || AreaUtil.isDungeonStarted()
         ) return false;
 
-        boolean canScan = autoScan && !attemptedScanning;
+        boolean canScan = !attemptedScanning;
         boolean canBB = autoBlood && getBloodSquare() != null;
 
         if (!canScan && !canBB) return false;
@@ -224,7 +228,7 @@ public class BloodBlink extends DungeonScannerModule {
             Optional<Room> spawnRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.SPAWN).findFirst();
             if (spawnRoom.isEmpty()) return false;
 
-            enableBB(autoBlood, autoScan, false);
+            enableBB(autoBlood, false);
             lastDungeonJoinMessage = 0;
             attemptedScanning = true;
         }

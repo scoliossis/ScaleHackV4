@@ -68,7 +68,6 @@ public class CommandManager {
         return commands.get(results.getFirst().getIndex());
     }
 
-    // todo: this still breaks the default minecraft tabbing
     public static boolean handleTab(TextFieldWidget textField, CompletableFuture<Suggestions> pendingSuggestions) {
         String text = textField.getText().substring(0, textField.getCursor());
 
