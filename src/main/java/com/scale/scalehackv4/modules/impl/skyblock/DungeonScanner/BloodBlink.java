@@ -89,7 +89,7 @@ public class BloodBlink extends DungeonScannerModule {
         double middleX = -105;
         double middleZ = -105;
 
-        if (currentRoom == null || !autoBlood) return new Vec3d(middleX, 0, middleZ);
+        if (currentRoom == null || !autoBlood) return new Vec3d(middleX, BLOOD_ROOM_MIN_Y, middleZ);
         ChunkPos currentSquare = currentRoom.squares[0];
 
         // since we are INSIDE the room, the chunk offset is 1 extra
@@ -102,7 +102,7 @@ public class BloodBlink extends DungeonScannerModule {
         if (currentSquare.z == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleZ += 32;
         else if (currentSquare.z == bottomChunk) middleZ -= 32;
 
-        return new Vec3d(middleX, 0, middleZ);
+        return new Vec3d(middleX, BLOOD_ROOM_MIN_Y, middleZ);
     }
 
     private static boolean canBB() {
@@ -261,7 +261,7 @@ public class BloodBlink extends DungeonScannerModule {
     });
 
     private final Event onReceiveTP = new PacketEvent.Received(null, params -> {
-        if (!(params.packet instanceof PlayerPositionLookS2CPacket) || expectedTeleports.isEmpty()) return false;
+        if (!(params.packet instanceof PlayerPositionLookS2CPacket movePacket) || expectedTeleports.isEmpty()) return false;
 
         expectedTeleports.removeFirst();
         pearlResponded |= expectedTeleports.isEmpty();
@@ -280,7 +280,7 @@ public class BloodBlink extends DungeonScannerModule {
 
     private static final int MAX_PACKETS = 60;
     private static final int EDGE_TELEPORTS = 3;
-    private static final int DOWN_TELEPORTS = 9;
+    private static final int DOWN_TELEPORTS = 8;
 
     private static ChainUtil.InteractionChain getClipOutChain(Vec3d tickPos) {
         ArrayList<ChainUtil.InteractionChainNode> interactionChain = new ArrayList<>();
@@ -341,11 +341,11 @@ public class BloodBlink extends DungeonScannerModule {
             interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
         }
 
-        Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, -5);
+        Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 0);
 
         // try and tp to below blood
         while (interactionChain.size() < MAX_PACKETS) {
-            int maxDistance = 12;
+            int maxDistance = 16;
             double xDistance = Math.abs(tickPos.x - targetPos.x);
             double zDistance = Math.abs(tickPos.z - targetPos.z);
 
@@ -356,13 +356,14 @@ public class BloodBlink extends DungeonScannerModule {
         }
 
         Rotation bloodFloorRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos);
+        int loops = 0;
         // aote up to blood floor
         while (interactionChain.size() < MAX_PACKETS) {
-            // todo: requires 1 less aote than expected, find out why...
-            if (tickPos.y >= targetPos.y-14) break;
+            if (tickPos.y >= targetPos.y-4 || loops >= 10) break;
 
             tickPos = EtherwarpUtil.getAotePos(bloodFloorRotation.pitch, bloodFloorRotation.yaw, tickPos, 12);
             interactionChain.add(new ChainUtil.InteractionChainNode(bloodFloorRotation, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+            loops++;
         }
 
         if (clipUp) {

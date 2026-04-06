@@ -103,8 +103,8 @@ public class AreaUtil {
     public static boolean isInBoss() {
         if (!isInDungeons()) return false;
 
-        float bossX = -DungeonScanner.MAX_DUNGEON_DIAMETER+DungeonScanner.DUNGEON_BLOCKS_OFFSET + DungeonScanner.CURRENT_DUNGEON_DIAMETER.x;
-        float bossZ = -DungeonScanner.MAX_DUNGEON_DIAMETER+DungeonScanner.DUNGEON_BLOCKS_OFFSET + DungeonScanner.CURRENT_DUNGEON_DIAMETER.y;
+        float bossX = -DungeonScanner.MAX_DUNGEON_DIAMETER-DungeonScanner.DUNGEON_BLOCKS_OFFSET + DungeonScanner.CURRENT_DUNGEON_DIAMETER.x;
+        float bossZ = -DungeonScanner.MAX_DUNGEON_DIAMETER-DungeonScanner.DUNGEON_BLOCKS_OFFSET + DungeonScanner.CURRENT_DUNGEON_DIAMETER.y;
         return C.p().getX() > bossX && C.p().getZ() > bossZ;
     }
 

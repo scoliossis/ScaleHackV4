@@ -1,6 +1,5 @@
 package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
-import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
@@ -12,7 +11,6 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.BlockTracker;
-import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
@@ -27,27 +25,25 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.ChestBlockEntity;
 import net.minecraft.block.entity.SkullBlockEntity;
 import net.minecraft.component.type.ProfileComponent;
-import net.minecraft.entity.passive.BatEntity;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.DoubleSupplier;
 import java.util.function.Predicate;
 
 // todo: add option to select whatever blocks
-//  check if the pos is blacklisted in the room
 //  locked chest check
-//  check surroundings, no lever (idk why i choose that block, look into it) should be touching eachother (u should be touching me tho)
-//  check the room the SECRET is in, not the guy.
-//  other players using spirit sceptre fricks up bat aura
+//  check the room the SECRET is in, not the guy (not needed rn, but maybe when infinite reach secret aura).
 public class SecretAura extends SecretsHelper {
     @RegisterSubModule(name = "Secret Aura", hasKeybind = true)
     public static boolean secretAura = true;
@@ -64,8 +60,6 @@ public class SecretAura extends SecretsHelper {
     public static double chestReach = 5;
     @RegisterSubModule(name = "Skull/Lever Reach", parent = "Secret Aura", increment = 0.1, min = 1, max = 6)
     public static double skullLeverReach = 4.5;
-    @RegisterSubModule(name = "Bat Aura", parent = "Secret Aura", hasKeybind = true)
-    public static boolean batAura = true;
 
     @RegisterSubModule(name = "Retry Delay", parent = "Secret Aura", increment = 50, min = 100, max = 5000)
     public static long delay = 1000;
@@ -76,16 +70,6 @@ public class SecretAura extends SecretsHelper {
     private static CurrentTarget currentTarget = null;
     private record CurrentTarget(BlockPos pos, AuraBlock block, BlockHitResult hitResult) {}
     private static int prevSlot = -1;
-
-    private static final ArrayList<Long> expectedBats = new ArrayList<>();
-    private static boolean batTime = false;
-    private static final long MAX_BAT_TIME = 1500;
-    private static final int SPIRIT_SCEPTRE_EXPLOSION_RADIUS = 4;
-    private static final int possibleBatRadius = 8;
-    private static final int batScanRadius = 15;
-
-    private static final int SECRET_BAT_HEALTH = 100;
-    private Rotation batRotation = null;
 
     private static final List<Integer> IGNORE_CHEST_ROOM_HASHES = List.of(
             -949494214, // three weirdos
@@ -131,6 +115,12 @@ public class SecretAura extends SecretsHelper {
                     Room currentRoom = AreaUtil.getCurrentRoom();
                     if (AreaUtil.isInBoss() || (currentRoom != null && currentRoom.name.equals("Water Board"))) return false;
 
+                    // one room has a bunch of levers next to eachother that do nothing (idk the name, its a 6 secret 2x1)
+                    for (Direction direction : Direction.values()) {
+                        BlockPos neighbourPos = pos.offset(direction);
+                        if (C.w().getBlockState(neighbourPos).getBlock() == Blocks.LEVER) return false;
+                    }
+
                     BlockState blockState = C.w().getBlockState(pos);
                     return blockState.getBlock() instanceof LeverBlock && !blockState.get(LeverBlock.POWERED);
                 },
@@ -173,25 +163,13 @@ public class SecretAura extends SecretsHelper {
             prevSlot = -1;
         }
 
-        if (!secretAura || C.mc.currentScreen != null || (dungeonsOnly && !AreaUtil.isInDungeons())) return false;
+        if (!secretAura || (dungeonsOnly && !AreaUtil.isInDungeons())) return false;
 
         for (BlockPos blockPos : INTERACTED_POSITIONS.keySet()) {
             long interactedTime = INTERACTED_POSITIONS.get(blockPos);
             if (System.currentTimeMillis() - interactedTime < delay) continue;
 
             INTERACTED_POSITIONS.remove(blockPos);
-        }
-
-        // get rid of bats
-        while (!expectedBats.isEmpty() && System.currentTimeMillis() - expectedBats.getFirst() > MAX_BAT_TIME) expectedBats.removeFirst();
-
-        // todo: rotate more
-        // rotate for an extra tick so we LOCKED IN on that bat.
-        if (batRotation != null) {
-            params.rotation.yaw = batRotation.yaw;
-            params.rotation.pitch = batRotation.pitch;
-            batRotation = null;
-            return false;
         }
 
         for (AuraBlock auraBlock : AuraBlock.values()) {
@@ -232,62 +210,15 @@ public class SecretAura extends SecretsHelper {
                         if (SkyblockItems.DUNGEON_BREAKER.switchToItem()) SecretAura.prevSlot = prevSlot;
                     }
 
-                    return false;
+                    return true;
                 }
             }
-        }
-
-        // ignore any spirit sceptre bats
-        int minBats = expectedBats.isEmpty() ? 0 : expectedBats.size();
-        if (shouldBatAura(minBats)) {
-            List<BatEntity> batsPositions = getBatsInRange(possibleBatRadius);
-
-            BatEntity closestBat = batsPositions.stream().min(Comparator.comparingDouble(bat -> C.p().getBlockPos().up(2).getSquaredDistance(bat.getEntityPos()))).orElse(null);
-            if (closestBat == null) return false;
-
-            // look for really close block that is in range of bat
-            Optional<BlockPos> closestBlock = BlockPos.findClosest(closestBat.getBlockPos(), SPIRIT_SCEPTRE_EXPLOSION_RADIUS, SPIRIT_SCEPTRE_EXPLOSION_RADIUS, blockPos -> {
-                return C.w().getBlockState(blockPos).isSolidBlock(C.w(), blockPos) && C.p().getEyePos().distanceTo(blockPos.toCenterPos()) <= C.p().getBlockInteractionRange();
-            });
-
-            if (closestBlock.isEmpty()) return false;
-            Vec3d blockCentre = C.w().getBlockState(closestBlock.get()).getOutlineShape(C.w(), closestBlock.get()).getBoundingBox().getCenter();
-
-            int prevSlot = C.p().getInventory().getSelectedSlot();
-            if (!SkyblockItems.SPIRIT_SCEPTRE.switchToItem()) return false;
-            SecretAura.prevSlot = prevSlot;
-
-            params.rotation = RotationUtil.getRotation(params.rotation, C.p().getEyePos(), blockCentre);
-            batRotation = params.rotation;
-            batTime = true;
-            expectedBats.add(System.currentTimeMillis());
         }
 
         return false;
     });
 
-    private static boolean shouldBatAura(int minBats) {
-        if (!batAura) return false;
-
-        long totalBatCount = getBatsInRange(batScanRadius).size();
-        if (totalBatCount <= minBats) return false;
-
-        // check that we are actually killing a bat...
-        return !getBatsInRange(possibleBatRadius).isEmpty();
-    }
-
-    private static List<BatEntity> getBatsInRange(double radius) {
-        return C.w().getOtherEntities(C.p(), Box.from(C.p().getEntityPos()).expand(radius)).stream().filter(e -> e instanceof BatEntity bat && bat.getHealth() == SECRET_BAT_HEALTH).map(e -> (BatEntity) e).toList();
-    }
-
     private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (batTime) {
-            UseItemBridge.from(C.mc).bridge$DoItemUse();
-            batTime = false;
-            ChatUtil.prefixMessage("KILLING THE BATMAN");
-            return false;
-        }
-
         if (secretAura && C.mc.currentScreen == null && currentTarget != null) {
             // ideally we should use packets, but they are scary
             C.im().interactBlock(C.p(), Hand.MAIN_HAND, currentTarget.hitResult);
@@ -338,34 +269,4 @@ public class SecretAura extends SecretsHelper {
             BlockTracker.stopTracking(blocksToTrack, SecretAura.class);
         }
     }
-
-    /*
-    // todo: maybe make a secrets esp
-    public final Event renderWorldEvent = new RenderWorldEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (!secretAura || (dungeonsOnly && !AreaUtil.isInDungeons())) return false;
-
-        for (AuraBlock auraBlock : AuraBlock.values()) {
-            for (Block block : auraBlock.validBlocks) {
-                for (BlockPos blockPos : BlockTracker.getBlockPositions(block)) {
-                    if (INTERACTED_POSITIONS.containsKey(blockPos) || !auraBlock.condition.test(blockPos)) continue;
-
-                    VoxelShape shape = C.w().getBlockState(blockPos).getOutlineShape(C.w(), blockPos);
-                    shape.forEachBox((minX, minY, minZ, maxX, maxY, maxZ) -> {
-                        Render3dUtil.drawBox(
-                                (float) (blockPos.getX()+minX),
-                                (float) (blockPos.getY()+minY),
-                                (float) (blockPos.getZ()+minZ),
-                                (float) (maxX - minX),
-                                (float) (maxY - minY),
-                                (float) (maxZ - minZ),
-                                new Color(60, 248, 226, 47),
-                                false
-                        );
-                    });
-                }
-            }
-        }
-        return false;
-    });
-     */
 }
