@@ -50,6 +50,7 @@
     "client.PacketEventMixin",
     "client.TabCompleteMixin",
     "client.FixRotation.MovementFixMixin",
+    "player.PacketReceiveBridgeMixin",
     "player.PacketUtilMixin",
     "player.PlayerUpdateEventMixin",
     "player.BlockScanner.ChunkLoadMixin",

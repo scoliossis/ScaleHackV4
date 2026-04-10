@@ -85,8 +85,6 @@ public class BlinkUtil {
             }
         }
 
-        /*
-        // todo: impl
         if (received && blinkIncomingIndex <= -1) {
             Packet<?> packet;
 
@@ -98,7 +96,6 @@ public class BlinkUtil {
                 }
             }
         }
-         */
     }
 
     /// clears all the blinked packets and pretends they didnt happen

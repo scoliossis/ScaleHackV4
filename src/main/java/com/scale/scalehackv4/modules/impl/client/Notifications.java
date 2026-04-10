@@ -14,7 +14,9 @@ import com.scale.scalehackv4.utils.client.ChatUtil;
 public class Notifications extends Module {
     public static void post(SubModule subModule, boolean enabled) {
         String moduleName = subModule.getAnnotation().name();
-        moduleName = moduleName.equals(Module.ENABLED_STRING) ? subModule.getParentModule().getAnnotation().name() : moduleName;
+        moduleName = moduleName.equals(Module.ENABLED_STRING)
+                ? subModule.getParentModule().getAnnotation().name()
+                : subModule.getParentModule().getAnnotation().name() + " | " + moduleName;
 
         if (enabled) {
             ChatUtil.prefixMessage("&aEnabled &f" + moduleName);

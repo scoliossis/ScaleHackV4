@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.utils.client;
 
+import com.scale.scalehackv4.bridge.PacketReceiveBridge;
 import com.scale.scalehackv4.bridge.PacketSequenceBridge;
 import com.scale.scalehackv4.bridge.PacketUtilBridge;
 import com.scale.scalehackv4.events.Bus;
@@ -15,6 +16,12 @@ public class PacketUtil {
         if (C.mc.getNetworkHandler() == null) return;
 
         C.mc.getNetworkHandler().sendPacket(packet);
+    }
+
+    public static void receivePacket(Packet<?> packet) {
+        if (C.mc.getNetworkHandler() == null) return;
+
+        PacketReceiveBridge.from(C.mc.getNetworkHandler().getConnection()).bridge$receivePacket(packet);
     }
 
     public static void sendSequencedPacket(SequencedPacketCreator sequencedPacketCreator) {

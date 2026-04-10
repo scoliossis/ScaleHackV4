@@ -42,6 +42,7 @@ public class BlockTracker {
             incomingUpdates.clear();
         }
         loadedChunks.clear();
+        currentlyUpdating = false;
 
         return false;
     });
@@ -50,21 +51,22 @@ public class BlockTracker {
     public final Event onRenderWorld = new PlayerUpdateEvent(null, params -> {
         if (C.w() == null || currentlyUpdating) return false;
 
-        // todo: fix rare kick. blehhh idk how it happens
         C.ASYNC.execute(() -> {
-            currentlyUpdating = true;
-            ArrayList<Update> updates = (ArrayList<Update>) incomingUpdates.clone();
+            try {
+                currentlyUpdating = true;
+                ArrayList<Update> updates = (ArrayList<Update>) incomingUpdates.clone();
 
-            for (Update update : updates) {
-                switch (update.updateType) {
-                    case CHUNK_LOAD -> loadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
-                    case CHUNK_UNLOAD -> unloadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
-                    case BLOCK_UPDATE -> updateBlock(update.pos, update.newBlock.getFirst());
+                for (Update update : updates) {
+                    switch (update.updateType) {
+                        case CHUNK_LOAD -> loadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
+                        case CHUNK_UNLOAD -> unloadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
+                        case BLOCK_UPDATE -> updateBlock(update.pos, update.newBlock.getFirst());
+                    }
+                    incomingUpdates.remove(update);
                 }
+            } finally {
+                currentlyUpdating = false;
             }
-
-            incomingUpdates.removeAll(updates);
-            currentlyUpdating = false;
         });
 
         return false;

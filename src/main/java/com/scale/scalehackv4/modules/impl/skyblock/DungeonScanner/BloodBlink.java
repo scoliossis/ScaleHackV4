@@ -133,8 +133,11 @@ public class BloodBlink extends DungeonScannerModule {
         if (interactionChain == null || hasEscapedBox) return;
 
         if (clipAttempts == 0 && !AreaUtil.isDungeonStarted()) {
+            ChainUtil.InteractionChain chain = getTargetChain(interactionChain.endPos(), getBestScanningPos(), false);
+            if (chain == null) return;
+
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
-                    getTargetChain(interactionChain.endPos(), getBestScanningPos(), false),
+                    chain,
                     e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5 && AreaUtil.getDungeonStartMs() > 2000 && !insideRoom(),
                     e -> AreaUtil.isDungeonStarted()
             );
@@ -147,8 +150,11 @@ public class BloodBlink extends DungeonScannerModule {
                 return;
             }
 
+            ChainUtil.InteractionChain chain = getTargetChain(interactionChain.endPos(), new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true);
+            if (chain == null) return;
+
             queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
-                    getTargetChain(interactionChain.endPos(), new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true),
+                    chain,
                     e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2 && !insideRoom(),
                     e -> getBloodSquare() == null && insideRoom()
             );

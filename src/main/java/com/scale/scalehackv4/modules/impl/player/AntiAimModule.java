@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
         name = "Anti Aim",
         category = Category.PLAYER
 )
+// todo: new modes, and maybe actually dodging arrows...
 public class AntiAimModule extends Module {
     public final Event GOD_BYPASS_TECH_20XX = new RotationEvent(this, params -> {
         params.rotation.pitch += (float) ((Math.random() * 180) - 90);

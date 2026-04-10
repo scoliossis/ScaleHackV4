@@ -156,12 +156,16 @@ public class AutoRoutes extends SecretsHelper {
 
     // execute as in run, but also as in KILLING THEM by removing them from the list
     private final Event executeNodes = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
+
         while (!pendingInteractions.isEmpty()) {
             Node.Type nodeType = pendingInteractions.getFirst().itemType();
             if (nodeType == Node.Type.ETHERWARP && !C.p().isSneaking()) return false;
 
             ChainUtil.InteractionChainNode node = pendingInteractions.removeFirst();
-            Rotation rotation = NodeUtil.flipRotation(node.rotation(), Direction.NORTH, AreaUtil.getCurrentRoom().facing);
+            Room currentRoom = AreaUtil.getCurrentRoom();
+            if (currentRoom == null) return false;
+
+            Rotation rotation = NodeUtil.flipRotation(node.rotation(), Direction.NORTH, currentRoom.facing);
             node.itemType().attemptRoute.test(rotation, node.targetPos());
             lastNode = node.itemType();
         }
