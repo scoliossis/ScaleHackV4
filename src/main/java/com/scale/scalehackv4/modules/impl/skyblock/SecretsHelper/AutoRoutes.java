@@ -136,8 +136,10 @@ public class AutoRoutes extends SecretsHelper {
 
             finishedLastChain = false;
 
-            if ((nodeItem != Node.Type.ETHERWARP || !zeroTickEtherwarp) && (nodeItem != Node.Type.DUNGEON_BREAKER || !zeroTickStonk))
-                break;
+            interactionChainIndex++;
+            if (interactionChainIndex >= interactionChain.interactionChainNodes().length) break;
+            if (nodeItem != Node.Type.DUNGEON_BREAKER || !zeroTickStonk)
+                return false;
         }
 
         disable(interactionChainIndex >= interactionChain.interactionChainNodes().length);

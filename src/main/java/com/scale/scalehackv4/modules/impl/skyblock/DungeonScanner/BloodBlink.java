@@ -259,6 +259,13 @@ public class BloodBlink extends DungeonScannerModule {
 
             pendingInteractions.add(node);
             expectedTeleports.add(System.currentTimeMillis());
+
+            interactionChainIndex++;
+            // todo: change duh
+            if (interactionChainIndex >= interactionChain.interactionChainNodes().length) {
+                break;
+            }
+            return false;
         }
 
         finishInteract();
