@@ -4,7 +4,6 @@ import com.mojang.brigadier.suggestion.Suggestions;
 import com.scale.scalehackv4.commands.Command;
 import com.scale.scalehackv4.modules.impl.skyblock.DungeonScanner.BloodBlink;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
-import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -16,7 +15,7 @@ public class BloodBlinkCommand extends Command {
 
     @Override
     public boolean handleCommand(String text) {
-        BloodBlink.enableBB(true, AreaUtil.isDungeonStarted() || DungeonScanner.finishedScanning());
+        BloodBlink.enableBB(AreaUtil.isDungeonStarted() || AreaUtil.getDungeonStartMs() < 2000, AreaUtil.getDungeonStartMs() > 3000 && !AreaUtil.isDungeonStarted());
 
         return true;
     }

@@ -2,6 +2,7 @@ package com.scale.scalehackv4.modules.impl.skyblock;
 
 import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.player.ClickedEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.Category;
@@ -36,6 +37,8 @@ public class TplessHyperion extends Module {
     @RegisterSubModule(name = "Left Click Hyperion")
     public static boolean leftClickHyp = true;
 
+    private static int sentTeleports = 0;
+
     private boolean shouldTpless() {
         return SkyblockItems.HYPERION.isItem.test(C.p().getMainHandStack())
                 && (AreaUtil.isInDungeons() || !dungeonsOnly)
@@ -66,6 +69,7 @@ public class TplessHyperion extends Module {
         if (!shouldTpless() || !shouldLookDown()) return false;
 
         PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, RotationEvent.lastRotation.yaw, 90));
+        sentTeleports++;
 
         return false;
     });
@@ -75,6 +79,15 @@ public class TplessHyperion extends Module {
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
+    });
+
+    private final Event hideBypahhMessages = new ChatEvent.Received(this, params -> {
+        if (params.message.equals("There are blocks in the way!") && sentTeleports > 0) {
+            sentTeleports--;
+            return true;
+        }
+
+        return false;
     });
 
 

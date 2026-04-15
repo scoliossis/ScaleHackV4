@@ -32,7 +32,6 @@ public class Node {
     public boolean firstNode;
 
     @AllArgsConstructor
-    // todo: move these predicates, idk where yet.
     public enum Type {
         ETHERWARP(e -> SkyblockItems.ETHERWARP.switchToItem(), (rotation, targetPos) -> {
             PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, rotation.yaw, rotation.pitch));

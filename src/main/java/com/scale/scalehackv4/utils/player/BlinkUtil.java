@@ -12,6 +12,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 // todo: this is a MESS
+//  make each class have its own indexes ig?
 // https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlinkUtil.java
 @RegisterListeners
 public class BlinkUtil {

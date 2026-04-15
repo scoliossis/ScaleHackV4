@@ -57,10 +57,12 @@ public class BlockTracker {
                 ArrayList<Update> updates = (ArrayList<Update>) incomingUpdates.clone();
 
                 for (Update update : updates) {
-                    switch (update.updateType) {
-                        case CHUNK_LOAD -> loadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
-                        case CHUNK_UNLOAD -> unloadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
-                        case BLOCK_UPDATE -> updateBlock(update.pos, update.newBlock.getFirst());
+                    if (update != null) {
+                        switch (update.updateType) {
+                            case CHUNK_LOAD -> loadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
+                            case CHUNK_UNLOAD -> unloadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
+                            case BLOCK_UPDATE -> updateBlock(update.pos, update.newBlock.getFirst());
+                        }
                     }
                     incomingUpdates.remove(update);
                 }

@@ -3,8 +3,10 @@ package com.scale.scalehackv4.modules.impl.skyblock.DungeonScanner;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
-import com.scale.scalehackv4.events.impl.player.*;
-import com.scale.scalehackv4.events.impl.skyblock.DungeonJoinEvent;
+import com.scale.scalehackv4.events.impl.player.ClickedEvent;
+import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
+import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
@@ -17,7 +19,6 @@ import com.scale.scalehackv4.utils.skyblock.ChainUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.DungeonScanner;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
-import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import net.minecraft.block.Blocks;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
@@ -53,57 +54,17 @@ public class BloodBlink extends DungeonScannerModule {
     private static final int BLOOD_ROOM_MIN_Y = 66;
     private static final int MAX_OUT_BOUNDS_TICKS = 40;
 
-    private static ChainUtil.InteractionChain interactionChain;
-    private static ChainUtil.QueuedInteractionChain queuedInteractionChain;
-
-    private static int interactionChainIndex = 0;
-
-    private static final ArrayList<Long> expectedTeleports = new ArrayList<>();
-    private static boolean pearlResponded = true;
-
-    private static int clipAttempts = 0;
-
     private static boolean attemptedScanning = false;
 
     private static long lastDungeonJoinMessage = 0;
     private static boolean joiningDungeon = false;
 
+    private static long lastWorldJoinTime = 0;
+
     private static final int DUNGEON_JOIN_TIMEOUT = 10000;
+    private static final int SCAN_START_TIMEOUT = 2000;
 
     private final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
-
-    public static Vec3d getDefaultTarget() {
-        if (!AreaUtil.isDungeonStarted()) return getBestScanningPos();
-
-        ChunkPos bloodRoom = getBloodSquare();
-        if (bloodRoom == null) {
-            ChatUtil.prefixMessage("Could not find blood room!");
-            return null;
-        }
-
-        return new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7);
-    }
-
-    private static Vec3d getBestScanningPos() {
-        Room currentRoom = AreaUtil.getCurrentRoom();
-        double middleX = -105;
-        double middleZ = -105;
-
-        if (currentRoom == null || !autoBlood) return new Vec3d(middleX, BLOOD_ROOM_MIN_Y, middleZ);
-        ChunkPos currentSquare = currentRoom.squares[0];
-
-        // since we are INSIDE the room, the chunk offset is 1 extra
-        int bottomChunk = -(DungeonScanner.DUNGEON_CHUNK_OFFSET+1);
-
-        // go an extra chunk forward if ur on a corner, because that whole row (SHOULD) have been fully scanned
-        if (currentSquare.x == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleX += 32;
-        else if (currentSquare.x == bottomChunk) middleX -= 32;
-
-        if (currentSquare.z == -DungeonScanner.MAX_DUNGEON_CHUNKS) middleZ += 32;
-        else if (currentSquare.z == bottomChunk) middleZ -= 32;
-
-        return new Vec3d(middleX, BLOOD_ROOM_MIN_Y, middleZ);
-    }
 
     private static boolean canBB() {
         return SkyblockItems.ETHERWARP.getItemStack() != -1 && SkyblockItems.PEARL.getItemStack() != -1;
@@ -118,7 +79,7 @@ public class BloodBlink extends DungeonScannerModule {
         return false;
     });
 
-    public static void enableBB(boolean blood, boolean clipUp) {
+    public static void enableBB(boolean blood, boolean scan) {
         // todo: force aote and pearls into hotbar
         if (!canBB()) {
             ChatUtil.prefixMessage("hey god, you need AOTE and Pearls in your hotbar to use bb, dont dm me to make it auto put them in hotbar, im working on it!");
@@ -126,60 +87,34 @@ public class BloodBlink extends DungeonScannerModule {
         }
 
         boolean hasEscapedBox = getCeilingY() == -1;
-        interactionChain = hasEscapedBox ? getTargetChain(C.p().getEntityPos(), getDefaultTarget(), clipUp) : getClipOutChain(C.p().getEntityPos());
-        interactionChainIndex = 0;
-        pearlResponded = true;
+        Vec3d clipOutPos = C.p().getEntityPos();
 
-        if (interactionChain == null || hasEscapedBox) return;
-
-        if (clipAttempts == 0 && !AreaUtil.isDungeonStarted()) {
-            ChainUtil.InteractionChain chain = getTargetChain(interactionChain.endPos(), getBestScanningPos(), false);
-            if (chain == null) return;
-
-            queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
-                    chain,
-                    e -> AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 5 && AreaUtil.getDungeonStartMs() > 2000 && !insideRoom(),
-                    e -> AreaUtil.isDungeonStarted()
-            );
-        }
-        else if (blood) {
-            ChunkPos bloodRoom = getBloodSquare();
-            if (bloodRoom == null) {
-                interactionChain = null;
-                ChatUtil.prefixMessage("Could not find blood room!");
-                return;
-            }
-
-            ChainUtil.InteractionChain chain = getTargetChain(interactionChain.endPos(), new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7), true);
-            if (chain == null) return;
-
-            queuedInteractionChain = new ChainUtil.QueuedInteractionChain(
-                    chain,
-                    e -> AreaUtil.isDungeonStarted() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= MAX_OUT_BOUNDS_TICKS/2 && !insideRoom(),
-                    e -> getBloodSquare() == null && insideRoom()
-            );
+        ChunkPos bloodRoom = blood ? getBloodSquare() : null;
+        if (blood && bloodRoom == null && !scan) {
+            ChatUtil.prefixMessage("Could not find blood room!");
+            return;
         }
 
-        clipAttempts++;
+        Vec3d targetPos = bloodRoom == null ? new Vec3d(-105, BLOOD_ROOM_MIN_Y, -105) : new Vec3d(bloodRoom.x * 16 + 7, BLOOD_ROOM_MIN_Y, bloodRoom.z * 16 + 7);
+
+        if (hasEscapedBox || (clipOutPos = queueClipOutChain(C.p().getEntityPos())) != null) {
+            getTargetChain(clipOutPos, targetPos, bloodRoom != null);
+        }
     }
 
-    private final Event onDungeonJoin = new DungeonJoinEvent(null, params -> {
-        clipAttempts = 0;
+    private final Event onWorldJoin = new WorldJoinEvent(null, params -> {
+        attemptedScanning = false;
+        lastWorldJoinTime = System.currentTimeMillis();
+
         return false;
     });
 
-    private final Event onWorldJoin = new WorldJoinEvent(null, params -> {
-        clipAttempts = 0;
-        attemptedScanning = false;
-        disable();
-        if (System.currentTimeMillis() - lastDungeonJoinMessage < DUNGEON_JOIN_TIMEOUT) {
-            joiningDungeon = autoScan && canBB() && ModuleUtil.isEnabled(DungeonScannerModule.class);
-        }
-        return false;
-    });
+    private static boolean shouldBlockInputs() {
+        return System.currentTimeMillis() - lastWorldJoinTime < SCAN_START_TIMEOUT && System.currentTimeMillis() - lastDungeonJoinMessage < DUNGEON_JOIN_TIMEOUT;
+    }
 
     private final Event overrideKeyInputs = new KeyboardInputEvent(null, params -> {
-        if (queuedInteractionChain != null || interactionChain != null || joiningDungeon) {
+        if (shouldBlockInputs()) {
             params.reset();
         }
 
@@ -187,14 +122,13 @@ public class BloodBlink extends DungeonScannerModule {
     }, 2000); // higher priority, to stop macros or wtv overthrowing it
 
     private final Event stopClicking = new ClickedEvent.Right(null, params -> {
-        return queuedInteractionChain != null || interactionChain != null || joiningDungeon;
+        return shouldBlockInputs();
     });
 
     private static boolean shouldAutoClipOut() {
         if (!autoScan) return false;
 
-        if (queuedInteractionChain != null
-                || interactionChain != null
+        if (!ChainUtil.INTERACTION_CHAINS.isEmpty()
                 || !ModuleUtil.isEnabled(DungeonScannerModule.class)
                 || !insideRoom()
                 || AreaUtil.isDungeonStarted()
@@ -209,75 +143,15 @@ public class BloodBlink extends DungeonScannerModule {
         return currentRoom != null && currentRoom.type == Room.Type.SPAWN;
     }
 
-    private final Event handleHeldItem = new RotationEvent(null, params -> {
-        if (System.currentTimeMillis() - lastDungeonJoinMessage > DUNGEON_JOIN_TIMEOUT) {
-            joiningDungeon = false;
-        }
-
-        // stop it ig bro
-        if ((!canBB() && (joiningDungeon || interactionChain != null || queuedInteractionChain != null)) || (interactionChain == null && queuedInteractionChain != null && queuedInteractionChain.deactivationPredicate().test(null))) {
-            disable();
-            return false;
-        }
-
-        // forget failed teleports
-        while (!expectedTeleports.isEmpty() && System.currentTimeMillis() - expectedTeleports.getFirst() > timeoutDelay) {
-            expectedTeleports.removeFirst();
-        }
-        if (expectedTeleports.isEmpty() && !pearlResponded) {
-            ChatUtil.prefixMessage("Failed to teleport, disabling.");
-            disable();
-            return false;
-        }
-
+    private final Event handleQueuing = new RotationEvent(null, params -> {
         if (shouldAutoClipOut()) {
             Optional<Room> spawnRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.SPAWN).findFirst();
             if (spawnRoom.isEmpty()) return false;
 
-            enableBB(autoBlood, false);
+            enableBB(autoBlood, autoScan);
             lastDungeonJoinMessage = 0;
             attemptedScanning = true;
         }
-
-        if (interactionChain == null) {
-            if (queuedInteractionChain != null && queuedInteractionChain.activationPredicate().test(null)) {
-                interactionChain = queuedInteractionChain.interactionChain();
-                queuedInteractionChain = null;
-            }
-            else return false;
-        }
-
-        Node.Type nodeItem = interactionChain.interactionChainNodes()[interactionChainIndex].itemType();
-        if (!nodeItem.getItem.test(null)) return false;
-
-        // i never do for loops like this, how cool
-        for (; interactionChainIndex < interactionChain.interactionChainNodes().length; interactionChainIndex++) {
-            ChainUtil.InteractionChainNode node = interactionChain.interactionChainNodes()[interactionChainIndex];
-            // take a tick gap between switching items / using pearls
-            if (node.itemType() != nodeItem || !pearlResponded) return false;
-            if (nodeItem == Node.Type.PEARL) pearlResponded = false;
-
-            pendingInteractions.add(node);
-            expectedTeleports.add(System.currentTimeMillis());
-
-            interactionChainIndex++;
-            // todo: change duh
-            if (interactionChainIndex >= interactionChain.interactionChainNodes().length) {
-                break;
-            }
-            return false;
-        }
-
-        finishInteract();
-
-        return false;
-    });
-
-    private final Event onReceiveTP = new PacketEvent.Received(null, params -> {
-        if (!(params.packet instanceof PlayerPositionLookS2CPacket movePacket) || expectedTeleports.isEmpty()) return false;
-
-        expectedTeleports.removeFirst();
-        pearlResponded |= expectedTeleports.isEmpty();
 
         return false;
     });
@@ -295,21 +169,38 @@ public class BloodBlink extends DungeonScannerModule {
     private static final int EDGE_TELEPORTS = 3;
     private static final int DOWN_TELEPORTS = 8;
 
-    private static ChainUtil.InteractionChain getClipOutChain(Vec3d tickPos) {
-        ArrayList<ChainUtil.InteractionChainNode> interactionChain = new ArrayList<>();
-
+    private static Vec3d queueClipOutChain(Vec3d tickPos) {
         int ceilingY = getCeilingY();
         if (ceilingY != -1) {
-            tickPos = new Vec3d(Math.floor(tickPos.x)+0.5, tickPos.y, Math.floor(tickPos.z)+0.5);
             // teleport out of spawn
-            while (interactionChain.size() < MAX_PACKETS) {
-                if (tickPos.y >= ceilingY-2) break;
+            ChainUtil.UpdatedInteractionChain teleportUp = new ChainUtil.UpdatedInteractionChain(
+                    new ArrayList<>(),
+                    getItem -> SkyblockItems.ETHERWARP.switchToItem(),
+                    shouldSend -> true,
+                    shouldCancel -> false,
+                    false,
+                    cancelBlink -> true,
+                    packet -> packet instanceof PlayerPositionLookS2CPacket
+            );
+
+            while (teleportUp.action().size() < MAX_PACKETS) {
+                if (tickPos.y >= ceilingY-4) break;
 
                 tickPos = EtherwarpUtil.getAotePos(-90, 0, tickPos, 12);
-                interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+                teleportUp.queueInteract(0, -90);
             }
 
             // pearl through ceiling
+            ChainUtil.UpdatedInteractionChain pearlOut = new ChainUtil.UpdatedInteractionChain(
+                    new ArrayList<>(),
+                    getItem -> SkyblockItems.PEARL.switchToItem(),
+                    shouldSend -> ChainUtil.EXPECTED_PACKETS.isEmpty(),
+                    shouldCancel -> false,
+                    false,
+                    cancelBlink -> true,
+                    packet -> packet instanceof PlayerPositionLookS2CPacket
+            );
+
             int pearlsRequired = getPearlsRequired();
             if (pearlsRequired == -1) {
                 ChatUtil.prefixMessage("Invalid position, there should be an even amount of blocks above you.");
@@ -317,22 +208,24 @@ public class BloodBlink extends DungeonScannerModule {
             }
             for (int i = 0; i < pearlsRequired; i++) {
                 tickPos = tickPos.offset(Direction.UP, 2);
-                interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
+                pearlOut.queueInteract(0, -90);
             }
-            return new ChainUtil.InteractionChain(interactionChain.toArray(ChainUtil.InteractionChainNode[]::new), tickPos);
+
+            ChainUtil.INTERACTION_CHAINS.add(teleportUp);
+            ChainUtil.INTERACTION_CHAINS.add(pearlOut);
+
+            return new Vec3d(tickPos.x, getCeilingY() + (getPearlsRequired()-1)*2, tickPos.z);
         }
 
         return null;
     }
 
-    private static ChainUtil.InteractionChain getTargetChain(Vec3d tickPos, Vec3d targetPos, boolean clipUp) {
+    private static boolean getTargetChain(Vec3d tickPos, Vec3d targetPos, boolean clipUp) {
         Optional<Room> spawnRoom = DungeonScanner.ROOMS.stream().filter(e -> e.type == Room.Type.SPAWN).findFirst();
         if (spawnRoom.isEmpty()) {
             ChatUtil.prefixMessage("Could not find spawn room??");
-            return null;
+            return false;
         }
-
-        ArrayList<ChainUtil.InteractionChainNode> interactionChain = new ArrayList<>();
 
         ChunkPos spawnSquare = spawnRoom.get().squares[0];
 
@@ -343,21 +236,32 @@ public class BloodBlink extends DungeonScannerModule {
         else if (spawnSquare.z == -12) edgeOfMapYaw = 180;
         else edgeOfMapYaw = 270;
 
+        Vec3d finalTickPos = tickPos;
+        ChainUtil.UpdatedInteractionChain teleportBelowBlood = new ChainUtil.UpdatedInteractionChain(
+                new ArrayList<>(),
+                getItem -> SkyblockItems.ETHERWARP.switchToItem(),
+                shouldSend -> !clipUp || AreaUtil.getDungeonStartMs() < 2000 || AreaUtil.isDungeonStarted(),
+                shouldCancel -> (!C.p().getEntityPos().equals(finalTickPos) && ChainUtil.packetsSent == 0 && ChainUtil.EXPECTED_PACKETS.isEmpty()) || (!clipUp && AreaUtil.isDungeonStarted()),
+                true,
+                cancelBlink -> ChainUtil.INTERACTION_CHAINS.getFirst().action().isEmpty() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 30 && (!clipUp || AreaUtil.isDungeonStarted()),
+                packet -> !clipUp || packet instanceof PlayerPositionLookS2CPacket
+        );
+
         // teleport to the edge of the map
         for (int i = 0; i < EDGE_TELEPORTS; i++) {
             tickPos = EtherwarpUtil.getAotePos(0, edgeOfMapYaw, tickPos, 12);
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(edgeOfMapYaw, 0), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+            teleportBelowBlood.queueInteract(edgeOfMapYaw, 0);
         }
         // teleport down to the bottom of the map
         for (int i = 0; i < DOWN_TELEPORTS; i++) {
             tickPos = EtherwarpUtil.getAotePos(90, 0, tickPos, 12);
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+            teleportBelowBlood.queueInteract(0, 90);
         }
 
         Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 0);
 
         // try and tp to below blood
-        while (interactionChain.size() < MAX_PACKETS) {
+        while (teleportBelowBlood.action().size() < MAX_PACKETS) {
             int maxDistance = 16;
             double xDistance = Math.abs(tickPos.x - targetPos.x);
             double zDistance = Math.abs(tickPos.z - targetPos.z);
@@ -365,33 +269,47 @@ public class BloodBlink extends DungeonScannerModule {
             if (xDistance+zDistance <= maxDistance) break;
 
             tickPos = EtherwarpUtil.getAotePos(rotationToTarget.pitch, rotationToTarget.yaw, tickPos, 12);
-            interactionChain.add(new ChainUtil.InteractionChainNode(rotationToTarget, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+            teleportBelowBlood.queueInteract(rotationToTarget.yaw, rotationToTarget.pitch);
         }
 
         Rotation bloodFloorRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos);
         int loops = 0;
         // aote up to blood floor
-        while (interactionChain.size() < MAX_PACKETS) {
+        while (teleportBelowBlood.action().size() < MAX_PACKETS) {
             if (tickPos.y >= targetPos.y-4 || loops >= 10) break;
 
             tickPos = EtherwarpUtil.getAotePos(bloodFloorRotation.pitch, bloodFloorRotation.yaw, tickPos, 12);
-            interactionChain.add(new ChainUtil.InteractionChainNode(bloodFloorRotation, BlockPos.ofFloored(tickPos), Node.Type.ETHERWARP));
+            teleportBelowBlood.queueInteract(bloodFloorRotation.yaw, bloodFloorRotation.pitch);
             loops++;
         }
 
-        if (clipUp) {
-            // 2 pearls up into blood
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, -90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
-            interactionChain.add(new ChainUtil.InteractionChainNode(new Rotation(0, 90), BlockPos.ofFloored(tickPos), Node.Type.PEARL));
-            tickPos = tickPos.offset(Direction.UP, 2);
-        }
-        if (interactionChain.size() >= MAX_PACKETS) {
+        if (teleportBelowBlood.action().size() >= MAX_PACKETS) {
             ChatUtil.prefixMessage("Too many packets required, aborting.");
-            return null;
+            return false;
         }
 
-        return new ChainUtil.InteractionChain(interactionChain.toArray(ChainUtil.InteractionChainNode[]::new), tickPos);
+        ChainUtil.INTERACTION_CHAINS.add(teleportBelowBlood);
+
+        if (clipUp) {
+            // 2 pearls up into blood
+            ChainUtil.UpdatedInteractionChain pearlIntoBlood = new ChainUtil.UpdatedInteractionChain(
+                    new ArrayList<>(),
+                    getItem -> SkyblockItems.PEARL.switchToItem(),
+                    shouldSend -> ChainUtil.EXPECTED_PACKETS.isEmpty(),
+                    shouldCancel -> false,
+                    false,
+                    cancelBlink -> true,
+                    packet -> packet instanceof PlayerPositionLookS2CPacket
+            );
+
+            pearlIntoBlood.queueInteract(0, -90);
+            pearlIntoBlood.queueInteract(0, -90);
+            pearlIntoBlood.queueInteract(0, 90);
+            pearlIntoBlood.queueInteract(0, 90);
+            ChainUtil.INTERACTION_CHAINS.add(pearlIntoBlood);
+        }
+
+        return true;
     }
 
     private static ChunkPos getBloodSquare() {
@@ -485,18 +403,5 @@ public class BloodBlink extends DungeonScannerModule {
                         RaycastContext.FluidHandling.NONE,
                         C.p()
                 )).getType() != HitResult.Type.MISS;
-    }
-
-    public static void disable() {
-        pearlResponded = true;
-        queuedInteractionChain = null;
-        expectedTeleports.clear();
-
-        finishInteract();
-    }
-
-    public static void finishInteract() {
-        interactionChain = null;
-        interactionChainIndex = 0;
     }
 }
