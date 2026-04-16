@@ -1,10 +1,12 @@
 package com.scale.scalehackv4.utils.skyblock.SecretsHelper;
 
+import com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper.AutoRoutes;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
+import com.scale.scalehackv4.utils.skyblock.ChainUtil;
 import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import lombok.AllArgsConstructor;
@@ -98,7 +100,14 @@ public class Node {
             });
             return true;
         }),
-        SECRET(e -> DUNGEON_BREAKER.getItem.test(null), (rotation, targetPos) -> true);
+        SECRET(e -> DUNGEON_BREAKER.getItem.test(null), (rotation, targetPos) -> {
+            for (int i = 0; i < targetPos.getX(); i++) {
+                ChainUtil.EXPECTED_PACKETS.add(new ChainUtil.ExpectedPacket(AutoRoutes::secretPacketsPredicate, System.currentTimeMillis(), AutoRoutes.secretTimeout));
+                ChainUtil.EXTERNAL_EXPECTED.add(new ChainUtil.ExpectedPacket(AutoRoutes::secretPacketsPredicate, System.currentTimeMillis(), AutoRoutes.secretTimeout));
+            }
+
+            return true;
+        });
 
         public final Predicate<?> getItem;
         public final BiPredicate<Rotation, BlockPos> attemptRoute;

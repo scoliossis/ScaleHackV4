@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.utils.skyblock;
 
+import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
@@ -7,43 +8,50 @@ import com.scale.scalehackv4.events.impl.player.*;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
-import com.scale.scalehackv4.utils.player.Rotation;
-import com.scale.scalehackv4.utils.skyblock.SecretsHelper.Node;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 
 @RegisterListeners
 public class ChainUtil {
     // i hope the comments are slightly more helpful than the variable names
     public record UpdatedInteractionChain(
-            ArrayList<Runnable> action, // takes the packet(s) to be sent
+            List<Runnable> action, // takes the packet(s) to be sent
             Predicate<?> getItem, // the item to switch to
             Predicate<?> shouldSend, // the case at which to send the packets
             Predicate<?> shouldCancel, // the case to cancel the list
             boolean shouldBlink, // self explanatory
             Predicate<?> cancelBlink, // if shouldBlink is true, then this determines when to cancel the blink
-            Predicate<Packet<?>> expectedPackets // whatever packet we are expecting to receive after executing
+            Predicate<Packet<?>> expectedPackets, // whatever packet we are expecting to receive after executing
+            long packetTimeout,
+            boolean shouldCrouch
     ) {
+        public UpdatedInteractionChain(List<Runnable> action, Predicate<?> getItem, Predicate<?> shouldSend, Predicate<?> shouldCancel, boolean shouldBlink, Predicate<?> cancelBlink, Predicate<Packet<?>> expectedPackets, boolean shouldCrouch) {
+            this(action, getItem, shouldSend, shouldCancel, shouldBlink, cancelBlink, expectedPackets, DEFAULT_PACKET_TIMEOUT, shouldCrouch);
+        }
+
         public void queueInteract(float yaw, float pitch) {
             this.action().add(() -> PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, yaw, pitch)));
         }
+        public void queueInteracts(int amount, float yaw, float pitch) {
+            this.action().add(() -> {
+                for (int i = 0; i < amount; i++) {
+                    PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, yaw, pitch));
+                }
+            });
+        }
     }
-
-
-    public record InteractionChainNode(Rotation rotation, BlockPos targetPos, Node.Type itemType) {}
-    public record InteractionChain(InteractionChainNode[] interactionChainNodes, Vec3d endPos) {}
 
     public static final ArrayList<UpdatedInteractionChain> INTERACTION_CHAINS = new ArrayList<>();
     public static final ArrayList<ExpectedPacket> EXPECTED_PACKETS = new ArrayList<>();
+    public static final ArrayList<ExpectedPacket> EXTERNAL_EXPECTED = new ArrayList<>();
     public record ExpectedPacket(Predicate<Packet<?>> expectedPacket, long timeSent, long timeout) {}
 
-    private static final int DEFAULT_PACKET_TIMEOUT = 1000;
+    public static final int DEFAULT_PACKET_TIMEOUT = 1000;
 
     private static Runnable currentAction = null;
     private static boolean currentlyBlinking = false;
@@ -52,14 +60,10 @@ public class ChainUtil {
 
     public static final Event onRotationEvent = new RotationEvent(null, params -> {
         // forget evil packets we didnt end up getting for whatever reason
-        for (int i = 0; i < EXPECTED_PACKETS.size(); i++) {
-            if (System.currentTimeMillis() - EXPECTED_PACKETS.get(i).timeSent > EXPECTED_PACKETS.get(i).timeout) {
-                EXPECTED_PACKETS.remove(i);
-                i--;
-            }
-        }
+        EXPECTED_PACKETS.removeIf(expectedPacket -> System.currentTimeMillis() - expectedPacket.timeSent > expectedPacket.timeout);
+        EXTERNAL_EXPECTED.removeIf(expectedPacket -> System.currentTimeMillis() - expectedPacket.timeSent > expectedPacket.timeout);
 
-        if (!handleNextChain()) onFinishChain();
+        if (!Bus.isEventCancelled(RotationEvent.class) && !handleNextChain()) onFinishChain();
 
         return false;
     }, 9999);
@@ -81,6 +85,7 @@ public class ChainUtil {
         for (ExpectedPacket expectedPacket : EXPECTED_PACKETS.toArray(new ExpectedPacket[0])) {
             if (expectedPacket.expectedPacket.test(packet)) {
                 EXPECTED_PACKETS.remove(expectedPacket);
+                EXTERNAL_EXPECTED.remove(expectedPacket);
                 return;
             }
         }
@@ -89,11 +94,17 @@ public class ChainUtil {
     private static UpdatedInteractionChain lastChain = null;
 
     private static boolean handleNextChain() {
-        if (INTERACTION_CHAINS.isEmpty()) return false;
+        if (INTERACTION_CHAINS.isEmpty()) {
+            lastChain = null;
+            return false;
+        }
 
         // get next chain to handle
         UpdatedInteractionChain chain = INTERACTION_CHAINS.getFirst();
         if (lastChain != chain) {
+            EXTERNAL_EXPECTED.clear();
+            EXTERNAL_EXPECTED.addAll(EXPECTED_PACKETS);
+
             packetsSent = 0;
             lastChain = chain;
         }
@@ -161,24 +172,30 @@ public class ChainUtil {
     }
 
     // stops moving while there is a pending interaction chain
-    public static final Event stopMoving = new KeyboardInputEvent(null, params -> {
-        if (INTERACTION_CHAINS.isEmpty()) return false;
+    private final Event stopMoving = new KeyboardInputEvent(null, params -> {
+        if (shouldBlockInputs()) params.reset();
+        if (shouldCrouch()) params.sneakKey = true;
 
-        params.reset();
-
-        return true;
+        return false;
     });
 
 
-    private final Event stopClicking = new ClickedEvent.Right(null, params -> {
-        return !INTERACTION_CHAINS.isEmpty();
-    });
+    private final Event stopRightClick = new ClickedEvent.Right(null, params -> shouldBlockInputs());
+    private final Event stopLeftClick = new ClickedEvent.Left(null, params -> shouldBlockInputs());
 
-    public static final Event performAction = new PlayerUpdateEvent(null, params -> {
+    private boolean shouldBlockInputs() {
+        return !INTERACTION_CHAINS.isEmpty() || !ChainUtil.EXPECTED_PACKETS.isEmpty();
+    }
+    private boolean shouldCrouch() {
+        return !INTERACTION_CHAINS.isEmpty() && INTERACTION_CHAINS.getFirst().shouldCrouch;
+    }
+
+    // todo: technically shouldnt be in SendMovementPacketEvent because ur supposed to interact before sending input packets
+    //  as per: net.minecraft.client.network.ClientPlayerEntity.tick
+    public static final Event performAction = new SendMovementPacketEvent(null, params -> {
         if (currentAction == null) return false;
 
         currentAction.run();
-        //ChatUtil.prefixMessage("ACTION PERFORMED!");
         currentAction = null;
         packetsSent++;
 
@@ -205,4 +222,9 @@ public class ChainUtil {
 
         return false;
     });
+
+    public static void forgetExpecting() {
+        EXPECTED_PACKETS.clear();
+        EXTERNAL_EXPECTED.clear();
+    }
 }

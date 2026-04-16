@@ -216,7 +216,7 @@ public class SecretAura extends SecretsHelper {
         }
 
         return false;
-    });
+    }, 900); // runs before autoroutes
 
     private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {
         if (secretAura && C.mc.currentScreen == null && currentTarget != null) {

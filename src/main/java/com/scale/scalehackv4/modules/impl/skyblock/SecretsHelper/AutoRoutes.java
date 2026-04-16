@@ -1,12 +1,11 @@
 package com.scale.scalehackv4.modules.impl.skyblock.SecretsHelper;
 
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
-import com.scale.scalehackv4.events.impl.player.*;
+import com.scale.scalehackv4.events.impl.player.ClickedEvent;
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
@@ -21,6 +20,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.passive.BatEntity;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
@@ -37,8 +37,8 @@ import net.minecraft.util.shape.VoxelShape;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
+import java.util.function.Predicate;
 
-// todo: doesnt do them in order correctly still im done
 public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Auto Routes", hasKeybind = true)
     public static boolean autoroutes = true;
@@ -50,8 +50,6 @@ public class AutoRoutes extends SecretsHelper {
 
     @RegisterSubModule(name = "Left Click Skip", parent = "Auto Routes")
     public static boolean leftClickSkip = true;
-    @RegisterSubModule(name = "Zero Tick Etherwarp", parent = "Auto Routes", hasKeybind = true)
-    public static boolean zeroTickEtherwarp = true;
     @RegisterSubModule(name = "Zero Tick Stonk", parent = "Auto Routes", hasKeybind = true)
     public static boolean zeroTickStonk = true;
 
@@ -64,160 +62,41 @@ public class AutoRoutes extends SecretsHelper {
     @RegisterSubModule(name = "Other Node Colour", parent = "Show Auto Routes")
     public static Color otherNodeColour = new Color(140, 0, 255, 92);
 
-    private static ChainUtil.InteractionChain interactionChain;
-    private static int interactionChainIndex = 0;
-    private static final ArrayList<Long> expectedPackets = new ArrayList<>();
-    // u can receive secrets before we expect them, so make sure we take care of that
-    private static final ArrayList<Long> interactedSecrets = new ArrayList<>();
-    private static final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
-    private static Node.Type lastNode = null;
-    private static Node.Type lastCheckedNode = null;
-
-    private static boolean finishedLastChain = true;
-    private static int prevPriority = 0;
-
-    public static void disable(boolean resetPriority) {
-        interactionChain = null;
-        interactionChainIndex = 0;
-        if (resetPriority) prevPriority = 0;
-    }
-
-    private final Event handleLeftClick = new ClickedEvent.Left(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (!leftClickSkip) return false;
-        if (!expectedPackets.isEmpty()) {
-            expectedPackets.clear();
-            return true;
-        }
-        return false;
-    });
-
     private final Event onRotateEvent = new RotationEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        // handle received secrets
-        while (lastNode == Node.Type.SECRET && !interactedSecrets.isEmpty()) {
-            interactedSecrets.removeFirst();
-            if (!expectedPackets.isEmpty()) expectedPackets.removeFirst();
-        }
-
-        // forget failed teleports
-        while (!expectedPackets.isEmpty() && System.currentTimeMillis() - expectedPackets.getFirst() > (lastNode == Node.Type.SECRET ? secretTimeout : timeout)) {
-            expectedPackets.removeFirst();
-        }
-        if (expectedPackets.isEmpty()) finishedLastChain = true;
+        if (!ChainUtil.INTERACTION_CHAINS.isEmpty() || !ChainUtil.EXPECTED_PACKETS.isEmpty()) return false;
 
         Room currentRoom = AreaUtil.getCurrentRoom();
-        if (currentRoom == null) {
-            disable(true);
-            return false;
-        }
-        if (!finishedLastChain) return false;
+        if (currentRoom == null) return false;
 
-        interactionChain = getInteractionChain(C.p().getEntityPos().subtract(0, 1, 0));
-        if (interactionChain == null) return false;
-
-        ChainUtil.InteractionChainNode interactionChainNode = interactionChain.interactionChainNodes()[interactionChainIndex];
-        Node.Type nodeItem = interactionChainNode.itemType();
-        if (!nodeItem.getItem.test(null)) {
-            ChatUtil.prefixMessage("NODE ITEM REQUIRED: " + nodeItem.name());
-            return false;
-        }
-
-        for (; interactionChainIndex < interactionChain.interactionChainNodes().length; interactionChainIndex++) {
-            ChainUtil.InteractionChainNode node = interactionChain.interactionChainNodes()[interactionChainIndex];
-            // take a tick gap between switching items
-            if (node.itemType() != nodeItem) return false;
-
-            pendingInteractions.add(node);
-            if (nodeItem == Node.Type.SECRET) {
-                for (int i = 0; i < node.targetPos().getX(); i++) {
-                    expectedPackets.add(System.currentTimeMillis());
-                }
-            }
-            else expectedPackets.add(System.currentTimeMillis());
-
-            finishedLastChain = false;
-
-            interactionChainIndex++;
-            if (interactionChainIndex >= interactionChain.interactionChainNodes().length) break;
-            if (nodeItem != Node.Type.DUNGEON_BREAKER || !zeroTickStonk)
-                return false;
-        }
-
-        disable(interactionChainIndex >= interactionChain.interactionChainNodes().length);
+        getInteractionChain(C.p().getEntityPos().subtract(0, 1, 0));
 
         return false;
     });
 
-    private final Event fixMovement = new KeyboardInputEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (expectedPackets.isEmpty()) return false;
-        params.backKey = params.rightKey = params.leftKey = params.forwardKey = params.jumpKey = false;
+    // todo: check that ur actually routing...
+    private final Event handleLeftClick = new ClickedEvent.Left(ModuleUtil.getModule(SecretsHelper.class), params -> {
+        if (!leftClickSkip || ChainUtil.EXPECTED_PACKETS.isEmpty()) return false;
 
-        params.sneakKey = !pendingInteractions.isEmpty() && pendingInteractions.getFirst().itemType() == Node.Type.ETHERWARP;
-
+        ChainUtil.forgetExpecting();
         return false;
     });
 
-    // execute as in run, but also as in KILLING THEM by removing them from the list
-    private final Event executeNodes = new PlayerUpdateEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-
-        while (!pendingInteractions.isEmpty()) {
-            Node.Type nodeType = pendingInteractions.getFirst().itemType();
-            if (nodeType == Node.Type.ETHERWARP && !C.p().isSneaking()) return false;
-
-            ChainUtil.InteractionChainNode node = pendingInteractions.removeFirst();
-            Room currentRoom = AreaUtil.getCurrentRoom();
-            if (currentRoom == null) return false;
-
-            Rotation rotation = NodeUtil.flipRotation(node.rotation(), Direction.NORTH, currentRoom.facing);
-            node.itemType().attemptRoute.test(rotation, node.targetPos());
-            lastNode = node.itemType();
+    public static boolean secretPacketsPredicate(Packet<?> packet) {
+        if (packet instanceof ItemPickupAnimationS2CPacket) {
+            return true;
+        }
+        if (packet instanceof EntityStatusS2CPacket entityDamageS2CPacket && entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
+            return true;
         }
 
-        return false;
-    });
-
-    private final Event handleReceive = new PacketEvent.Received(null, params -> {
-        if (!autoroutes) return false;
-        if (params.packet instanceof ItemPickupAnimationS2CPacket) {
-            interactedSecrets.add(System.currentTimeMillis());
-        }
-        if (params.packet instanceof EntityStatusS2CPacket entityDamageS2CPacket && entityDamageS2CPacket.getStatus() == 3 && entityDamageS2CPacket.getEntity(C.w()) instanceof BatEntity) {
-            interactedSecrets.add(System.currentTimeMillis());
-        }
-
-        if (expectedPackets.isEmpty() || lastNode == null) return false;
-
-        switch (lastNode) {
-            case ETHERWARP, PEARL, AOTE -> {
-                if (params.packet instanceof PlayerPositionLookS2CPacket) {
-                    expectedPackets.removeFirst();
-                }
-            }
-            case DUNGEON_BREAKER, SUPERBOOM -> {
-                if (params.packet instanceof BlockUpdateS2CPacket blockUpdateS2CPacket) {
-                    // todo: better check than distance <3
-                    if (Math.sqrt(blockUpdateS2CPacket.getPos().getSquaredDistance(C.p().getEntityPos())) < 4.5) {
-                        expectedPackets.removeFirst();
-                    }
-                }
-            }
-        }
-
-        return false;
-    });
-
-    private final Event awaitSecretInteraction = new PacketEvent.Sent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (!autoroutes) return false;
-
-        if (params.packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
+        if (packet instanceof PlayerInteractBlockC2SPacket blockInteractPacket) {
             Block blockInteracted = C.w().getBlockState(blockInteractPacket.getBlockHitResult().getBlockPos()).getBlock();
 
-            if (blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST) {
-                interactedSecrets.add(System.currentTimeMillis());
-            }
+            return blockInteracted == Blocks.PLAYER_HEAD || blockInteracted == Blocks.PLAYER_WALL_HEAD || blockInteracted == Blocks.LEVER || blockInteracted == Blocks.CHEST || blockInteracted == Blocks.TRAPPED_CHEST;
         }
 
         return false;
-    });
+    }
 
     private final Event renderWorldEvent = new RenderWorldEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
         renderAutoroutes();
@@ -225,48 +104,92 @@ public class AutoRoutes extends SecretsHelper {
         return false;
     });
 
-    private final Event onToggleRoutes = new SubModuleToggledEvent(ModuleUtil.getModule(SecretsHelper.class), params -> {
-        if (!params.field.getName().equals("autoroutes")) return false;
+    private static int priority = 0;
 
-        if (!(boolean) params.value) disable(true);
-        return false;
-    });
-
-    private ChainUtil.InteractionChain getInteractionChain(Vec3d playerPos) {
-        if (!autoroutes) return null;
-        if (interactionChain != null) return interactionChain;
+    private void getInteractionChain(Vec3d playerPos) {
+        if (!autoroutes) return;
 
         Room currentRoom = AreaUtil.getCurrentRoom();
-        if (currentRoom == null) return null;
+        if (currentRoom == null) return;
 
-        ArrayList<ChainUtil.InteractionChainNode> nodes = new ArrayList<>();
-        ArrayList<Node> passedNodes = new ArrayList<>();
+        ArrayList<ArrayList<Node>> groupedNodes = getChainedNodes(currentRoom, playerPos);
+        if (groupedNodes.isEmpty()) return;
 
+        for (ArrayList<Node> nodeGroup : groupedNodes) {
+            Node.Type nodeGroupType = nodeGroup.getFirst().type;
+            BlockPos startNodePos = NodeUtil.getNodePos(nodeGroup.getFirst().startPos, currentRoom);
+            ChainUtil.UpdatedInteractionChain interactionChain = getInteractionChain(nodeGroupType, startNodePos);
+
+            // zero tick stonk still god bypasses
+            if (zeroTickStonk && nodeGroupType == Node.Type.DUNGEON_BREAKER) {
+                interactionChain.action().add(() -> {
+                    for (Node node : nodeGroup) {
+                        Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, currentRoom.facing);
+                        node.type.attemptRoute.test(rotation, node.targetPos);
+                    }
+                });
+            }
+            else {
+                for (Node node : nodeGroup) {
+                    Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, currentRoom.facing);
+                    interactionChain.action().add(() -> node.type.attemptRoute.test(rotation, node.targetPos));
+                }
+            }
+
+            ChainUtil.INTERACTION_CHAINS.add(interactionChain);
+        }
+    }
+
+    private ChainUtil.UpdatedInteractionChain getInteractionChain(Node.Type nodeType, BlockPos startNodePos) {
+        Predicate<?> getItem = nodeType.getItem;
+        Predicate<?> shouldSend = nodeType == Node.Type.SECRET ? e -> true : e -> ChainUtil.EXTERNAL_EXPECTED.isEmpty();
+        Predicate<?> shouldCancel = e -> ChainUtil.EXPECTED_PACKETS.isEmpty() && startNodePos.toBottomCenterPos().add(0,1,0).distanceTo(C.p().getEntityPos()) > 1.5;
+        boolean shouldBlink = false;
+        Predicate<?> cancelBlink = e -> false;
+        boolean shouldCrouch = nodeType == Node.Type.ETHERWARP;
+
+        Predicate<Packet<?>> expectedPacket = switch (nodeType) {
+            case ETHERWARP, AOTE, PEARL, HYPERION -> e -> e instanceof PlayerPositionLookS2CPacket;
+            case DUNGEON_BREAKER, SUPERBOOM -> e ->
+                    e instanceof BlockUpdateS2CPacket blockUpdateS2CPacket
+                    // todo: better check than distance <3
+                    && Math.sqrt(blockUpdateS2CPacket.getPos().getSquaredDistance(C.p().getEntityPos())) < C.p().getBlockInteractionRange();
+            default -> e -> true;
+        };
+
+        return new ChainUtil.UpdatedInteractionChain(new ArrayList<>(), getItem, shouldSend, shouldCancel, shouldBlink, cancelBlink, expectedPacket, timeout, shouldCrouch);
+    }
+
+    // code from before porting to chainutil, ig its fine...
+    private ArrayList<ArrayList<Node>> getChainedNodes(Room currentRoom, Vec3d playerPos) {
+        HashSet<Node> passedNodes = new HashSet<>();
+        ArrayList<ArrayList<Node>> nodes = new ArrayList<>();
+
+        priority = 0;
         Node currentNode = getNodeAt(currentRoom, playerPos);
-        Node.Type nodeType = currentNode != null ? currentNode.type : null;
+        Node.Type lastNodeType = null;
         while (currentNode != null) {
-            lastCheckedNode = currentNode.type;
+            priority++;
+
             // stops infinite looping routes crashing
             if (passedNodes.contains(currentNode)) break;
 
             passedNodes.add(currentNode);
 
-            nodes.add(new ChainUtil.InteractionChainNode(currentNode.rotation, currentNode.targetPos, currentNode.type));
+            if (currentNode.type != lastNodeType) nodes.add(new ArrayList<>());
+            nodes.getLast().add(currentNode);
+
+            lastNodeType = currentNode.type;
+
             if (currentNode.type == Node.Type.ETHERWARP || currentNode.type == Node.Type.PEARL || currentNode.type == Node.Type.AOTE) {
                 playerPos = NodeUtil.getNodePos(currentNode.targetPos, currentRoom).toBottomCenterPos();
-                prevPriority = 0;
+                priority = 0;
             }
-            else prevPriority++;
+
             currentNode = getNodeAt(currentRoom, playerPos);
-            if (currentNode != null && currentNode.type != nodeType) break;
         }
 
-        interactionChainIndex = 0;
-        if (nodes.isEmpty()) {
-            prevPriority = 0;
-            return null;
-        }
-        return new ChainUtil.InteractionChain(nodes.toArray(ChainUtil.InteractionChainNode[]::new), null);
+        return nodes;
     }
 
     private Node getNodeAt(Room currentRoom, Vec3d playerPos) {
@@ -282,17 +205,15 @@ public class AutoRoutes extends SecretsHelper {
         nodes.sort(Comparator.comparingInt(e -> -e.type.ordinal()));
 
         if (nodes.isEmpty()) return null;
-        if (prevPriority >= nodes.size()) prevPriority = 0;
+        if (priority >= nodes.size()) priority = 0;
 
-        return nodes.get(prevPriority);
+        return nodes.get(priority);
     }
 
     // todo: fuh ts prob
     private boolean isValid(Node node, Vec3d playerPos) {
         Room room = AreaUtil.getCurrentRoom();
         if (room == null) return false;
-
-        if (node.type == Node.Type.SECRET && lastCheckedNode == Node.Type.SECRET) return false;
 
         BlockPos nodePos = NodeUtil.getNodePos(node.targetPos, room);
         Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, room.facing);
@@ -319,7 +240,7 @@ public class AutoRoutes extends SecretsHelper {
 
                 return blockHitResult != null && blockHitResult.getType() != HitResult.Type.MISS && blockHitResult.getBlockPos().equals(nodePos);
             }
-            // todo: check ender pearl is valid
+            // todo: check ender pearl / aote is valid
         }
 
         return true;
@@ -342,7 +263,6 @@ public class AutoRoutes extends SecretsHelper {
         }
 
         if (CONNECTED_ETHERWARP_NODES.isEmpty()) {
-            // only just found this guy, ive been using hashmaps for ages ig
             HashMap<BlockPos, Node> positions = new HashMap<>();
 
             List<Node> etherwarpNodes = currentRoom.nodes.stream().filter(node -> node.type == Node.Type.ETHERWARP).toList();

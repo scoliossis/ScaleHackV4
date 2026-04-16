@@ -82,7 +82,7 @@ public class BatAura extends SecretsHelper {
         lastBatTime = System.currentTimeMillis();
         batRotationPos = closestBlock.get();
 
-        return false;
+        return true;
     });
 
     private final Event onAllowRightClick = new CheckClickEvent.Right(ModuleUtil.getModule(SecretsHelper.class), params -> {

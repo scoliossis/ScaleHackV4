@@ -5,13 +5,11 @@ import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.ClickedEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
-import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.skyblock.AreaUtil;
@@ -21,10 +19,8 @@ import com.scale.scalehackv4.utils.skyblock.DungeonMap.Room;
 import com.scale.scalehackv4.utils.skyblock.SecretsHelper.EtherwarpUtil;
 import com.scale.scalehackv4.utils.skyblock.SkyblockItems;
 import net.minecraft.block.Blocks;
-import net.minecraft.network.packet.c2s.play.PlayerInteractItemC2SPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.Formatting;
-import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -38,18 +34,15 @@ import java.util.Arrays;
 import java.util.Optional;
 
 // todo: fix chat hiding mods conflicting
-//  bring back legit mode
-//  pearls drop now...?
-//  check pearl pos
-//  i dont think its working
 public class BloodBlink extends DungeonScannerModule {
     @RegisterSubModule(name = "Auto Scan")
     public static boolean autoScan = true;
     @RegisterSubModule(name = "Auto Blood", parent = "Auto Scan")
     public static boolean autoBlood = true;
 
-    @RegisterSubModule(name = "Timeout Delay", min = 500, max = 10000, increment = 100, parent = "Auto Scan")
-    public static int timeoutDelay = 1500;
+    // todo: ig this could be configable
+    //@RegisterSubModule(name = "Timeout Delay", min = 500, max = 10000, increment = 100, parent = "Auto Scan")
+    //public static int timeoutDelay = 1500;
 
     private static final int BLOOD_ROOM_MIN_Y = 66;
     private static final int MAX_OUT_BOUNDS_TICKS = 40;
@@ -57,14 +50,10 @@ public class BloodBlink extends DungeonScannerModule {
     private static boolean attemptedScanning = false;
 
     private static long lastDungeonJoinMessage = 0;
-    private static boolean joiningDungeon = false;
-
     private static long lastWorldJoinTime = 0;
 
     private static final int DUNGEON_JOIN_TIMEOUT = 10000;
     private static final int SCAN_START_TIMEOUT = 2000;
-
-    private final ArrayList<ChainUtil.InteractionChainNode> pendingInteractions = new ArrayList<>();
 
     private static boolean canBB() {
         return SkyblockItems.ETHERWARP.getItemStack() != -1 && SkyblockItems.PEARL.getItemStack() != -1;
@@ -110,7 +99,7 @@ public class BloodBlink extends DungeonScannerModule {
     });
 
     private static boolean shouldBlockInputs() {
-        return System.currentTimeMillis() - lastWorldJoinTime < SCAN_START_TIMEOUT && System.currentTimeMillis() - lastDungeonJoinMessage < DUNGEON_JOIN_TIMEOUT;
+        return canBB() && autoScan && System.currentTimeMillis() - lastWorldJoinTime < SCAN_START_TIMEOUT && System.currentTimeMillis() - lastDungeonJoinMessage < DUNGEON_JOIN_TIMEOUT;
     }
 
     private final Event overrideKeyInputs = new KeyboardInputEvent(null, params -> {
@@ -156,15 +145,6 @@ public class BloodBlink extends DungeonScannerModule {
         return false;
     });
 
-    private final Event executeTeleports = new PlayerUpdateEvent(null, params -> {
-        while (!pendingInteractions.isEmpty()) {
-            Rotation nodeItem = pendingInteractions.removeFirst().rotation();
-            PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, nodeItem.yaw, nodeItem.pitch));
-        }
-
-        return false;
-    });
-
     private static final int MAX_PACKETS = 60;
     private static final int EDGE_TELEPORTS = 3;
     private static final int DOWN_TELEPORTS = 8;
@@ -180,7 +160,8 @@ public class BloodBlink extends DungeonScannerModule {
                     shouldCancel -> false,
                     false,
                     cancelBlink -> true,
-                    packet -> packet instanceof PlayerPositionLookS2CPacket
+                    packet -> packet instanceof PlayerPositionLookS2CPacket,
+                    false
             );
 
             while (teleportUp.action().size() < MAX_PACKETS) {
@@ -198,7 +179,8 @@ public class BloodBlink extends DungeonScannerModule {
                     shouldCancel -> false,
                     false,
                     cancelBlink -> true,
-                    packet -> packet instanceof PlayerPositionLookS2CPacket
+                    packet -> packet instanceof PlayerPositionLookS2CPacket,
+                    false
             );
 
             int pearlsRequired = getPearlsRequired();
@@ -241,26 +223,27 @@ public class BloodBlink extends DungeonScannerModule {
                 new ArrayList<>(),
                 getItem -> SkyblockItems.ETHERWARP.switchToItem(),
                 shouldSend -> !clipUp || AreaUtil.getDungeonStartMs() < 2000 || AreaUtil.isDungeonStarted(),
-                shouldCancel -> (!C.p().getEntityPos().equals(finalTickPos) && ChainUtil.packetsSent == 0 && ChainUtil.EXPECTED_PACKETS.isEmpty()) || (!clipUp && AreaUtil.isDungeonStarted()),
+                shouldCancel -> (C.p().getEntityPos().distanceTo(finalTickPos) < 0.5f && ChainUtil.packetsSent == 0 && ChainUtil.EXPECTED_PACKETS.isEmpty()) || (!clipUp && AreaUtil.isDungeonStarted()),
                 true,
-                cancelBlink -> ChainUtil.INTERACTION_CHAINS.getFirst().action().isEmpty() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 30 && (!clipUp || AreaUtil.isDungeonStarted()),
-                packet -> !clipUp || packet instanceof PlayerPositionLookS2CPacket
+                cancelBlink -> ChainUtil.INTERACTION_CHAINS.getFirst().action().isEmpty() && AreaUtil.getServerTick() % MAX_OUT_BOUNDS_TICKS <= 20 && (!clipUp || AreaUtil.isDungeonStarted()),
+                packet -> !clipUp || packet instanceof PlayerPositionLookS2CPacket,
+                false
         );
 
+        // fun fact: hypixel still allows multiple tp's a tick if they have the same yaw and pitch
+
         // teleport to the edge of the map
-        for (int i = 0; i < EDGE_TELEPORTS; i++) {
-            tickPos = EtherwarpUtil.getAotePos(0, edgeOfMapYaw, tickPos, 12);
-            teleportBelowBlood.queueInteract(edgeOfMapYaw, 0);
-        }
+        teleportBelowBlood.queueInteracts(EDGE_TELEPORTS, edgeOfMapYaw, 0);
+        for (int i = 0; i < EDGE_TELEPORTS; i++) tickPos = EtherwarpUtil.getAotePos(0, edgeOfMapYaw, tickPos, 12);
+
         // teleport down to the bottom of the map
-        for (int i = 0; i < DOWN_TELEPORTS; i++) {
-            tickPos = EtherwarpUtil.getAotePos(90, 0, tickPos, 12);
-            teleportBelowBlood.queueInteract(0, 90);
-        }
+        teleportBelowBlood.queueInteracts(DOWN_TELEPORTS, 0, 90);
+        for (int i = 0; i < DOWN_TELEPORTS; i++) tickPos = EtherwarpUtil.getAotePos(90, 0, tickPos, 12);
 
         Rotation rotationToTarget = new Rotation(RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos).yaw, 0);
 
         // try and tp to below blood
+        int packetsToBelowBlood = 0;
         while (teleportBelowBlood.action().size() < MAX_PACKETS) {
             int maxDistance = 16;
             double xDistance = Math.abs(tickPos.x - targetPos.x);
@@ -269,19 +252,20 @@ public class BloodBlink extends DungeonScannerModule {
             if (xDistance+zDistance <= maxDistance) break;
 
             tickPos = EtherwarpUtil.getAotePos(rotationToTarget.pitch, rotationToTarget.yaw, tickPos, 12);
-            teleportBelowBlood.queueInteract(rotationToTarget.yaw, rotationToTarget.pitch);
+            packetsToBelowBlood++;
         }
+        teleportBelowBlood.queueInteracts(packetsToBelowBlood, rotationToTarget.yaw, rotationToTarget.pitch);
 
         Rotation bloodFloorRotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), tickPos, targetPos);
-        int loops = 0;
+        int packetsUpToBloodFloor = 0;
         // aote up to blood floor
         while (teleportBelowBlood.action().size() < MAX_PACKETS) {
-            if (tickPos.y >= targetPos.y-4 || loops >= 10) break;
+            if (tickPos.y >= targetPos.y-4 || packetsUpToBloodFloor >= 10) break;
 
             tickPos = EtherwarpUtil.getAotePos(bloodFloorRotation.pitch, bloodFloorRotation.yaw, tickPos, 12);
-            teleportBelowBlood.queueInteract(bloodFloorRotation.yaw, bloodFloorRotation.pitch);
-            loops++;
+            packetsUpToBloodFloor++;
         }
+        teleportBelowBlood.queueInteracts(packetsUpToBloodFloor, bloodFloorRotation.yaw, bloodFloorRotation.pitch);
 
         if (teleportBelowBlood.action().size() >= MAX_PACKETS) {
             ChatUtil.prefixMessage("Too many packets required, aborting.");
@@ -299,11 +283,14 @@ public class BloodBlink extends DungeonScannerModule {
                     shouldCancel -> false,
                     false,
                     cancelBlink -> true,
-                    packet -> packet instanceof PlayerPositionLookS2CPacket
+                    packet -> packet instanceof PlayerPositionLookS2CPacket,
+                    false
             );
 
+            // 2 pearls up, into blood!
             pearlIntoBlood.queueInteract(0, -90);
             pearlIntoBlood.queueInteract(0, -90);
+            // 2 pearls DOWN, to make sure we above the cobblestone
             pearlIntoBlood.queueInteract(0, 90);
             pearlIntoBlood.queueInteract(0, 90);
             ChainUtil.INTERACTION_CHAINS.add(pearlIntoBlood);
