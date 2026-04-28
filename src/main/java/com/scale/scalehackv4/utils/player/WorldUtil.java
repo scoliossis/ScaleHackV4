@@ -5,8 +5,11 @@ import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.block.Blocks;
+import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.hit.BlockHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
@@ -18,7 +21,7 @@ public class WorldUtil {
     private final Event countTicks = new RotationEvent(null, params -> {
         ticks++;
         return false;
-    });
+    }, 0);
 
     public static boolean isChunkUnloaded(ChunkPos chunkPos) {
         return C.w().getBlockState(new BlockPos(chunkPos.x * 16, 0, chunkPos.z * 16)).getBlock() == Blocks.VOID_AIR;
@@ -41,5 +44,42 @@ public class WorldUtil {
         double f2 = -Math.cos(-pitch * 0.017453292);
         double f3 = Math.sin(-pitch * 0.017453292);
         return new Vec3d(f1 * f2, f3, f * f2).normalize();
+    }
+
+    // https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/WorldUtil.java#L208
+    public static Vec3d getClosestPoint(Box collisionBox) {
+        Vec3d eyePos = C.p().getEyePos();
+
+        double posX = eyePos.x;
+        double posY = eyePos.y;
+        double posZ = eyePos.z;
+
+        if (eyePos.x < collisionBox.minX) posX = collisionBox.minX;
+        else if (eyePos.x > collisionBox.maxX) posX = collisionBox.maxX;
+
+        if (eyePos.y < collisionBox.minY) posY = collisionBox.minY;
+        else if (eyePos.y > collisionBox.maxY) posY = collisionBox.maxY;
+
+        if (eyePos.z < collisionBox.minZ) posZ = collisionBox.minZ;
+        else if (eyePos.z > collisionBox.maxZ) posZ = collisionBox.maxZ;
+
+        return new Vec3d(posX, posY, posZ);
+    }
+
+    public static HitResult getMouseOver(Rotation rotation) {
+        ClientPlayerEntity playerCopy = (ClientPlayerEntity) C.p().getEntity();
+        if (playerCopy == null) return null;
+
+        playerCopy.setYaw(rotation.yaw);
+        playerCopy.setPitch(rotation.pitch);
+
+        return playerCopy.getCrosshairTarget(1, playerCopy);
+    }
+
+    public static BlockPos getClosestVoid(BlockPos startPos, int radius) {
+        return BlockPos.findClosest(startPos, radius, 1, (pos) -> {
+            BlockPos headPos = pos.up(2);
+            return raytrace(headPos.toBottomCenterPos(), headPos.getY(), new Rotation(0, 90)).getType() == HitResult.Type.MISS;
+        }).orElse(null);
     }
 }

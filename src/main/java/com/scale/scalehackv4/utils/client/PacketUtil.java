@@ -11,16 +11,22 @@ import net.minecraft.client.network.SequencedPacketCreator;
 import net.minecraft.network.listener.ServerPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 
+import java.util.HashSet;
+
 public class PacketUtil {
+    public static HashSet<Packet<?>> clientSentPackets = new HashSet<>();
+
     public static void sendPacket(Packet<?> packet) {
         if (C.mc.getNetworkHandler() == null) return;
 
+        clientSentPackets.add(packet);
         C.mc.getNetworkHandler().sendPacket(packet);
     }
 
     public static void receivePacket(Packet<?> packet) {
         if (C.mc.getNetworkHandler() == null) return;
 
+        clientSentPackets.add(packet);
         PacketReceiveBridge.from(C.mc.getNetworkHandler().getConnection()).bridge$receivePacket(packet);
     }
 

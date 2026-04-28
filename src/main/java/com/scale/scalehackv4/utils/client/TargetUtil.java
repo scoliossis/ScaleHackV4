@@ -7,6 +7,9 @@ import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.player.Rotation;
+import com.scale.scalehackv4.utils.player.RotationUtil;
+import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.client.gui.screen.multiplayer.SocialInteractionsPlayerListEntry;
 import net.minecraft.client.gui.screen.multiplayer.SocialInteractionsPlayerListWidget;
 import net.minecraft.client.gui.screen.multiplayer.SocialInteractionsScreen;
@@ -14,7 +17,11 @@ import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
@@ -64,5 +71,48 @@ public class TargetUtil {
         boolean isValidEntry = !Targets.playerEntry || (validTicks != null && validTicks > 60);
         boolean isValidPing = !Targets.pingCheck || (ping > Targets.botPingMode.ping);
         return (isValidEntry && isValidPing) || target == C.p();
+    }
+
+    public static Vec3d getClosestPointToEntity(Entity target) {
+        return WorldUtil.getClosestPoint(target.getBoundingBox());
+    }
+
+    // from scalehackv3 https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/TargetUtil.java#L88
+    public static Vec3d getTargetRotationPoint(Entity entity) {
+        Box targetBoundingBox = entity.getBoundingBox();
+        Vec3d closestPoint = TargetUtil.getClosestPointToEntity(entity).subtract(0, 0, 0);
+
+        Rotation bestRotation = RotationUtil.getRotation(closestPoint);
+        // check that looking at the closest point doesnt have a wall between us and the entity
+        if (WorldUtil.getMouseOver(bestRotation) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) return closestPoint;
+
+
+        // awesome. there was no comments in this entire function
+        ArrayList<Vec3d> possibleRotations = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+
+            // add all possible corners, added using the order recommended for binary truth tables
+            possibleRotations.add(new Vec3d(
+                    i % 2 == 0 ? targetBoundingBox.minX : targetBoundingBox.maxX,
+                    i % 4 >= 2 ? targetBoundingBox.minY : targetBoundingBox.maxY,
+                    i % 8 >= 4 ? targetBoundingBox.minZ : targetBoundingBox.maxZ
+            ));
+        }
+
+        // add the top middle and bottom of the player centre aswell, probably doesnt help
+        possibleRotations.add(new Vec3d(entity.getX(), (targetBoundingBox.maxY + targetBoundingBox.minY) / 2, entity.getZ()));
+        possibleRotations.add(new Vec3d(entity.getX(), targetBoundingBox.minY, entity.getZ()));
+        possibleRotations.add(new Vec3d(entity.getX(), targetBoundingBox.maxY, entity.getZ()));
+        possibleRotations.add(closestPoint);
+
+        // check all possible rotations until we find
+        for (Vec3d possibleRotationVector : possibleRotations) {
+            Rotation possibleRotation = RotationUtil.getRotation(possibleRotationVector);
+            if (WorldUtil.getMouseOver(possibleRotation) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) {
+                return possibleRotationVector;
+            }
+        }
+
+        return null;
     }
 }

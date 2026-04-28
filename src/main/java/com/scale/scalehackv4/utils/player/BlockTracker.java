@@ -54,7 +54,7 @@ public class BlockTracker {
         C.ASYNC.execute(() -> {
             try {
                 currentlyUpdating = true;
-                ArrayList<Update> updates = (ArrayList<Update>) incomingUpdates.clone();
+                Update[] updates = incomingUpdates.toArray(Update[]::new);
 
                 for (Update update : updates) {
                     if (update != null) {

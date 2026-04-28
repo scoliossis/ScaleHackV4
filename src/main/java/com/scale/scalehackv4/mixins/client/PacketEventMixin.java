@@ -2,6 +2,7 @@ package com.scale.scalehackv4.mixins.client;
 
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
+import com.scale.scalehackv4.utils.client.PacketUtil;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import net.minecraft.network.ClientConnection;
@@ -19,6 +20,7 @@ public class PacketEventMixin {
         if (Bus.post(PacketEvent.Sent.class, new PacketEvent.Params(packet))) {
             ci.cancel();
         }
+        PacketUtil.clientSentPackets.remove(packet);
     }
 
     @Inject(
@@ -30,5 +32,6 @@ public class PacketEventMixin {
         if (Bus.post(PacketEvent.Received.class, new PacketEvent.Params(packet))) {
             ci.cancel();
         }
+        PacketUtil.clientSentPackets.remove(packet);
     }
 }

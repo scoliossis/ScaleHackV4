@@ -50,10 +50,12 @@
     "client.PacketEventMixin",
     "client.TabCompleteMixin",
     "client.FixRotation.MovementFixMixin",
+    "movement.NoJumpDelayMixin",
     "player.PacketReceiveBridgeMixin",
     "player.PacketUtilMixin",
     "player.PlayerUpdateEventMixin",
     "player.BlockScanner.ChunkLoadMixin",
+    "render.EspMixin",
     "render.RenderWorldEventMixin",
     "skyblock.DungeonMapMixin"
   ]

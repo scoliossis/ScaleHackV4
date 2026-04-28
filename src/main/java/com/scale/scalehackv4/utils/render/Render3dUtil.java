@@ -125,11 +125,19 @@ public class Render3dUtil extends RenderUtil {
     );
 
     public static void drawSquare(float x, float y, float z, float width, float height, float depth, Color colour) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS));
+        drawSquare(x, y, z, width, height, depth, colour, true, false);
+    }
+
+    public static void drawSquare(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull, boolean outline) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
+                cull
+                        ? outline ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES) : getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
+                        : outline ? DEBUG_LINES_NO_CULL : QUADS_NO_CULL
+        );
 
         MatrixStack.Entry entry = getEntry();
 
-        addSquare(x, y, z, width, height, depth, colour, vertexConsumer, entry, false);
+        addSquare(x, y, z, width, height, depth, colour, vertexConsumer, entry, outline);
 
         vertexConsumers.drawCurrentLayer();
     }

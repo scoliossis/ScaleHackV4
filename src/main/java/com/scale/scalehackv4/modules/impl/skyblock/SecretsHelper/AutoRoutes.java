@@ -129,11 +129,9 @@ public class AutoRoutes extends SecretsHelper {
                     }
                 });
             }
-            else {
-                for (Node node : nodeGroup) {
-                    Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, currentRoom.facing);
-                    interactionChain.action().add(() -> node.type.attemptRoute.test(rotation, node.targetPos));
-                }
+            else for (Node node : nodeGroup) {
+                Rotation rotation = NodeUtil.flipRotation(node.rotation, Direction.NORTH, currentRoom.facing);
+                interactionChain.action().add(() -> node.type.attemptRoute.test(rotation, node.targetPos));
             }
 
             ChainUtil.INTERACTION_CHAINS.add(interactionChain);
@@ -141,9 +139,10 @@ public class AutoRoutes extends SecretsHelper {
     }
 
     private ChainUtil.UpdatedInteractionChain getInteractionChain(Node.Type nodeType, BlockPos startNodePos) {
+        double distanceToNode = startNodePos.toBottomCenterPos().add(0,1,0).distanceTo(C.p().getEntityPos());
         Predicate<?> getItem = nodeType.getItem;
-        Predicate<?> shouldSend = nodeType == Node.Type.SECRET ? e -> true : e -> ChainUtil.EXTERNAL_EXPECTED.isEmpty();
-        Predicate<?> shouldCancel = e -> ChainUtil.EXPECTED_PACKETS.isEmpty() && startNodePos.toBottomCenterPos().add(0,1,0).distanceTo(C.p().getEntityPos()) > 1.5;
+        Predicate<?> shouldSend = nodeType == Node.Type.SECRET ? e -> true : e -> ChainUtil.EXTERNAL_EXPECTED.isEmpty() && distanceToNode <= 1.5;
+        Predicate<?> shouldCancel = e -> ChainUtil.EXPECTED_PACKETS.isEmpty() && distanceToNode > 1.5;
         boolean shouldBlink = false;
         Predicate<?> cancelBlink = e -> false;
         boolean shouldCrouch = nodeType == Node.Type.ETHERWARP;
