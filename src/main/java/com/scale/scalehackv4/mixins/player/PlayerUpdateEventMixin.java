@@ -8,12 +8,21 @@ import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(ClientPlayerEntity.class)
-public class PlayerUpdateEventMixin extends AbstractClientPlayerEntity {
+public abstract class PlayerUpdateEventMixin extends AbstractClientPlayerEntity {
+    @Shadow
+    public abstract float getYaw(float tickProgress);
+
+    @Shadow
+    public abstract float getPitch(float tickProgress);
+
     public PlayerUpdateEventMixin(ClientWorld world, GameProfile profile) {
         super(world, profile);
     }
@@ -23,8 +32,36 @@ public class PlayerUpdateEventMixin extends AbstractClientPlayerEntity {
         Bus.post(PlayerUpdateEvent.class, new PlayerUpdateEvent.Params());
     }
 
-    @Inject(method = "sendMovementPackets", at = @At("HEAD"))
+    @Unique private static SendMovementPacketEvent.Params lastMovementPacket = null;
+
+    @Inject(method = "sendMovementPackets", at = @At("HEAD"), cancellable = true)
     public void onSendMovementPackets(CallbackInfo ci) {
-        Bus.post(SendMovementPacketEvent.class, new SendMovementPacketEvent.Params(this.getX(), this.getY(), this.getZ(), this.isOnGround(), this.horizontalCollision));
+        lastMovementPacket = new SendMovementPacketEvent.Params(this.getX(), this.getY(), this.getZ(), this.getYaw(), this.getPitch(), this.isOnGround(), this.horizontalCollision);
+        if (Bus.post(SendMovementPacketEvent.class, lastMovementPacket)) ci.cancel();
+    }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getX()D"))
+    private double overridePacketX(ClientPlayerEntity instance) {
+        return lastMovementPacket.x;
+    }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getY()D"))
+    private double overridePacketY(ClientPlayerEntity instance) {
+        return lastMovementPacket.y;
+    }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getZ()D"))
+    private double overridePacketZ(ClientPlayerEntity instance) {
+        return lastMovementPacket.z;
+    }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getYaw()F"))
+    private float overridePacketYaw(ClientPlayerEntity instance) {
+        return lastMovementPacket.yaw;
+    }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getPitch()F"))
+    private float overridePacketPitch(ClientPlayerEntity instance) {
+        return lastMovementPacket.pitch;
     }
 }

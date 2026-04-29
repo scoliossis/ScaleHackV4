@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.utils.player;
 
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import net.minecraft.util.math.MathHelper;
@@ -7,7 +8,7 @@ import net.minecraft.util.math.Vec3d;
 
 public class RotationUtil {
     public static Rotation getRotation(Vec3d to) {
-        return applyGcd(getClientRotation(), getRotationNoGcd(getClientRotation(), C.p().getEyePos(), to));
+        return applyGcd(RotationEvent.lastRotation == null ? getClientRotation() : RotationEvent.lastRotation, getRotationNoGcd(getClientRotation(), C.p().getEyePos(), to));
     }
 
     public static Rotation getRotation(Rotation currentRotation, Vec3d from, Vec3d to) {

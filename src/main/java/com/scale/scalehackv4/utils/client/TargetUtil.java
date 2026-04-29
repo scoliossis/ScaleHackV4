@@ -32,6 +32,10 @@ public class TargetUtil {
         return C.w().getPlayers().stream().filter(TargetUtil::isValidTarget).toList();
     }
 
+    public static List<Entity> getTargets(double range) {
+        return C.w().getOtherEntities(C.p(), C.p().getBoundingBox().expand(range), TargetUtil::isValidTarget);
+    }
+
     private static final HashMap<UUID, Integer> VALID_TARGETS = new HashMap<>();
     private static SocialInteractionsPlayerListWidget PLAYER_LIST_WIDGET;
 
@@ -62,7 +66,7 @@ public class TargetUtil {
         // this is possible for some reason, crash occured with a random skyblock mod, idk why it fed this a null target, wtv.
         if (target == null) return false;
 
-        int ping = -1;
+        int ping = 1;
         if (target instanceof PlayerEntity player) {
             PlayerListEntry playerListEntry = C.p().networkHandler.getPlayerListEntry((player).getUuid());
             if (playerListEntry != null) ping = playerListEntry.getLatency();

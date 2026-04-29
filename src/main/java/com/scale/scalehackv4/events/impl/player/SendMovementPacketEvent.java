@@ -11,6 +11,7 @@ public class SendMovementPacketEvent extends Event {
     @AllArgsConstructor
     public static class Params {
         public double x, y, z;
+        public float yaw, pitch;
         public boolean onGround, horizontalCollision;
     }
 
