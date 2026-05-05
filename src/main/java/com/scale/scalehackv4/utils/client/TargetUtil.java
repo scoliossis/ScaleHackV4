@@ -16,6 +16,7 @@ import net.minecraft.client.gui.screen.multiplayer.SocialInteractionsScreen;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Box;
@@ -62,7 +63,7 @@ public class TargetUtil {
     });
 
     public static boolean isValidTarget(Entity target) {
-        if (!Targets.antibot) return true;
+        if (!Targets.antibot) return target instanceof LivingEntity;
         // this is possible for some reason, crash occured with a random skyblock mod, idk why it fed this a null target, wtv.
         if (target == null) return false;
 
@@ -82,13 +83,16 @@ public class TargetUtil {
     }
 
     // from scalehackv3 https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/TargetUtil.java#L88
-    public static Vec3d getTargetRotationPoint(Entity entity) {
+    public static Vec3d getTargetRotationPoint(Entity entity, double range) {
+        if (entity == null) return null;
+
+        double blockReach = Math.max(C.p().getBlockInteractionRange(), range);
         Box targetBoundingBox = entity.getBoundingBox();
         Vec3d closestPoint = TargetUtil.getClosestPointToEntity(entity).subtract(0, 0, 0);
 
         Rotation bestRotation = RotationUtil.getRotation(closestPoint);
         // check that looking at the closest point doesnt have a wall between us and the entity
-        if (WorldUtil.getMouseOver(bestRotation) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) return closestPoint;
+        if (WorldUtil.getMouseOver(bestRotation, blockReach, range) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) return closestPoint;
 
 
         // awesome. there was no comments in this entire function
@@ -112,7 +116,7 @@ public class TargetUtil {
         // check all possible rotations until we find
         for (Vec3d possibleRotationVector : possibleRotations) {
             Rotation possibleRotation = RotationUtil.getRotation(possibleRotationVector);
-            if (WorldUtil.getMouseOver(possibleRotation) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) {
+            if (WorldUtil.getMouseOver(possibleRotation, blockReach, range) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) {
                 return possibleRotationVector;
             }
         }

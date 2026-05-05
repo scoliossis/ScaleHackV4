@@ -9,7 +9,9 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
+import net.minecraft.entity.Entity;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.awt.*;
 
@@ -38,15 +40,36 @@ public class EspModule extends Module {
             float y = (float) (player.lastY + (player.getY() - player.lastY) * C.mc.getRenderTickCounter().getTickProgress(false));
             float z = (float) (player.lastZ + (player.getZ() - player.lastZ) * C.mc.getRenderTickCounter().getTickProgress(false));
 
+            float cornerSize = -squareWidth/4;
+
             Render3dUtil.getMatrices().push();
             Render3dUtil.getMatrices().translate(x, y, z);
             Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, (float) -Math.toRadians(C.p().getYaw()), 0f));
-            Render3dUtil.drawSquare(-squareWidth/2, -squareHeight/2 + player.getHeight()/2, 0, squareWidth, squareHeight, 0, new Color(player.getTeamColorValue()), false, true);
+
+            drawCorner(squareWidth/2, squareHeight, cornerSize, cornerSize, player);
+            drawCorner(-squareWidth/2, squareHeight, -cornerSize, cornerSize, player);
+            drawCorner(squareWidth/2, -squareHeight/2 + player.getHeight()/2, cornerSize, -cornerSize, player);
+            drawCorner(-squareWidth/2, -squareHeight/2 + player.getHeight()/2, -cornerSize, -cornerSize, player);
+
+            //Render3dUtil.drawSquare(-squareWidth/2, -squareHeight/2 + player.getHeight()/2, 0, squareWidth, squareHeight, 0, new Color(player.getTeamColorValue()), false, true);
             Render3dUtil.getMatrices().pop();
         });
 
         return false;
     });
+
+    private void drawCorner(float x, float y, float width, float height, Entity entity) {
+        Render3dUtil.drawLine(
+                new Vector3f(x, y, 0),
+                new Vector3f(x + width, y, 0),
+                new Color(entity.getTeamColorValue())
+        );
+        Render3dUtil.drawLine(
+                new Vector3f(x, y, 0),
+                new Vector3f(x, y + height, 0),
+                new Color(entity.getTeamColorValue())
+        );
+    }
 
     @Override
     public void onEnable() {

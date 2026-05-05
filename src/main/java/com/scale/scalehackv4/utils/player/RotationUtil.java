@@ -8,7 +8,11 @@ import net.minecraft.util.math.Vec3d;
 
 public class RotationUtil {
     public static Rotation getRotation(Vec3d to) {
-        return applyGcd(RotationEvent.lastRotation == null ? getClientRotation() : RotationEvent.lastRotation, getRotationNoGcd(getClientRotation(), C.p().getEyePos(), to));
+        return applyGcd(getLastRotation(), getRotationNoGcd(getLastRotation(), C.p().getEyePos(), to));
+    }
+
+    public static Rotation getLastRotation() {
+        return RotationEvent.lastRotation == null ? getClientRotation() : RotationEvent.lastRotation;
     }
 
     public static Rotation getRotation(Rotation currentRotation, Vec3d from, Vec3d to) {
@@ -58,4 +62,13 @@ public class RotationUtil {
         );
     }
 
+    // never know when u might need this!
+    public static float applyWrap360(float currentYaw, float targetYaw) {
+        float delta = targetYaw - currentYaw;
+
+        while (delta <= -180) delta += 360;
+        while (delta > 180) delta -= 360;
+
+        return currentYaw + delta;
+    }
 }

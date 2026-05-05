@@ -24,6 +24,8 @@ public class RotationEventMixin {
         RotationEvent.clientRotation = RotationUtil.getClientRotation();
         RotationEvent.Params rotation = new RotationEvent.Params(RotationUtil.getClientRotation());
         Bus.post(RotationEvent.class, rotation);
+        // make sure that the client rotation is within 180 of the server yaw, to stop flagging aimmodulo360
+        RotationEvent.clientRotation.yaw = RotationUtil.applyWrap360(rotation.rotation.yaw, RotationEvent.clientRotation.yaw);
         RotationEvent.lastRotation = new Rotation(rotation.rotation.yaw, rotation.rotation.pitch);
         RotationEvent.lastPitch = RotationEvent.currentPitch;
         RotationEvent.currentPitch = rotation.rotation.pitch;

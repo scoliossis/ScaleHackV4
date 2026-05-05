@@ -89,7 +89,7 @@ public class MoreKbModule extends Module {
         if (shouldSetup() && !mode.handleRotation.test(params, targetEntity)) resetAttackTick();
         // when we are ready to attack, look back at the target
         if (shouldAttack()) {
-            Vec3d targetRotation = TargetUtil.getTargetRotationPoint(targetEntity);
+            Vec3d targetRotation = TargetUtil.getTargetRotationPoint(targetEntity, C.p().getAttackRange().maxRange());
             if (targetRotation != null) params.rotation = RotationUtil.getRotation(targetRotation);
             targetEntity = null;
         }

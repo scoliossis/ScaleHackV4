@@ -1,6 +1,6 @@
-package com.scale.scalehackv4.mixins.client.FixRotation;
+package com.scale.scalehackv4.mixins.client.fixrotation;
 
-import com.scale.scalehackv4.modules.impl.client.FixRotations;
+import com.scale.scalehackv4.modules.impl.client.FixRotationsModule;
 import net.minecraft.client.render.entity.EntityRenderer;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
@@ -25,6 +25,6 @@ public abstract class ShowRotationMixin <T extends LivingEntity, S extends Livin
             at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/LivingEntity;getLerpedPitch(F)F")
     )
     public float fixPitch(LivingEntity instance, float v) {
-        return FixRotations.getPitch(instance, v);
+        return FixRotationsModule.getPitch(instance, v);
     }
 }

@@ -1,11 +1,16 @@
 package com.scale.scalehackv4.utils.player;
 
+import com.scale.scalehackv4.bridge.MouseTargetBridge;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.AttackRangeComponent;
+import net.minecraft.item.ItemStack;
+import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
@@ -66,14 +71,31 @@ public class WorldUtil {
         return new Vec3d(posX, posY, posZ);
     }
 
-    public static HitResult getMouseOver(Rotation rotation) {
+    public static HitResult getMouseOver(Rotation rotation, double entityReach) {
+        return getMouseOver(rotation, C.p().getBlockInteractionRange(), entityReach);
+    }
+    public static HitResult getMouseOver(Rotation rotation, double blockReach, double entityReach) {
         ClientPlayerEntity playerCopy = (ClientPlayerEntity) C.p().getEntity();
         if (playerCopy == null) return null;
 
         playerCopy.setYaw(rotation.yaw);
         playerCopy.setPitch(rotation.pitch);
 
-        return playerCopy.getCrosshairTarget(1, playerCopy);
+        ItemStack itemStack = playerCopy.getActiveOrMainHandStack();
+        AttackRangeComponent attackRangeComponent = itemStack.get(DataComponentTypes.ATTACK_RANGE);
+        HitResult hitResult = null;
+        if (attackRangeComponent != null) {
+            hitResult = attackRangeComponent.getHitResult(playerCopy, 1, EntityPredicates.CAN_HIT);
+            if (hitResult instanceof BlockHitResult) {
+                hitResult = MouseTargetBridge.from(playerCopy).bridge$checkCrosshairTargetRange(hitResult, playerCopy.getCameraPosVec(1), blockReach);
+            }
+        }
+
+        if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
+            hitResult = MouseTargetBridge.from(playerCopy).bridge$getCrosshairTarget(playerCopy, blockReach, entityReach, 1);
+        }
+
+        return hitResult;
     }
 
     public static BlockPos getClosestVoid(BlockPos startPos, int radius) {

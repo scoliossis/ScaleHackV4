@@ -1,7 +1,7 @@
-package com.scale.scalehackv4.mixins.client.FixRotation;
+package com.scale.scalehackv4.mixins.client.fixrotation;
 
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
-import com.scale.scalehackv4.modules.impl.client.FixRotations;
+import com.scale.scalehackv4.modules.impl.client.FixRotationsModule;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.entity.Entity;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 public class MovementFixMixin {
     @Redirect(method = "updateVelocity", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;getYaw()F"))
     public float updateVelocity(Entity instance) {
-        return (C.p() != null && instance.getId() == C.p().getId() && RotationEvent.clientRotation != null && !FixRotations.shouldFixMovement())
+        return (C.p() != null && instance.getId() == C.p().getId() && RotationEvent.clientRotation != null && !FixRotationsModule.shouldFixMovement())
                 ? RotationEvent.clientRotation.yaw
                 : instance.getYaw();
     }
