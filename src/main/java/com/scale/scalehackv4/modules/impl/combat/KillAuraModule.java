@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.TargetUtil;
+import com.scale.scalehackv4.utils.player.MovementUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.entity.Entity;
@@ -30,8 +31,12 @@ public class KillAuraModule extends Module {
     public float reach = 3;
     @RegisterSubModule(name = "Rotation Range", min = 1, max = 6)
     public float rotationRange = 5;
+    @RegisterSubModule(name = "Sticky Targets")
+    public boolean stickyTargets = false;
     @RegisterSubModule(name = "Target Selection")
     public TargetSelection targetSelection = TargetSelection.Switch;
+    @RegisterSubModule(name = "No Rotate Jump")
+    public boolean noRotateJump = true;
 
     public enum TargetSelection {
         Random {
@@ -82,20 +87,9 @@ public class KillAuraModule extends Module {
             targetEntity = null;
             return false;
         }
+        if (noRotateJump && MovementUtil.willJump()) return false;
 
-        // get a list of all targets in rotation distance and ones within attack range
-        List<Entity> targets = TargetUtil.getTargets(rotationRange);
-        List<Entity> attackRangeTargets = targets.stream().filter(entity -> getMinDistance(entity) <= reach).collect(Collectors.toList());
-
-        // ignore all out of swing distance if there are some in attack range
-        if (!attackRangeTargets.isEmpty()) targets = attackRangeTargets;
-
-        targetSelection.sort(targets);
-
-        if (getValidEntity(targets, params)) return true;
-
-        targetEntity = null;
-        return false;
+        return getValidEntity(getTargets(), params);
     }, 2000);
 
     private final Event handleAttack = new CheckClickEvent.Left(this, params -> {
@@ -114,23 +108,41 @@ public class KillAuraModule extends Module {
                 && entityHitResult.getEntity() == targetEntity;
     }
 
+    private List<Entity> getTargets() {
+        // get a list of all targets in rotation distance and ones within attack range
+        List<Entity> targets = TargetUtil.getTargets(rotationRange);
+        List<Entity> attackRangeTargets = targets.stream().filter(entity -> getMinDistance(entity) <= reach).collect(Collectors.toList());
+
+        // ignore all out of swing distance if there are some in attack range
+        if (!attackRangeTargets.isEmpty()) targets = attackRangeTargets;
+
+        targetSelection.sort(targets);
+
+        return targets;
+    }
+
     private boolean getValidEntity(List<Entity> targets, RotationEvent.Params params) {
+        if (stickyTargets && targets.contains(targetEntity) && rotateToTarget(targetEntity, params)) return true;
+
         // loop entities until we find one that is hittable
         while (!targets.isEmpty()) {
-            Entity target = targets.getFirst();
+            Entity target = targets.removeFirst();
 
-            Vec3d rotationVector = TargetUtil.getTargetRotationPoint(targets.getFirst(), rotationRange);
-            if (rotationVector == null) {
-                targets.remove(target);
-                continue;
-            }
-
-            params.rotation = RotationUtil.getRotation(rotationVector);
-            targetEntity = targets.getFirst();
-            return true;
+            if (rotateToTarget(target, params)) return true;
         }
 
+        targetEntity = null;
+
         return false;
+    }
+
+    private boolean rotateToTarget(Entity target, RotationEvent.Params params) {
+        Vec3d rotationVector = TargetUtil.getTargetRotationPoint(target, rotationRange);
+        if (rotationVector == null) return false;
+
+        params.rotation = RotationUtil.getRotation(rotationVector);
+        targetEntity = target;
+        return true;
     }
 
     // net.minecraft.entity.player.PlayerEntity.canInteractWithEntityIn

@@ -6,13 +6,14 @@ import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
-import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.player.MovementUtil;
 
 @RegisterModule(
         name = "Anti Aim",
         category = Category.PLAYER
 )
 // todo: new modes, and maybe actually dodging arrows...
+//  allow interact
 public class AntiAimModule extends Module {
     @RegisterSubModule(name = "Allow Jump")
     public boolean allowJump = true;
@@ -20,7 +21,7 @@ public class AntiAimModule extends Module {
     public final Event GOD_BYPASS_TECH_20XX = new RotationEvent(this, params -> {
         params.rotation.pitch += (float) ((Math.random() * 180) - 90);
 
-        if (!C.mc.options.jumpKey.isPressed() || !C.p().isOnGround() || !allowJump) {
+        if (!MovementUtil.willJump() || !allowJump) {
             params.rotation.yaw += (float) ((Math.random() * 360) - 180);
         }
 

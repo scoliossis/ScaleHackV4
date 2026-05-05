@@ -2,6 +2,7 @@ package com.scale.scalehackv4.mixins.movement;
 
 import com.scale.scalehackv4.modules.impl.movement.SpeedModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -22,7 +23,7 @@ public abstract class NoJumpDelayMixin extends Entity {
 
     @Inject(method = "tickMovement", at = @At("HEAD"))
     public void tickMovement(CallbackInfo ci) {
-        if (C.p() == null || this.getId() != C.p().getId() || this.jumpingCooldown <= SpeedModule.jumpDelay) return;
+        if (C.p() == null || this.getId() != C.p().getId() || this.jumpingCooldown <= SpeedModule.jumpDelay || !ModuleUtil.isEnabled(SpeedModule.class)) return;
         this.jumpingCooldown = SpeedModule.jumpDelay;
     }
 }

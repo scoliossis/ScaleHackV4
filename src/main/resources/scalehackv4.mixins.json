@@ -21,6 +21,7 @@
     "player.CheckClickEventMixin",
     "player.ClickEventMixin",
     "player.FastPlaceMixin",
+    "player.JumpingCooldownBridgeMixin",
     "player.KeyboardInputMixin",
     "player.MouseTargetBridgeMixin",
     "player.PacketSequenceBridgeMixin",
