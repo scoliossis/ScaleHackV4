@@ -63,9 +63,22 @@ public class TargetUtil {
     });
 
     public static boolean isValidTarget(Entity target) {
-        if (!Targets.antibot) return target instanceof LivingEntity;
+        if (target == C.p()) return true;
         // this is possible for some reason, crash occured with a random skyblock mod, idk why it fed this a null target, wtv.
         if (target == null) return false;
+
+        return !isBot(target) && !isTeam(target);
+    }
+
+    private static boolean isTeam(Entity target) {
+        if (!Targets.teams) return false;
+        if (!(target instanceof PlayerEntity player)) return false;
+
+        return player.getTeamColorValue() == C.p().getTeamColorValue();
+    }
+
+    private static boolean isBot(Entity target) {
+        if (!Targets.antibot) return !(target instanceof LivingEntity);
 
         int ping = 1;
         if (target instanceof PlayerEntity player) {
@@ -75,7 +88,7 @@ public class TargetUtil {
         Integer validTicks = VALID_TARGETS.get(target.getUuid());
         boolean isValidEntry = !Targets.playerEntry || (validTicks != null && validTicks > 60);
         boolean isValidPing = !Targets.pingCheck || (ping > Targets.botPingMode.ping);
-        return (isValidEntry && isValidPing) || target == C.p();
+        return !isValidEntry || !isValidPing;
     }
 
     public static Vec3d getClosestPointToEntity(Entity target) {

@@ -111,7 +111,7 @@ public class EnumRenderer extends SubModuleRenderer {
         return ENUM_Y + ENUM_HEIGHT+ENUM_GAP;
     }
 
-    private static String fixValueName(String value) {
-        return (value.startsWith("_") ? value.substring(1) : value).replace("_", " ");
+    public static String fixValueName(String value) {
+        return (value.startsWith("_") ? value.substring(1) : value).replace("_", " ").replace("DOT", ".");
     }
 }

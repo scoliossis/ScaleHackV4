@@ -1,25 +1,28 @@
 package com.scale.scalehackv4.modules.impl.combat;
 
+import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
+import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.player.MovementUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
+import lombok.AllArgsConstructor;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.Hand;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @RegisterModule(
@@ -31,12 +34,12 @@ public class KillAuraModule extends Module {
     public float reach = 3;
     @RegisterSubModule(name = "Rotation Range", min = 1, max = 6)
     public float rotationRange = 5;
+    @RegisterSubModule(name = "Aura FOV", min = 1, max = 180)
+    public float auraFOV = 180;
     @RegisterSubModule(name = "Sticky Targets")
     public boolean stickyTargets = false;
     @RegisterSubModule(name = "Target Selection")
     public TargetSelection targetSelection = TargetSelection.Switch;
-    @RegisterSubModule(name = "No Rotate Jump")
-    public boolean noRotateJump = true;
 
     public enum TargetSelection {
         Random {
@@ -78,6 +81,43 @@ public class KillAuraModule extends Module {
         public abstract void sort(List<Entity> targets);
     }
 
+    @RegisterSubModule(name = "No Rotate Jump")
+    public boolean noRotateJump = true;
+
+    @RegisterSubModule(name = "Attack Speed")
+    public AttackSpeed attackSpeed = AttackSpeed.CPS;
+
+    private static double lostPrecision = 0;
+    private static int nextAttackTick = 0;
+
+    @AllArgsConstructor
+    public enum AttackSpeed {
+        _1DOT20(e -> C.p().getAttackCooldownProgress(0) >= swingPercentage, () -> {}),
+        // generic cps from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/KillAura.java#L326
+        CPS(e -> WorldUtil.ticks >= nextAttackTick, () -> {
+            int nextCps = (int) MathUtil.getRandomInRange(Math.min(minCPS, maxCPS), Math.max(minCPS, maxCPS));
+            double ticksTillNextAttack = 20d / (Math.max(nextCps, 1)) + lostPrecision;
+            lostPrecision += ticksTillNextAttack - Math.floor(ticksTillNextAttack);
+            lostPrecision = lostPrecision - Math.floor(lostPrecision);
+            ticksTillNextAttack = Math.floor(ticksTillNextAttack);
+
+            nextAttackTick = (int) (WorldUtil.ticks + ticksTillNextAttack);
+        });
+
+        public final Predicate<?> shouldAttack;
+        public final Runnable handleAttack;
+    }
+    @RegisterSubModule(name = "Min CPS", max = 20, parent = "Attack Speed", modeParentString = "CPS", increment = 0.1)
+    public static float minCPS = 20;
+    @RegisterSubModule(name = "Max CPS", max = 20, parent = "Attack Speed", modeParentString = "CPS", increment = 0.1)
+    public static float maxCPS = 20;
+
+    @RegisterSubModule(name = "Swing Percentage", parent = "Attack Speed", modeParentString = "_1DOT20", increment = 0.05)
+    public static float swingPercentage = 0.9f;
+
+    @RegisterSubModule(name = "Swing Misses")
+    public boolean swingMisses = false;
+
     private Entity targetEntity = null;
     private static int switchOrdinal = 0;
 
@@ -92,11 +132,12 @@ public class KillAuraModule extends Module {
         return getValidEntity(getTargets(), params);
     }, 2000);
 
-    private final Event handleAttack = new CheckClickEvent.Left(this, params -> {
-        if (!isHoveringTargetEntity()) return false;
+    private final Event handleAttack = new PlayerUpdateEvent(this, params -> {
+        if (targetEntity == null || (!swingMisses && !isHoveringTargetEntity()) || !attackSpeed.shouldAttack.test(null)) return false;
 
-        C.im().attackEntity(C.p(), targetEntity);
-        C.p().swingHand(Hand.MAIN_HAND);
+        attackSpeed.handleAttack.run();
+
+        UseItemBridge.from(C.mc).bridge$doAttack();
         switchOrdinal++;
 
         return true;
@@ -111,6 +152,8 @@ public class KillAuraModule extends Module {
     private List<Entity> getTargets() {
         // get a list of all targets in rotation distance and ones within attack range
         List<Entity> targets = TargetUtil.getTargets(rotationRange);
+        targets.removeIf(entity -> getYawToTarget(entity) > auraFOV);
+
         List<Entity> attackRangeTargets = targets.stream().filter(entity -> getMinDistance(entity) <= reach).collect(Collectors.toList());
 
         // ignore all out of swing distance if there are some in attack range
@@ -119,6 +162,10 @@ public class KillAuraModule extends Module {
         targetSelection.sort(targets);
 
         return targets;
+    }
+
+    private float getYawToTarget(Entity target) {
+        return Math.abs(RotationUtil.getRotation(target.getEyePos()).yaw - RotationEvent.clientRotation.yaw);
     }
 
     private boolean getValidEntity(List<Entity> targets, RotationEvent.Params params) {

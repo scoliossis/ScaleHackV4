@@ -12,11 +12,14 @@ import lombok.AllArgsConstructor;
         enabledByDefault = true
 )
 public class Targets extends Module {
+    @RegisterSubModule(name = "Teams")
+    public static boolean teams = true;
+
     @RegisterSubModule(name = "Anti Bot")
     public static boolean antibot = true;
-    @RegisterSubModule(name = "Player Entry Check")
+    @RegisterSubModule(name = "Player Entry Check", parent = "Anti Bot")
     public static boolean playerEntry = true;
-    @RegisterSubModule(name = "Ping Check")
+    @RegisterSubModule(name = "Ping Check", parent = "Anti Bot")
     public static boolean pingCheck = false;
     @RegisterSubModule(name = "Bot Ping", parent = "Ping Check")
     public static Bot_Mode botPingMode = Bot_Mode.Old_Hypixel;
