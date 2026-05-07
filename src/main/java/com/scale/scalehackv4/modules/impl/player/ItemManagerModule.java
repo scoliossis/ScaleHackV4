@@ -5,10 +5,10 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 
 @RegisterModule(
-        name = "Stealer",
+        name = "Item Manager",
         category = Category.PLAYER
 )
-public class StealerModule extends Module {
+public class ItemManagerModule extends Module {
     @Override
     public void onEnable() {
 

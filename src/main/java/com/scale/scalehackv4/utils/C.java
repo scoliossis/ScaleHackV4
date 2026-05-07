@@ -12,6 +12,7 @@ import net.minecraft.client.world.ClientWorld;
 import org.reflections.Reflections;
 
 import java.awt.*;
+import java.net.http.HttpClient;
 import java.util.concurrent.ForkJoinPool;
 
 public class C {
@@ -24,6 +25,7 @@ public class C {
             .create();
 
     public static final ForkJoinPool ASYNC = ForkJoinPool.commonPool();
+    public static final HttpClient CLIENT = HttpClient.newHttpClient();
 
 
     // C.p

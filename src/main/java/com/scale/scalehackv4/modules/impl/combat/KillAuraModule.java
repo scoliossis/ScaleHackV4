@@ -3,7 +3,7 @@ package com.scale.scalehackv4.modules.impl.combat;
 import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
+import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
@@ -132,7 +132,7 @@ public class KillAuraModule extends Module {
         return getValidEntity(getTargets(), params);
     }, 2000);
 
-    private final Event handleAttack = new PlayerUpdateEvent(this, params -> {
+    private final Event handleAttack = new CheckClickEvent.Left(this, params -> {
         if (targetEntity == null || (!swingMisses && !isHoveringTargetEntity()) || !attackSpeed.shouldAttack.test(null)) return false;
 
         attackSpeed.handleAttack.run();

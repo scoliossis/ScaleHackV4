@@ -16,6 +16,8 @@
     "client.KeybindingBridgeMixin",
     "client.KeyPressMixin",
     "client.WorldJoinEventMixin",
+    "client.altswitcher.OverrideSessionMixin",
+    "client.altswitcher.TokenLoginButtonMixin",
     "client.antibot.AntiBotMixin",
     "client.fixrotation.ShowRotationMixin",
     "player.CheckClickEventMixin",
