@@ -28,6 +28,7 @@
     "player.MouseTargetBridgeMixin",
     "player.PacketSequenceBridgeMixin",
     "player.RotationEventMixin",
+    "player.SelectedStackBridgeMixin",
     "player.UseItemBridgeMixin",
     "player.BlockScanner.ChunkUnloadMixin",
     "render.MouseBridgeMixin",

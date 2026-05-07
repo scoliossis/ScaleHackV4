@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.InventoryUtil;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.player.MovementUtil;
@@ -118,12 +119,15 @@ public class KillAuraModule extends Module {
     @RegisterSubModule(name = "Swing Misses")
     public boolean swingMisses = false;
 
+    @RegisterSubModule(name = "Weapon Only")
+    public boolean weaponOnly = true;
+
     private Entity targetEntity = null;
     private static int switchOrdinal = 0;
 
     private final Event handleRotations = new RotationEvent(this, params -> {
         // dont wanna override other rotations!
-        if (Bus.isEventCancelled(RotationEvent.class)) {
+        if (Bus.isEventCancelled(RotationEvent.class) || !shouldAura()) {
             targetEntity = null;
             return false;
         }
@@ -133,7 +137,7 @@ public class KillAuraModule extends Module {
     }, 2000);
 
     private final Event handleAttack = new CheckClickEvent.Left(this, params -> {
-        if (targetEntity == null || (!swingMisses && !isHoveringTargetEntity()) || !attackSpeed.shouldAttack.test(null)) return false;
+        if (targetEntity == null || !shouldAura() || (!swingMisses && !isHoveringTargetEntity()) || !attackSpeed.shouldAttack.test(null)) return false;
 
         attackSpeed.handleAttack.run();
 
@@ -195,6 +199,10 @@ public class KillAuraModule extends Module {
     // net.minecraft.entity.player.PlayerEntity.canInteractWithEntityIn
     private static double getMinDistance(Entity entity) {
         return Math.sqrt(entity.getBoundingBox().squaredMagnitude(C.p().getEyePos()));
+    }
+
+    private boolean shouldAura() {
+        return !weaponOnly || InventoryUtil.isItemWeapon(C.p().getMainHandStack());
     }
 
     @Override

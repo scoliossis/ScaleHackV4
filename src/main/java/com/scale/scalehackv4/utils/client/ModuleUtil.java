@@ -59,6 +59,12 @@ public class ModuleUtil {
 
                     if (registerSubModule != null) {
                         SubModule subModule = new SubModule(m, field);
+                        if (subModule.get() instanceof MultiSelectEnum) {
+                            for (Enum<?> enumConstant : (Enum<?>[]) subModule.getField().getType().getEnumConstants()) {
+                                if (((MultiSelectEnum) enumConstant).enabledByDefault()) MultiSelectUtil.ENABLED_ENUMS.add(enumConstant);
+                            }
+                        }
+
                         subModule.setKeybind(subModule.getKeybind());
 
                         if (!registerSubModule.parent().isEmpty()) {
@@ -221,8 +227,15 @@ public class ModuleUtil {
         LinkedTreeMap<String, Object> subModules = new LinkedTreeMap<>();
 
         for (SubModule sm : module.getChildren()) {
-            Object value = sm.getField().getType() == boolean.class ? new BooleanModule((Boolean) sm.get(), sm.getKeybind()) : sm.get();
-            subModules.put(sm.getKey(), value);
+            if (sm.get() instanceof MultiSelectEnum) {
+                Enum<?>[] values = ((Enum<?>) sm.get()).getDeclaringClass().getEnumConstants();
+                List<String> enabledEnums = Arrays.stream(values).filter(MultiSelectUtil::isEnabled).map(Enum::name).toList();
+                subModules.put(sm.getKey(), enabledEnums);
+            }
+            else {
+                Object value = sm.getField().getType() == boolean.class ? new BooleanModule((Boolean) sm.get(), sm.getKeybind()) : sm.get();
+                subModules.put(sm.getKey(), value);
+            }
         }
 
         moduleJSON.put(module.getAnnotation().name(), subModules);
@@ -251,6 +264,7 @@ public class ModuleUtil {
     }
 
     public static boolean loadConfig(String configName) {
+        MultiSelectUtil.ENABLED_ENUMS.clear();
         String configFileText = readConfig(configName);
         if (configFileText == null) return false;
 
@@ -306,8 +320,17 @@ public class ModuleUtil {
 
                 if (subModule.getField().getType().isEnum()) {
                     Enum<?>[] enumConstants = (Enum<?>[]) subModule.getField().getType().getEnumConstants();
-                    for (Enum<?> enumConstant : enumConstants)
-                        if (enumConstant.name().equals(value)) subModule.set(enumConstant);
+
+                    if (subModule.get() instanceof MultiSelectEnum) {
+                        ArrayList<String> values = (ArrayList<String>) value;
+
+                        for (Enum<?> enumConstant : enumConstants)
+                            if (values.contains(enumConstant.name())) MultiSelectUtil.ENABLED_ENUMS.add(enumConstant);
+                    }
+                    else {
+                        for (Enum<?> enumConstant : enumConstants)
+                            if (enumConstant.name().equals(value)) subModule.set(enumConstant);
+                    }
                 }
                 else if (subModule.getField().getType().equals(Color.class)) {
                     LinkedTreeMap<String, Object> colorMap = (LinkedTreeMap<String, Object>) value;
