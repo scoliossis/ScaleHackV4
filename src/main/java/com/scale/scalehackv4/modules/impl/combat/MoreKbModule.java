@@ -1,10 +1,8 @@
 package com.scale.scalehackv4.modules.impl.combat;
 
 import com.scale.scalehackv4.bridge.KeybindingBridge;
-import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
-import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.Category;
@@ -13,6 +11,7 @@ import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.TargetUtil;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import lombok.AllArgsConstructor;
@@ -22,6 +21,7 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.HashMap;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 
@@ -39,6 +39,10 @@ public class MoreKbModule extends Module {
     public static DisplaceAngle displaceAngle = DisplaceAngle.Void;
     @RegisterSubModule(name = "Max Void Distance", parent = "Displace Angle", modeParentString = "Void", min = 1, max = 10)
     public static int maxVoidDistance = 6;
+    @RegisterSubModule(name = "Delay Between", min = 1, max = 10)
+    public static int delay = 4;
+
+    private HashMap<Entity, Integer> attackedEnemies = new HashMap<>();
 
     @AllArgsConstructor
     public enum Mode {
@@ -83,34 +87,47 @@ public class MoreKbModule extends Module {
 
     private final Event onRotationEvent = new RotationEvent(this, params -> {
         // check if we would've hit an entity this tick, if we dont, we have failed, commit seppuku
-        if (targetEntity == null && (targetEntity = getAttackingEntity()) != null) lastAttackTick = WorldUtil.ticks;
+        if (removeAttackedEnemies() && targetEntity == null && (targetEntity = getAttackingEntity()) != null) lastAttackTick = WorldUtil.ticks;
 
         // sets rotation, if it fails to set rotation, then reset
         if (shouldSetup() && !mode.handleRotation.test(params, targetEntity)) resetAttackTick();
         // when we are ready to attack, look back at the target
         if (shouldAttack()) {
-            Vec3d targetRotation = TargetUtil.getTargetRotationPoint(targetEntity, C.p().getAttackRange().maxRange());
-            if (targetRotation != null) params.rotation = RotationUtil.getRotation(targetRotation);
-            targetEntity = null;
-        }
+            Entity targetEntity = MoreKbModule.targetEntity;
+            MoreKbModule.targetEntity = null;
 
+            Vec3d targetRotation = TargetUtil.getTargetRotationPoint(targetEntity, C.p().getAttackRange().maxRange());
+            if (targetRotation != null) {
+                params.rotation = RotationUtil.getRotation(targetRotation);
+
+                PlayerUtil.onAttack.add(() -> attackedEnemies.put(targetEntity, WorldUtil.ticks));
+            }
+        }
         // please dont swing while we are trying to morekb. tyvm in advance
-        if (isActive()) {
+        else if (isActive()) {
             unsetAttack();
             return true;
         }
 
         return false;
-    });
+    }, 3000); // runs after killaura
 
-    private static Entity getAttackingEntity() {
+    private boolean removeAttackedEnemies() {
+        for (Entity entity : attackedEnemies.keySet().toArray(new Entity[0])) {
+            if (WorldUtil.ticks - attackedEnemies.get(entity) >= delay) attackedEnemies.remove(entity);
+        }
+
+        return true;
+    }
+
+    private Entity getAttackingEntity() {
         HitResult crosshairTarget = C.mc.crosshairTarget;
 
-        // todo: allow with killaura
         if (!C.p().isBlocking()
-                && KeybindingBridge.from(C.mc.options.attackKey).bridge$getTimesPressed() > 0
+                && (KeybindingBridge.from(C.mc.options.attackKey).bridge$getTimesPressed() > 0 || !PlayerUtil.onAttack.isEmpty())
                 && crosshairTarget instanceof EntityHitResult entityHitResult
-                && TargetUtil.isValidTarget(entityHitResult.getEntity())) {
+                && TargetUtil.isValidTarget(entityHitResult.getEntity())
+                && !attackedEnemies.containsKey(entityHitResult.getEntity())) {
             return entityHitResult.getEntity();
         }
 
@@ -129,14 +146,6 @@ public class MoreKbModule extends Module {
         return false;
     });
 
-    private final Event performAttack = new CheckClickEvent.Left(this, params -> {
-        if (!shouldAttack()) return false;
-
-        UseItemBridge.from(C.mc).bridge$doAttack();
-
-        return true;
-    });
-
     private static int getTicksSinceAttack() {
         return (int) (WorldUtil.ticks - lastAttackTick);
     }
@@ -151,6 +160,7 @@ public class MoreKbModule extends Module {
     }
     private static void unsetAttack() {
         while (C.mc.options.attackKey.wasPressed());
+        PlayerUtil.onAttack.clear();
     }
 
     private static void resetAttackTick() {

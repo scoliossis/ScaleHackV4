@@ -1,9 +1,7 @@
 package com.scale.scalehackv4.modules.impl.combat;
 
-import com.scale.scalehackv4.bridge.UseItemBridge;
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
@@ -14,6 +12,7 @@ import com.scale.scalehackv4.utils.client.InventoryUtil;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.player.MovementUtil;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import lombok.AllArgsConstructor;
@@ -131,21 +130,19 @@ public class KillAuraModule extends Module {
             targetEntity = null;
             return false;
         }
-        if (noRotateJump && MovementUtil.willJump()) return false;
+        if (noRotateJump && MovementUtil.willJump() || !getValidEntity(getTargets(), params)) return false;
 
-        return getValidEntity(getTargets(), params);
-    }, 2000);
+        if ((!swingMisses && !isHoveringTargetEntity()) || !attackSpeed.shouldAttack.test(null)) return true;
 
-    private final Event handleAttack = new CheckClickEvent.Left(this, params -> {
-        if (targetEntity == null || !shouldAura() || (!swingMisses && !isHoveringTargetEntity()) || !attackSpeed.shouldAttack.test(null)) return false;
-
-        attackSpeed.handleAttack.run();
-
-        UseItemBridge.from(C.mc).bridge$doAttack();
-        switchOrdinal++;
+        // queue an attack
+        PlayerUtil.onAttack.add(() -> {
+            attackSpeed.handleAttack.run();
+            switchOrdinal++;
+        });
 
         return true;
-    });
+    }, 2000);
+
 
     private boolean isHoveringTargetEntity() {
         return targetEntity != null

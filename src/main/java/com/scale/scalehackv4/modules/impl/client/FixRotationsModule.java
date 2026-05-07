@@ -51,7 +51,7 @@ public class FixRotationsModule extends Module {
         params.rightKey = fixedMovementDirection.right;
 
         return false;
-    });
+    }, 1);
 
     private MovementDirection getMovementDirection(MovementDirection currentDirection) {
         float yawDifference = RotationEvent.clientRotation.yaw - RotationEvent.lastRotation.yaw;
