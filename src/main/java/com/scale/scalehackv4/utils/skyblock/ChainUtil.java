@@ -159,13 +159,13 @@ public class ChainUtil {
             if (chain.cancelBlink.test(null)) {
                 if (currentlyBlinking) {
                     //ChatUtil.prefixMessage("no mo blink...");
-                    BlinkUtil.popBlink(true, false);
+                    BlinkUtil.popBlink(true, false, ChatUtil.class);
                     currentlyBlinking = false;
                 }
             }
             else if (!hasBlinked) {
                 //ChatUtil.prefixMessage("BLINKING!");
-                BlinkUtil.pushBlink(true, false);
+                BlinkUtil.pushBlink(true, false, ChatUtil.class);
                 hasBlinked = currentlyBlinking = true;
             }
         }
@@ -212,7 +212,7 @@ public class ChainUtil {
     }
 
     private static void stopBlinking() {
-        if (currentlyBlinking) BlinkUtil.popBlink(true, false);
+        if (currentlyBlinking) BlinkUtil.popBlink(true, false, ChatUtil.class);
         currentlyBlinking = hasBlinked = false;
     }
 

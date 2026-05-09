@@ -20,6 +20,8 @@ public class PlayerUtil {
 
     private final Event handleAttack = new CheckClickEvent.Left(null, params -> {
         if (!onAttack.isEmpty()) {
+            // stops "this.handleBlockBreaking(this.currentScreen == null && !bl3 && this.options.attackKey.isPressed() && this.mouse.isCursorLocked());" causing a cooldown
+            C.mc.options.attackKey.setPressed(false);
             UseItemBridge.from(C.mc).bridge$doAttack();
             onAttack.forEach(Runnable::run);
             onAttack.clear();

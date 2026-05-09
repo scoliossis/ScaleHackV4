@@ -1,14 +1,32 @@
 package com.scale.scalehackv4.utils.render;
 
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.client.MouseClickedEvent;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.util.InputUtil;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector2f;
 
 import java.awt.*;
+import java.util.HashSet;
 
+@RegisterListeners
 public class MouseUtil {
+    private final Event handleMouseClicked = new MouseClickedEvent(null, params -> {
+        if (params.action == InputUtil.GLFW_PRESS) heldButtons.add(params.input.button());
+        else if (params.action == InputUtil.GLFW_RELEASE) heldButtons.remove(params.input.button());
+        return false;
+    });
+
+    private static final HashSet<Integer> heldButtons = new HashSet<>();
+    // couldnt find something that does this.
+    public static boolean isButtonDown(int button) {
+        return heldButtons.contains(button);
+    }
+
     public static Vector2f getMousePos() {
         return new Vector2f((float) C.mc.mouse.getScaledX(C.res()), (float) C.mc.mouse.getScaledY(C.res()));
     }

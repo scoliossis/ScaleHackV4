@@ -101,9 +101,19 @@ public class WorldUtil {
     }
 
     public static BlockPos getClosestVoid(BlockPos startPos, int radius) {
+        Vec3d playerHeadPos = startPos.up(2).toCenterPos();
+        Vec3d playerFeetPos = startPos.up(1).toCenterPos();
+
         return BlockPos.findClosest(startPos, radius, 1, (pos) -> {
-            BlockPos headPos = pos.up(2);
-            return raytrace(headPos.toBottomCenterPos(), headPos.getY(), new Rotation(0, 90)).getType() == HitResult.Type.MISS;
+            BlockPos headPosAtVoid = pos.up(2);
+            double distanceToVoid = Math.ceil(Math.hypot(headPosAtVoid.getX() - playerHeadPos.getX(), headPosAtVoid.getZ() - playerHeadPos.getZ()));
+            Rotation rotation = RotationUtil.getRotation(RotationUtil.getClientRotation(), playerHeadPos, headPosAtVoid.toCenterPos());
+
+            // check that there are no blocks below the block (until the void)
+            return raytrace(headPosAtVoid.toBottomCenterPos(), headPosAtVoid.getY(), new Rotation(0, 90)).getType() == HitResult.Type.MISS
+                    // check that there is no blocks in the way of the void
+                    && raytrace(playerHeadPos, distanceToVoid, rotation).getType() == HitResult.Type.MISS
+                    && raytrace(playerFeetPos, distanceToVoid, rotation).getType() == HitResult.Type.MISS;
         }).orElse(null);
     }
 }

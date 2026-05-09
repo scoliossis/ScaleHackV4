@@ -37,11 +37,11 @@ public class TargetUtil {
         return C.w().getOtherEntities(C.p(), C.p().getBoundingBox().expand(range), TargetUtil::isValidTarget);
     }
 
-    private static final HashMap<UUID, Integer> VALID_TARGETS = new HashMap<>();
+    private static final HashMap<UUID, Integer> ENTITY_VALID_TICKS = new HashMap<>();
     private static SocialInteractionsPlayerListWidget PLAYER_LIST_WIDGET;
 
     private final Event reloadValidTargets = new WorldJoinEvent(null, params -> {
-        VALID_TARGETS.clear();
+        ENTITY_VALID_TICKS.clear();
         PLAYER_LIST_WIDGET = new SocialInteractionsPlayerListWidget(new SocialInteractionsScreen(), C.mc, Integer.MAX_VALUE, Integer.MAX_VALUE, 0, 0);
 
         return false;
@@ -51,12 +51,9 @@ public class TargetUtil {
         PLAYER_LIST_WIDGET.update(C.p().networkHandler.getPlayerUuids(), 0, true);
         List<SocialInteractionsPlayerListEntry> players = AntiBotBridge.from(PLAYER_LIST_WIDGET).bridge$getPlayers();
         for (SocialInteractionsPlayerListEntry player : players) {
-            if (player.isOffline()) VALID_TARGETS.remove(player.getUuid());
-            else {
-                Integer validTicks = VALID_TARGETS.get(player.getUuid());
-                if (validTicks != null) VALID_TARGETS.put(player.getUuid(), validTicks+1);
-                else VALID_TARGETS.put(player.getUuid(), 0);
-            }
+            ENTITY_VALID_TICKS.putIfAbsent(player.getUuid(), 0);
+            // if player is offline, they lose 1 score, online gains a score, positive score means they likely arent a bot!
+            ENTITY_VALID_TICKS.computeIfPresent(player.getUuid(), (k, validTicks) -> validTicks + (player.isOffline() ? -1 : 1));
         }
 
         return false;
@@ -85,8 +82,8 @@ public class TargetUtil {
             PlayerListEntry playerListEntry = C.p().networkHandler.getPlayerListEntry((player).getUuid());
             if (playerListEntry != null) ping = playerListEntry.getLatency();
         }
-        Integer validTicks = VALID_TARGETS.get(target.getUuid());
-        boolean isValidEntry = !Targets.playerEntry || (validTicks != null && validTicks > 60);
+        Integer validTicks = ENTITY_VALID_TICKS.getOrDefault(target.getUuid(), -1);
+        boolean isValidEntry = !Targets.playerEntry || (validTicks != null && validTicks > 0);
         boolean isValidPing = !Targets.pingCheck || (ping > Targets.botPingMode.ping);
         return !isValidEntry || !isValidPing;
     }

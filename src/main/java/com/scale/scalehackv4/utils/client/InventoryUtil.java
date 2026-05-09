@@ -20,6 +20,7 @@ import net.minecraft.inventory.Inventory;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
 import net.minecraft.network.packet.c2s.play.UpdateSelectedSlotC2SPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
@@ -39,7 +40,11 @@ public class InventoryUtil {
     public static boolean isItemWeapon(ItemStack itemStack) {
         return (itemStack.isIn(ItemTags.SWORDS) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Sword))
                 || (getEnchantLevel(itemStack, Enchantments.KNOCKBACK) > 0&& MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Knockback))
-                || (itemStack.isIn(ItemTags.AXES) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Axe));
+                || (itemStack.isIn(ItemTags.AXES) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Axe))
+                || (itemStack.getItem() == Items.TRIDENT && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Trident))
+                || (itemStack.getItem() == Items.MACE && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Mace))
+                || (itemStack.isIn(ItemTags.SPEARS) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Spear))
+                || (itemStack.isEmpty() && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Fist));
     }
 
     public static boolean isItemValidBlock(Item item) {

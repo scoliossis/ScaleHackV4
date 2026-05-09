@@ -10,11 +10,14 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.InventoryUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.player.PlayerUtil;
+import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import lombok.AllArgsConstructor;
+import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -39,10 +42,12 @@ public class MoreKbModule extends Module {
     public static DisplaceAngle displaceAngle = DisplaceAngle.Void;
     @RegisterSubModule(name = "Max Void Distance", parent = "Displace Angle", modeParentString = "Void", min = 1, max = 10)
     public static int maxVoidDistance = 6;
-    @RegisterSubModule(name = "Delay Between", min = 1, max = 10)
+    @RegisterSubModule(name = "Delay Between", min = 1, max = 20)
     public static int delay = 4;
+    @RegisterSubModule(name = "Knockback Weapon Only")
+    public static boolean kbWeaponOnly = true;
 
-    private HashMap<Entity, Integer> attackedEnemies = new HashMap<>();
+    private final HashMap<Entity, Integer> attackedEnemies = new HashMap<>();
 
     @AllArgsConstructor
     public enum Mode {
@@ -87,7 +92,7 @@ public class MoreKbModule extends Module {
 
     private final Event onRotationEvent = new RotationEvent(this, params -> {
         // check if we would've hit an entity this tick, if we dont, we have failed, commit seppuku
-        if (removeAttackedEnemies() && targetEntity == null && (targetEntity = getAttackingEntity()) != null) lastAttackTick = WorldUtil.ticks;
+        if (removeAttackedEnemies() && targetEntity == null && (targetEntity = getAttackingEntity(params.rotation)) != null) lastAttackTick = WorldUtil.ticks;
 
         // sets rotation, if it fails to set rotation, then reset
         if (shouldSetup() && !mode.handleRotation.test(params, targetEntity)) resetAttackTick();
@@ -97,11 +102,11 @@ public class MoreKbModule extends Module {
             MoreKbModule.targetEntity = null;
 
             Vec3d targetRotation = TargetUtil.getTargetRotationPoint(targetEntity, C.p().getAttackRange().maxRange());
-            if (targetRotation != null) {
-                params.rotation = RotationUtil.getRotation(targetRotation);
+            if (targetRotation == null) return false;
 
-                PlayerUtil.onAttack.add(() -> attackedEnemies.put(targetEntity, WorldUtil.ticks));
-            }
+            params.rotation = RotationUtil.getRotation(targetRotation);
+            PlayerUtil.onAttack.add(() -> attackedEnemies.put(targetEntity, WorldUtil.ticks));
+            return true;
         }
         // please dont swing while we are trying to morekb. tyvm in advance
         else if (isActive()) {
@@ -120,10 +125,11 @@ public class MoreKbModule extends Module {
         return true;
     }
 
-    private Entity getAttackingEntity() {
-        HitResult crosshairTarget = C.mc.crosshairTarget;
+    private Entity getAttackingEntity(Rotation rotation) {
+        HitResult crosshairTarget = WorldUtil.getMouseOver(rotation, C.p().getAttackRange().maxRange());
 
         if (!C.p().isBlocking()
+                && (!kbWeaponOnly || InventoryUtil.getEnchantLevel(C.p().getMainHandStack(), Enchantments.KNOCKBACK) > 0)
                 && (KeybindingBridge.from(C.mc.options.attackKey).bridge$getTimesPressed() > 0 || !PlayerUtil.onAttack.isEmpty())
                 && crosshairTarget instanceof EntityHitResult entityHitResult
                 && TargetUtil.isValidTarget(entityHitResult.getEntity())

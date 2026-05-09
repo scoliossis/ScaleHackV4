@@ -37,7 +37,7 @@ public class DisablerModule extends Module {
     private static int outgoingRequests = 0;
 
     public Event onRenderTick = new RenderTickEvent(this, params -> {
-        if (C.mc.isInSingleplayer() || serverPublicKey == null || !antirat) return false;
+        if (!C.isInGame() || C.mc.isInSingleplayer() || serverPublicKey == null || !antirat) return false;
 
         // never ending requests.
         C.ASYNC.execute(() -> {

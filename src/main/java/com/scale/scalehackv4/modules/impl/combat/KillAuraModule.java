@@ -8,13 +8,12 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.InventoryUtil;
-import com.scale.scalehackv4.utils.client.MathUtil;
-import com.scale.scalehackv4.utils.client.TargetUtil;
+import com.scale.scalehackv4.utils.client.*;
 import com.scale.scalehackv4.utils.player.MovementUtil;
 import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
+import com.scale.scalehackv4.utils.render.MouseUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
@@ -81,6 +80,20 @@ public class KillAuraModule extends Module {
         public abstract void sort(List<Entity> targets);
     }
 
+    @RegisterSubModule(name = "Rotation Mode")
+    public RotationMode rotationMode = RotationMode.Simple;
+
+    public enum RotationMode {
+        Simple {
+            @Override
+            public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
+                params.rotation = RotationUtil.getRotation(rotationVector);
+            }
+        };
+
+        public abstract void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params);
+    }
+
     @RegisterSubModule(name = "No Rotate Jump")
     public boolean noRotateJump = true;
 
@@ -118,8 +131,12 @@ public class KillAuraModule extends Module {
     @RegisterSubModule(name = "Swing Misses")
     public boolean swingMisses = false;
 
-    @RegisterSubModule(name = "Weapon Only")
-    public boolean weaponOnly = true;
+    @RegisterSubModule(name = "Requirements")
+    public Requirements requirements = Requirements.Holding_Weapon;
+    public enum Requirements implements MultiSelectEnum {
+        Holding_Weapon,
+        Left_Click_Down;
+    }
 
     private Entity targetEntity = null;
     private static int switchOrdinal = 0;
@@ -188,7 +205,7 @@ public class KillAuraModule extends Module {
         Vec3d rotationVector = TargetUtil.getTargetRotationPoint(target, rotationRange);
         if (rotationVector == null) return false;
 
-        params.rotation = RotationUtil.getRotation(rotationVector);
+        rotationMode.rotate(target, rotationVector, params);
         targetEntity = target;
         return true;
     }
@@ -199,7 +216,9 @@ public class KillAuraModule extends Module {
     }
 
     private boolean shouldAura() {
-        return !weaponOnly || InventoryUtil.isItemWeapon(C.p().getMainHandStack());
+        return (!MultiSelectUtil.isEnabled(Requirements.Holding_Weapon) || InventoryUtil.isItemWeapon(C.p().getMainHandStack()))
+                && (!MultiSelectUtil.isEnabled(Requirements.Left_Click_Down) || MouseUtil.isButtonDown(0))
+                && (C.mc.currentScreen == null);
     }
 
     @Override

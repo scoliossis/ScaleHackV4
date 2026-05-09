@@ -41,7 +41,11 @@ public class Targets extends Module {
     public enum Valid_Weapons implements MultiSelectEnum {
         Sword {@Override public boolean enabledByDefault() {return true;}},
         Knockback {@Override public boolean enabledByDefault() {return true;}},
-        Axe;
+        Axe,
+        Fist,
+        Spear,
+        Trident,
+        Mace;
     }
 
     @Override
