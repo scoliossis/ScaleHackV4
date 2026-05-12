@@ -2,6 +2,7 @@ package com.scale.scalehackv4.utils.client.altswitcher;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.scale.scalehackv4.mixins.client.altswitcher.OverrideSessionMixin;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.session.Session;
 
@@ -20,7 +21,6 @@ import java.util.UUID;
 // https://minecraft.wiki/w/Mojang_API
 public class SessionUtil {
     private static final String VALID_NAME_CHARATERS_REGEX = "[a-zA-Z0-9]";
-    public static Session sessionOverride = null;
 
     public static JsonObject getJSONObject(HttpRequest req) throws IOException, InterruptedException {
         return C.gson.fromJson(C.CLIENT.send(req, HttpResponse.BodyHandlers.ofString()).body(), JsonElement.class).getAsJsonObject();
@@ -141,7 +141,7 @@ public class SessionUtil {
                 case 429:
                     return "Too many rename requests sent.";
                 case 200:
-                    sessionOverride = new Session(newName, C.mc.getSession().getUuidOrNull(), C.mc.getSession().getSessionId(), Optional.empty(), Optional.empty());
+                    ((OverrideSessionMixin)C.mc).setSession(new Session(newName, C.mc.getSession().getUuidOrNull(), C.mc.getSession().getSessionId(), Optional.empty(), Optional.empty()));
 
                     return "Name changed successfully to: " + newName + "!";
                 default:

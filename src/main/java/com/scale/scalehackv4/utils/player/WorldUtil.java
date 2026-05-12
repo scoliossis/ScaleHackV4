@@ -73,6 +73,9 @@ public class WorldUtil {
         return new Vec3d(posX, posY, posZ);
     }
 
+    public static HitResult getMouseOver(Rotation rotation) {
+        return getMouseOver(rotation, C.p().getAttackRange().maxRange());
+    }
     public static HitResult getMouseOver(Rotation rotation, double entityReach) {
         return getMouseOver(rotation, C.p().getBlockInteractionRange(), entityReach);
     }
@@ -80,6 +83,8 @@ public class WorldUtil {
         ClientPlayerEntity playerCopy = (ClientPlayerEntity) C.p().getEntity();
         if (playerCopy == null) return null;
 
+        // head yaw is used somewhere, didnt note down where, trust me this is needed
+        playerCopy.setHeadYaw(rotation.yaw);
         playerCopy.setYaw(rotation.yaw);
         playerCopy.setPitch(rotation.pitch);
 

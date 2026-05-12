@@ -22,7 +22,7 @@ public abstract class TokenLoginButtonMixin extends Screen {
     protected void init(CallbackInfo ci) {
         this.addDrawableChild(
                 ButtonWidget.builder(Text.of("Token Login"), (buttonWidget) -> {
-                    SessionUtil.sessionOverride = SessionUtil.queryPlayerProfile(this.client.keyboard.getClipboard());
+                    ((OverrideSessionMixin)C.mc).setSession(SessionUtil.queryPlayerProfile(this.client.keyboard.getClipboard()));
                 }).dimensions(10, 10, 100, 20).build()
         );
     }

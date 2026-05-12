@@ -32,13 +32,6 @@ public class BlinkUtil {
         return true;
     }, 0);
 
-    private static long getSendTime(double timer) {
-        return getSendTime(timer, System.currentTimeMillis());
-    }
-    private static long getSendTime(double timer, long startTime) {
-        return timer == 0 ? Long.MAX_VALUE : System.currentTimeMillis() + (long) ((System.currentTimeMillis() - startTime) / timer);
-    }
-
     private final Event onLeaveGame = new ClientTickEvent(null, params -> {
         if (!C.isInGame()) {
             disableBlink(true, true);
@@ -62,14 +55,10 @@ public class BlinkUtil {
     }
 
     public static void pushBlink(boolean sent, boolean received, Class<?> clazz) {
-        pushBlink(sent, received, clazz, null, 0);
+        pushBlink(sent, received, clazz, null);
     }
 
-    public static void pushBlink(boolean sent, boolean received, Class<?> clazz, double releaseTimer) {
-        pushBlink(sent, received, clazz, null, releaseTimer);
-    }
-
-    public static void pushBlink(boolean sent, boolean received, Class<?> clazz, Packet<?> packet, double releaseTimer) {
+    public static void pushBlink(boolean sent, boolean received, Class<?> clazz, Packet<?> packet) {
         if (C.mc.isInSingleplayer()) return;
 
         if (sent) {

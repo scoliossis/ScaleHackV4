@@ -17,8 +17,6 @@ public class BlinkModule extends Module {
     public boolean outgoing = true;
     @RegisterSubModule(name = "Incoming", hasKeybind = true)
     public boolean incoming = true;
-    @RegisterSubModule(name = "Send Timer")
-    public double sendTimer = 0.5;
 
     private final Event onToggleBlink = new SubModuleToggledEvent(this, params -> {
         if (params.field.getName().equals("outgoing")) {
@@ -34,11 +32,11 @@ public class BlinkModule extends Module {
     });
 
     private void onToggleOutgoing(boolean outgoing) {
-        if (outgoing) BlinkUtil.pushBlink(true, false, this.getClass(), sendTimer);
+        if (outgoing) BlinkUtil.pushBlink(true, false, this.getClass());
         else BlinkUtil.popBlink(true, false, this.getClass());
     }
     private void onToggleIncoming(boolean incoming) {
-        if (incoming) BlinkUtil.pushBlink(false, true, this.getClass(), sendTimer);
+        if (incoming) BlinkUtil.pushBlink(false, true, this.getClass());
         else BlinkUtil.popBlink(false, true, this.getClass());
     }
 

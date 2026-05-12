@@ -38,7 +38,7 @@ public class SpeedModule extends Module {
 
     @RegisterSubModule(name = "Vertical Modifier", parent = "Modify Vertical Speed")
     public static VerticalSpeedModifier verticalSpeedModifier = VerticalSpeedModifier.Fly;
-    @RegisterSubModule(name = "Vertical Speed", max = 10, parent = "Fly", modeParentString = "Fly")
+    @RegisterSubModule(name = "Vertical Speed", max = 10, parent = "Vertical Modifier", modeParentString = "Fly")
     public static float verticalSpeed = 1;
 
     private final Event overrideSprinting = new KeyboardInputEvent(this, params -> {
