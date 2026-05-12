@@ -8,11 +8,7 @@ import net.minecraft.util.math.Vec3d;
 
 public class RotationUtil {
     public static Rotation getRotation(Vec3d to) {
-        return applyGcd(getLastRotation(), getRotationNoGcd(getLastRotation(), C.p().getEyePos(), to));
-    }
-
-    public static Rotation getLastRotation() {
-        return RotationEvent.lastRotation == null ? getClientRotation() : RotationEvent.lastRotation;
+        return applyGcd(RotationEvent.getLastRotation(), getRotationNoGcd(RotationEvent.getLastRotation(), C.p().getEyePos(), to));
     }
 
     public static Rotation getRotation(Rotation currentRotation, Vec3d from, Vec3d to) {

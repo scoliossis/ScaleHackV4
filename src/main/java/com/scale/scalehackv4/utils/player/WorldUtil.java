@@ -121,4 +121,10 @@ public class WorldUtil {
                     && raytrace(playerFeetPos, distanceToVoid, rotation).getType() == HitResult.Type.MISS;
         }).orElse(null);
     }
+
+    public static boolean isBlockHitResultValid(BlockHitResult blockHitResult) {
+        BlockPos blockPos = blockHitResult.getBlockPos().offset(blockHitResult.getSide());
+        return !C.w().getBlockState(blockHitResult.getBlockPos()).isAir()
+                && C.w().getOtherEntities(null, new Box(blockPos)).isEmpty();
+    }
 }

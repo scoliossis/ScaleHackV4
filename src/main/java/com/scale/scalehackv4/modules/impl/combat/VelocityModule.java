@@ -10,6 +10,8 @@ import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
+import net.minecraft.util.math.Vec3d;
 
 @RegisterModule(
         name = "Velocity",
@@ -23,6 +25,9 @@ public class VelocityModule extends Module {
     @RegisterSubModule(name = "Vertical", parent = "Knockback Mode", modeParentString = {"Edit", "Add"}, min = -2, max = 2)
     public static float vertical = 0;
 
+    @RegisterSubModule(name = "Ignore Explosions")
+    public static boolean ignoreExplosions = true;
+
     private static boolean handledVelocity = true;
 
     public enum Mode {
@@ -33,28 +38,35 @@ public class VelocityModule extends Module {
     }
 
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
-        if (params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket) {
-            if (C.p() == null || velocityPacket.getEntityId() != C.p().getId()) return false;
+        if (!C.isInGame()) return false;
 
-            handledVelocity = false;
 
-            switch (mode) {
-                case Cancel:
-                    return true;
-                case Add:
-                    C.p().setVelocity(
-                            velocityPacket.getVelocity().x * horizontal + C.p().getVelocity().x *( 1-horizontal),
-                            velocityPacket.getVelocity().y * vertical + C.p().getVelocity().y * (1-vertical),
-                            velocityPacket.getVelocity().z * horizontal + C.p().getVelocity().z * (1-horizontal)
-                    );
-                    return true;
-                case Edit:
-                    C.p().setVelocity(velocityPacket.getVelocity().x * horizontal, velocityPacket.getVelocity().y * vertical, velocityPacket.getVelocity().z * horizontal);
-                    return true;
+        Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket && velocityPacket.getEntityId() == C.p().getId()
+                ? velocityPacket.getVelocity()
+                : (params.packet instanceof ExplosionS2CPacket explosionS2CPacket && !ignoreExplosions)
+                  ? explosionS2CPacket.playerKnockback().orElse(null)
+                  : null;
+
+        if (velocity == null) return false;
+
+        handledVelocity = false;
+
+        return switch (mode) {
+            case Cancel -> true;
+            case Add -> {
+                C.p().setVelocity(
+                        velocity.x * horizontal + C.p().getVelocity().x * (1 - horizontal),
+                        velocity.y * vertical + C.p().getVelocity().y * (1 - vertical),
+                        velocity.z * horizontal + C.p().getVelocity().z * (1 - horizontal)
+                );
+                yield true;
             }
-        }
-
-        return false;
+            case Edit -> {
+                C.p().setVelocity(velocity.x * horizontal, velocity.y * vertical, velocity.z * horizontal);
+                yield true;
+            }
+            default -> false;
+        };
     });
 
     private final Event handleVelocityOnRotation = new RotationEvent(this, params -> {

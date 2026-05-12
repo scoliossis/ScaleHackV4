@@ -58,6 +58,7 @@
     "client.TabCompleteMixin",
     "client.fixrotation.MovementFixMixin",
     "movement.NoJumpDelayMixin",
+    "player.EagleMixin",
     "player.PacketReceiveBridgeMixin",
     "player.PacketUtilMixin",
     "player.PlayerUpdateEventMixin",

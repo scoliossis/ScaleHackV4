@@ -119,7 +119,10 @@ public class EnumRenderer extends SubModuleRenderer {
                 if (MultiSelectUtil.ENABLED_ENUMS.contains(hoveredValue)) MultiSelectUtil.ENABLED_ENUMS.remove(hoveredValue);
                 else MultiSelectUtil.ENABLED_ENUMS.add(hoveredValue);
             }
-            else subModule.set(hoveredValue);
+            else {
+                subModule.set(hoveredValue);
+                SubModuleRenderer.activeSubModule = null;
+            }
 
             return true;
         }

@@ -54,7 +54,7 @@ public class FixRotationsModule extends Module {
     }, 1);
 
     private MovementDirection getMovementDirection(MovementDirection currentDirection) {
-        float yawDifference = RotationEvent.clientRotation.yaw - RotationEvent.lastRotation.yaw;
+        float yawDifference = RotationEvent.clientRotation.yaw - RotationEvent.getLastRotation().yaw;
 
         if (moveFixMode == MoveFixMode.Straight) {
             float yawDeficitAdded = MathUtil.toNearest(yawDifference + yawDeficit, 45) - yawDifference;

@@ -3,6 +3,7 @@ package com.scale.scalehackv4.utils.client;
 import com.scale.scalehackv4.bridge.SelectedStackBridge;
 import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
+import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.FallingBlock;
@@ -30,16 +31,18 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.EmptyBlockView;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 // code from an unreleased injectable mushroom version
+// there is SO many comments, the batman forced STRICT code quality guidelines
 public class InventoryUtil {
     public static boolean isItemWeapon(ItemStack itemStack) {
         return (itemStack.isIn(ItemTags.SWORDS) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Sword))
-                || (getEnchantLevel(itemStack, Enchantments.KNOCKBACK) > 0&& MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Knockback))
+                || (getEnchantLevel(itemStack, Enchantments.KNOCKBACK) > 0 && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Knockback))
                 || (itemStack.isIn(ItemTags.AXES) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Axe))
                 || (itemStack.getItem() == Items.TRIDENT && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Trident))
                 || (itemStack.getItem() == Items.MACE && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Mace))
@@ -47,18 +50,15 @@ public class InventoryUtil {
                 || (itemStack.isEmpty() && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Fist));
     }
 
-    public static boolean isItemValidBlock(Item item) {
-        return (
-                // gotta be a block
-                item instanceof BlockItem blockItem &&
-                        // gotta NOT be sand
-                        !(blockItem.getBlock() instanceof FallingBlock) &&
-                        // gotta be a full block, not a sapling or smth
-                        blockItem
-                                .getBlock()
-                                .getDefaultState()
-                                .isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN)
-        );
+    public static boolean  isItemValidBlock(Item item) {
+        // gotta be a block
+        return item instanceof BlockItem blockItem &&
+                // gotta NOT be sand
+                !(blockItem.getBlock() instanceof FallingBlock) &&
+                // gotta be a full block, not a sapling or smth
+                blockItem.getBlock().getDefaultState().isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN) &&
+                // no bridging with enchantment table please
+                !isBlockInteractable(blockItem.getBlock());
     }
 
     // i hate this, thank you minecraft
@@ -81,28 +81,16 @@ public class InventoryUtil {
         return true;
     }
 
-    public static ArrayList<Integer> getBestBlocks(
-            int arraySize,
-            Inventory inventory
-    ) {
+    public static ArrayList<Integer> getBestBlocks(int arraySize, Inventory inventory) {
         ArrayList<Integer> bestBlockSlots = new ArrayList<>();
 
         for (int i = 0; i < inventory.size(); i++) {
             ItemStack itemStack = inventory.getStack(i);
             if (InventoryUtil.isItemValidBlock(itemStack.getItem())) {
-                if (
-                        bestBlockSlots.size() < arraySize ||
-                                itemStack.getCount() > bestBlockSlots.getFirst()
-                ) {
-                    if (bestBlockSlots.size() < arraySize) bestBlockSlots.add(
-                            i
-                    );
+                if (bestBlockSlots.size() < arraySize || itemStack.getCount() > bestBlockSlots.getFirst()) {
+                    if (bestBlockSlots.size() < arraySize) bestBlockSlots.add(i);
                     else bestBlockSlots.set(0, i);
-                    bestBlockSlots.sort(
-                            Comparator.comparingInt(
-                                    e -> inventory.getStack(e).getCount()
-                            )
-                    );
+                    bestBlockSlots.sort(Comparator.comparingInt(e -> inventory.getStack(e).getCount()));
                 }
             }
         }
@@ -114,19 +102,13 @@ public class InventoryUtil {
     public static HashMap<RegistryKey<Enchantment>, Integer> getEnchants(
             ItemStack item
     ) {
-        HashMap<RegistryKey<Enchantment>, Integer> enchantments =
-                new HashMap<>();
-
-        ItemEnchantmentsComponent enchantmentsComponent =
-                EnchantmentHelper.getEnchantments(item);
+        HashMap<RegistryKey<Enchantment>, Integer> enchantments = new HashMap<>();
+        ItemEnchantmentsComponent enchantmentsComponent = EnchantmentHelper.getEnchantments(item);
 
         enchantmentsComponent
                 .getEnchantments()
                 .forEach(enchant -> {
-                    enchantments.put(
-                            enchant.getKey().get(),
-                            enchantmentsComponent.getLevel(enchant)
-                    );
+                    enchantments.put(enchant.getKey().get(), enchantmentsComponent.getLevel(enchant));
                 });
 
         return enchantments;
@@ -135,10 +117,7 @@ public class InventoryUtil {
     // minecraft get enchantmentlevel is EVIL
     // EnchantmentHelper.getEnchantments(item).getLevel(RegistryEntry<Enchantment> enchantment)
     // Enchantments.ENCHANT are RegistryKey's idk how to get a RegistryEntry
-    public static int getEnchantLevel(
-            ItemStack item,
-            RegistryKey<Enchantment> enchantment
-    ) {
+    public static int getEnchantLevel(ItemStack item, RegistryKey<Enchantment> enchantment) {
         return getEnchants(item).getOrDefault(enchantment, 0);
     }
 
@@ -146,12 +125,7 @@ public class InventoryUtil {
             ItemStack item,
             RegistryEntry<StatusEffect> potion
     ) {
-        for (StatusEffectInstance effect : item
-                .getOrDefault(
-                        DataComponentTypes.POTION_CONTENTS,
-                        PotionContentsComponent.DEFAULT
-                )
-                .getEffects()) {
+        for (StatusEffectInstance effect : item.getOrDefault(DataComponentTypes.POTION_CONTENTS, PotionContentsComponent.DEFAULT).getEffects()) {
             if (effect.getEffectType() == potion) return effect.getAmplifier();
         }
 
@@ -167,15 +141,13 @@ public class InventoryUtil {
                 .sum();
 
         int sharpnessLevel = getEnchantLevel(item, Enchantments.SHARPNESS);
-        // multiply by 2 because u can hit twice a second
-        float sharpnessDPS =
-                (sharpnessLevel == 0 ? 0 : 0.5f * sharpnessLevel + 0.5f) * 2;
+        float sharpnessDamage = sharpnessLevel == 0 ? 0 : 0.5f * sharpnessLevel + 0.5f;
 
         int fireAspectLevel = getEnchantLevel(item, Enchantments.FIRE_ASPECT);
         // fire aspect does not help in fights! when hurtframes end, the highest damage is applied, the highest damage is NEVER fire aspect!
         float fireAspectDPS = fireAspectLevel * 10e-4f;
 
-        return baseDamage + sharpnessDPS + fireAspectDPS;
+        return baseDamage + sharpnessDamage + fireAspectDPS;
     }
 
     public static float getBowDamage(ItemStack item) {
@@ -185,10 +157,7 @@ public class InventoryUtil {
     // botmon ratioed me
     public static float getDurabilityRatio(ItemStack item) {
         // item damage = how many times its been used.
-        return (
-                (float) (item.getMaxDamage() - item.getDamage()) /
-                        item.getMaxDamage()
-        );
+        return (float) (item.getMaxDamage() - item.getDamage()) / item.getMaxDamage();
     }
 
     /// warning: if instant is true, it sends the update selected slot packet, avoid using twice in one tick.
@@ -209,10 +178,7 @@ public class InventoryUtil {
 
     public static int getBestHotbarSlotToBreakBlock(Block block) {
         int slot = C.p().getInventory().getSelectedSlot();
-        float bestSpeed = getBreakSpeed(
-                C.p().getInventory().getStack(slot),
-                block
-        );
+        float bestSpeed = getBreakSpeed(C.p().getInventory().getStack(slot), block);
 
         for (int i = 0; i < 9; i++) {
             ItemStack itemStack = C.p().getInventory().getStack(i);
@@ -232,9 +198,7 @@ public class InventoryUtil {
 
         for (int i = 0; i < 36; i++) {
             ItemStack itemStack = C.p().getInventory().getStack(i);
-            if (
-                    InventoryUtil.isItemValidBlock(itemStack.getItem())
-            ) amountOfBlocks += itemStack.getCount();
+            if (InventoryUtil.isItemValidBlock(itemStack.getItem())) amountOfBlocks += itemStack.getCount();
         }
 
         return amountOfBlocks;
@@ -258,16 +222,8 @@ public class InventoryUtil {
             // checks if item is the type of item we are looking for!
             if (booleanPredicate.test(itemStack)) {
                 // this is the first item of its type found, its automatically the best
-                if (
-                        bestSlot == -1 ||
-                                // if we don't have this item already, check that this item is better than the previous best
-                                bestNumberPredicate.test(
-                                        itemStack,
-                                        inventory.getStack(bestSlot)
-                                )
-                ) {
-                    bestSlot = i;
-                }
+                // if we don't have this item already, check that this item is better than the previous best
+                if (bestSlot == -1 || bestNumberPredicate.test(itemStack, inventory.getStack(bestSlot))) bestSlot = i;
             }
         }
 
@@ -276,17 +232,8 @@ public class InventoryUtil {
 
     // used for autotool!
     public static float getBreakSpeed(ItemStack item, Block block) {
-        float efficiencyMulti = item.isSuitableFor(block.getDefaultState())
-                ? (float) (Math.pow(
-                getEnchantLevel(item, Enchantments.EFFICIENCY),
-                2
-        ) +
-                           1)
-                : 0;
-        return (
-                item.getMiningSpeedMultiplier(block.getDefaultState()) +
-                        efficiencyMulti
-        );
+        float efficiencyMulti = item.isSuitableFor(block.getDefaultState()) ? (float) (Math.pow(getEnchantLevel(item, Enchantments.EFFICIENCY), 2) + 1) : 0;
+        return item.getMiningSpeedMultiplier(block.getDefaultState()) + efficiencyMulti;
     }
 
     public static float getPickaxeBreakSpeed(ItemStack item) {
@@ -320,14 +267,7 @@ public class InventoryUtil {
         // minecraft prefers you to use their arbitrary, superfluous packet slot instead of local slot
         if (inventory) slot = InventoryUtil.localSlotToPacketSlot(slot);
 
-        C.im()
-                .clickSlot(
-                        C.p().currentScreenHandler.syncId,
-                        slot,
-                        0,
-                        SlotActionType.QUICK_MOVE,
-                        C.p()
-                );
+        C.im().clickSlot(C.p().currentScreenHandler.syncId, slot, 0, SlotActionType.QUICK_MOVE, C.p());
     }
 
     // swaps for hotbar slots
@@ -335,26 +275,26 @@ public class InventoryUtil {
         // minecraft prefers you to use their arbitrary, superfluous packet slot instead of local slot
         int packetStartSlot = InventoryUtil.localSlotToPacketSlot(startSlot);
 
-        C.im()
-                .clickSlot(
-                        C.p().currentScreenHandler.syncId,
-                        packetStartSlot,
-                        endSlot,
-                        SlotActionType.SWAP,
-                        C.p()
-                );
+        C.im().clickSlot(C.p().currentScreenHandler.syncId, packetStartSlot, endSlot, SlotActionType.SWAP, C.p());
     }
 
     public static void drop(int slot) {
         int packetSlot = localSlotToPacketSlot(slot);
 
-        C.im()
-                .clickSlot(
-                        C.p().currentScreenHandler.syncId,
-                        packetSlot,
-                        1,
-                        SlotActionType.THROW,
-                        C.p()
-                );
+        C.im().clickSlot(C.p().currentScreenHandler.syncId, packetSlot, 1, SlotActionType.THROW, C.p());
+    }
+
+    // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/InventoryUtil.java#L62
+    public static boolean isBlockInteractable(Block block) {
+        Class<?> clazz = block.getClass();
+
+        // shoutout to 112batman! just using the getMethod function and returning true if it errors is SLOW
+        while(Arrays.stream(clazz.getDeclaredMethods()).noneMatch(m -> m.getName().equals("onUse"))) {
+            Class<?> superClazz = clazz.getSuperclass();
+            if(superClazz == null || superClazz == AbstractBlock.class) return false;
+            clazz = superClazz;
+        }
+
+        return true;
     }
 }

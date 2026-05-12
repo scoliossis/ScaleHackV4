@@ -73,7 +73,7 @@ public class KillAuraModule extends Module {
         Server_FOV {
             @Override
             public void sort(List<Entity> targets) {
-                targets.sort(Comparator.comparingDouble(e -> Math.abs(RotationEvent.lastRotation.yaw - RotationUtil.getRotation(e.getEyePos()).yaw)));
+                targets.sort(Comparator.comparingDouble(e -> Math.abs(RotationEvent.getLastRotation().yaw - RotationUtil.getRotation(e.getEyePos()).yaw)));
             }
         };
 
@@ -163,7 +163,7 @@ public class KillAuraModule extends Module {
 
     private boolean isHoveringTargetEntity() {
         return targetEntity != null
-                && WorldUtil.getMouseOver(RotationEvent.lastRotation, reach) instanceof EntityHitResult entityHitResult
+                && WorldUtil.getMouseOver(RotationEvent.getLastRotation(), reach) instanceof EntityHitResult entityHitResult
                 && entityHitResult.getEntity() == targetEntity;
     }
 

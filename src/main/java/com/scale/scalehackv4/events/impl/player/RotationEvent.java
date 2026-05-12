@@ -4,6 +4,7 @@ import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.utils.player.Rotation;
 import lombok.AllArgsConstructor;
+import lombok.Setter;
 
 import java.util.function.Predicate;
 
@@ -23,7 +24,12 @@ public class RotationEvent extends Event {
 
     public static Rotation clientRotation;
 
-    public static Rotation lastRotation;
+    @Setter
+    private static Rotation lastRotation;
+
+    public static Rotation getLastRotation() {
+        return lastRotation == null ? clientRotation : lastRotation;
+    }
 
     public static float lastPitch;
     public static float currentPitch;

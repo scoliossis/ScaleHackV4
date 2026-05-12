@@ -52,7 +52,7 @@ public class TplessHyperion extends Module {
     }
 
     private boolean isInAir() {
-        BlockPos raytracePos = WorldUtil.raytrace(C.p().getEntityPos(), 4.5, new Rotation(RotationEvent.lastRotation.yaw, 90)).getBlockPos();
+        BlockPos raytracePos = WorldUtil.raytrace(C.p().getEntityPos(), 4.5, new Rotation(RotationEvent.getLastRotation().yaw, 90)).getBlockPos();
         BlockState blockState = C.w().getBlockState(raytracePos);
         VoxelShape outlineShape = blockState.getOutlineShape(C.w(), raytracePos);
         if (outlineShape.isEmpty()) return true;
@@ -68,7 +68,7 @@ public class TplessHyperion extends Module {
 
         if (!shouldTpless() || !shouldLookDown()) return false;
 
-        PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, RotationEvent.lastRotation.yaw, 90));
+        PacketUtil.sendSequencedPacket(sequence -> new PlayerInteractItemC2SPacket(Hand.MAIN_HAND, sequence, RotationEvent.getLastRotation().yaw, 90));
         sentTeleports++;
 
         return false;
