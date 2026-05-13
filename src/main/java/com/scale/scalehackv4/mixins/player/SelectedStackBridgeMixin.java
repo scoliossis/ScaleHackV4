@@ -23,4 +23,9 @@ public class SelectedStackBridgeMixin implements SelectedStackBridge {
     public void bridge$setLastSelectedSlot(int slot) {
         this.lastSelectedSlot = slot;
     }
+
+    @Override
+    public int bridge$getLastSelectedSlot() {
+        return this.lastSelectedSlot;
+    }
 }

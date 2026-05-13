@@ -30,7 +30,6 @@ import java.util.Optional;
 )
 // todo: telly scaffold ig bro...
 //  better on edge check
-//  bypahhh duplicaterot check
 public class ScaffoldModule extends Module {
     @RegisterSubModule(name = "Fast Place", hasKeybind = true)
     public static boolean fastPlace = true;
@@ -57,13 +56,19 @@ public class ScaffoldModule extends Module {
     public static RotationMode rotationMode = RotationMode.God_Bridge;
 
     private boolean rotationSuccessful = false;
+    private static boolean wasActive = false;
 
     public enum RotationMode {
         None {@Override public boolean rotate(RotationEvent.Params params, BlockPos closestBlock) {return false;}},
         Assist {
             @Override
             public boolean rotate(RotationEvent.Params params, BlockPos closestBlock) {
-                for (int i = 45; i <= 90; i++) {
+                if (!onEdgeOfBlock()) {
+                    params.rotation.pitch = RotationEvent.getLastRotation().pitch;
+                    return false;
+                }
+
+                for (int i = 60; i <= 90; i++) {
                     HitResult hitResult = WorldUtil.getMouseOver(new Rotation(RotationEvent.clientRotation.yaw, i));
                     if (hitResult instanceof BlockHitResult blockHitResult
                             && WorldUtil.isBlockHitResultValid(blockHitResult)
@@ -91,33 +96,30 @@ public class ScaffoldModule extends Module {
             public boolean rotate(RotationEvent.Params params, BlockPos closestBlock) {
                 if (!onEdgeOfBlock()) {
                     params.rotation = RotationEvent.getLastRotation();
-                    return true;
+                    return false;
                 }
 
-                float closestPitch = 91;
-                float closestYaw = 181;
-
+                Rotation bestRotation = null;
                 Rotation lastRotation = RotationEvent.getLastRotation();
 
-                // searches for closest yaw + pitch change
-                // <= Math.abs(closestYaw) to stop worthless loops!
-                for (float yaw = -closestYaw+1; yaw <= Math.abs(closestYaw); yaw+=5) {
+                for (float yaw = -180; yaw <= 180; yaw++) {
                     for (float pitch = 90; pitch >= 60; pitch--) {
-                        HitResult hitResult = WorldUtil.getMouseOver(new Rotation(lastRotation.yaw+yaw, pitch));
-                        if (!(hitResult instanceof BlockHitResult blockHitResult) || !WorldUtil.isBlockHitResultValid(blockHitResult)) continue;
+                        // Math.random() to stop https://github.com/GrimAnticheat/Grim/blob/2.0/common/src/main/java/ac/grim/grimac/checks/impl/scaffolding/DuplicateRotPlace.java
+                        Rotation rotation = new Rotation((float) (lastRotation.yaw+yaw + Math.random()), pitch);
+                        HitResult hitResult = WorldUtil.getMouseOver(rotation);
+                        if (!(hitResult instanceof BlockHitResult blockHitResult)
+                                || !WorldUtil.isBlockHitResultValid(blockHitResult)
+                                || !blockHitResult.getBlockPos().equals(closestBlock)
+                                || blockHitResult.getBlockPos().offset(blockHitResult.getSide()).getY() > C.p().getY()-1
+                                || getRotationScore(rotation) > getRotationScore(bestRotation)) continue;
 
-                        if (blockHitResult.getBlockPos().equals(closestBlock)) {
-                            if (Math.abs(yaw) < Math.abs(closestYaw)) {
-                                closestYaw = yaw;
-                                closestPitch = pitch;
-                            }
-                        }
+                        bestRotation = rotation;
                     }
                 }
 
-                if (closestYaw == 181) return false;
+                if (bestRotation == null) return false;
 
-                params.rotation = new Rotation(lastRotation.yaw + closestYaw, closestPitch);
+                params.rotation = bestRotation;
 
                 return true;
             }
@@ -126,9 +128,21 @@ public class ScaffoldModule extends Module {
         public abstract boolean rotate(RotationEvent.Params params, BlockPos closestBlock);
     }
 
+    // the ideal rotation is:
+    //  - a multiple of 45 away from client rotation (so movefix is less noticable)
+    //  - as close to the last rotation as possible
+    private static float getRotationScore(Rotation rotation) {
+        if (rotation == null) return Float.MAX_VALUE;
+        return Math.abs(rotation.yaw - RotationEvent.getLastRotation().yaw) - ((RotationEvent.clientRotation.yaw-rotation.yaw) % 45)*2;
+    }
+
     public Event onRotationEvent = new RotationEvent(this, params -> {
+        if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem()) && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Holding_Block) || wasActive)) {
+            InventoryUtil.swapToBestBlocks();
+        }
+
         rotationSuccessful = false;
-        if (!shouldScaffold()) return false;
+        if (!(wasActive = shouldScaffold())) return false;
 
         BlockPos closestBlock = findClosestBlock();
         if (closestBlock == null || !C.p().canInteractWithBlockAt(closestBlock, 0)) return false;
@@ -138,7 +152,7 @@ public class ScaffoldModule extends Module {
 
     public Event onAllowRightClick = new CheckClickEvent.Right(this, params -> {
         HitResult hitResult = WorldUtil.getMouseOver(RotationEvent.getLastRotation());
-        if (!autoplace || !rotationSuccessful || !(hitResult instanceof BlockHitResult blockHitResult) || !WorldUtil.isBlockHitResultValid(blockHitResult)) return false;
+        if (!autoplace || !shouldScaffold() || (!rotationSuccessful && rotationMode != RotationMode.None) || !(hitResult instanceof BlockHitResult blockHitResult) || !WorldUtil.isBlockHitResultValid(blockHitResult)) return false;
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
@@ -152,7 +166,7 @@ public class ScaffoldModule extends Module {
     }
 
     public static boolean shouldEagle() {
-        return crouchOnEdge && ModuleUtil.isEnabled(ScaffoldModule.class) && shouldScaffold();
+        return crouchOnEdge && ModuleUtil.isEnabled(ScaffoldModule.class) && wasActive;
     }
 
     private static boolean shouldScaffold() {

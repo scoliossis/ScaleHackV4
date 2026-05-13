@@ -34,7 +34,7 @@ public class KillAuraModule extends Module {
     @RegisterSubModule(name = "Rotation Range", min = 1, max = 6)
     public float rotationRange = 5;
     @RegisterSubModule(name = "Aura FOV", min = 1, max = 180)
-    public float auraFOV = 180;
+    public int auraFOV = 180;
     @RegisterSubModule(name = "Sticky Targets")
     public boolean stickyTargets = false;
     @RegisterSubModule(name = "Target Selection")

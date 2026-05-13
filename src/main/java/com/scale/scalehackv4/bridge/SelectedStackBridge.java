@@ -9,4 +9,5 @@ public interface SelectedStackBridge {
 
     void bridge$setSelectedStack(ItemStack stack);
     void bridge$setLastSelectedSlot(int slot);
+    int bridge$getLastSelectedSlot();
 }

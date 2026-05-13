@@ -17,6 +17,7 @@ import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.effect.StatusEffect;
 import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.player.PlayerInventory;
 import net.minecraft.inventory.Inventory;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
@@ -50,7 +51,7 @@ public class InventoryUtil {
                 || (itemStack.isEmpty() && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Fist));
     }
 
-    public static boolean  isItemValidBlock(Item item) {
+    public static boolean isItemValidBlock(Item item) {
         // gotta be a block
         return item instanceof BlockItem blockItem &&
                 // gotta NOT be sand
@@ -71,6 +72,25 @@ public class InventoryUtil {
         if (slot < 40) return 44 - slot;
         // i dont remember, maybe off hand
         if (slot == 40) return 45;
+        return slot;
+    }
+
+    public static boolean swapToBestBlocks() {
+        int bestSlot = getBestBlockSlot();
+        if (bestSlot == -1) return false;
+
+        swapSlot(bestSlot, true);
+        return true;
+    }
+
+    public static int getBestBlockSlot() {
+        int slot = -1;
+        for (int i = 0; i < PlayerInventory.getHotbarSize(); i++) {
+            ItemStack itemStack = C.p().getInventory().getStack(i);
+            if (!InventoryUtil.isItemValidBlock(itemStack.getItem()) || (slot != -1 && itemStack.getCount() < C.p().getInventory().getStack(slot).getCount())) continue;
+
+            slot = i;
+        }
         return slot;
     }
 
@@ -160,16 +180,17 @@ public class InventoryUtil {
         return (float) (item.getMaxDamage() - item.getDamage()) / item.getMaxDamage();
     }
 
-    /// warning: if instant is true, it sends the update selected slot packet, avoid using twice in one tick.
     public static void swapSlot(int slot, boolean instant) {
         // don't swap to current slot.
         if (slot == C.p().getInventory().getSelectedSlot()) return;
         // don't swap to invalid slots.
         if (slot < 0 || slot > 9) return;
 
+        int prevSlot = C.p().getInventory().getSelectedSlot();
         C.p().getInventory().setSelectedSlot(slot);
 
-        if (instant) {
+        // check that we havent already changed slots this tick
+        if (instant && prevSlot == SelectedStackBridge.from(C.im()).bridge$getLastSelectedSlot()) {
             SelectedStackBridge.from(C.im()).bridge$setSelectedStack(C.p().getInventory().getStack(slot));
             SelectedStackBridge.from(C.im()).bridge$setLastSelectedSlot(slot);
             PacketUtil.sendImmediately(new UpdateSelectedSlotC2SPacket(slot));
