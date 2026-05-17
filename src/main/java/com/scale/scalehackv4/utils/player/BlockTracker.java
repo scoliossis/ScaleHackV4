@@ -80,6 +80,8 @@ public class BlockTracker {
         for (int x = 0; x < 16; x++) {
             for (int y = 0; y < 256; y++) {
                 for (int z = 0; z < 16; z++) {
+                    if (C.w() == null) return;
+
                     BlockPos blockPos = new BlockPos(chunkX * 16 + x, y, chunkZ * 16 + z);
                     Block block = C.w().getBlockState(blockPos).getBlock();
 

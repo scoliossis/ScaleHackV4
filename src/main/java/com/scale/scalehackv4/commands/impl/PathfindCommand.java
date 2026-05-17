@@ -32,7 +32,7 @@ public class PathfindCommand extends Command {
         for (BlockPos block : blocks) {
             Vector3f pos = block.toCenterPos().toVector3f().add(0, 0.5f, 0);
             if (lastPos != null) {
-                Render3dUtil.drawLine(lastPos, pos, new Color(255, 0, 0));
+                Render3dUtil.drawLine(lastPos, pos, new Color(255, 0, 0), false);
             }
             Render3dUtil.drawBox(pos.x - 0.05f, pos.y - 0.05f, pos.z - 0.05f, 0.1f, 0.1f, 0.1f, new Color(0, 245, 255, 255), false);
             lastPos = pos;

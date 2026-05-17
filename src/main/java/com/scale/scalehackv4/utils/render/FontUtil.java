@@ -4,17 +4,28 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
 import lombok.AllArgsConstructor;
+import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.AbstractTexture;
 import net.minecraft.client.texture.TextureSetup;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.screen.ScreenTexts;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Style;
+import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
+import net.minecraft.util.Identifier;
 import org.joml.Matrix3x2f;
+import org.joml.Matrix3x2fStack;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
-import java.util.HashMap;
-import java.util.Objects;
-import java.util.Random;
+import java.util.*;
+import java.util.List;
+import java.util.function.Predicate;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 // straight ripped from https://github.com/scoliossis/ScaleHackOpenSrc which isnt great
 // todo: yeah rewrite most of this.
@@ -28,6 +39,7 @@ public class FontUtil {
     @AllArgsConstructor
     private static class FontTexture {
         public TextureSetup texture;
+        public Identifier identifier;
         public HashMap<Character, CharacterInfo> charBounds;
         public int width;
         public int height;
@@ -95,7 +107,13 @@ public class FontUtil {
 
         graphics.dispose();
 
-        return new FontTexture(RenderUtil.getTexture(texture, font.getFontName()+font.getSize()), charBounds, stringBounds.width, stringBounds.height);
+        String textureName = "font/" + font.getFontName().toLowerCase().replace(" ", "_") + "_" + font.getSize();
+        Identifier identifier = Identifier.of(Main.MOD_ID, textureName);
+
+        AbstractTexture abstractTexture = RenderUtil.createTexture(texture, textureName);
+        C.mc.getTextureManager().registerTexture(identifier, abstractTexture);
+
+        return new FontTexture(RenderUtil.getTexture(abstractTexture), identifier, charBounds, stringBounds.width, stringBounds.height);
     }
 
     private static Rectangle getFontTextureBounds(Font font, String string) {
@@ -112,162 +130,160 @@ public class FontUtil {
         return graphics;
     }
 
-    public static float drawStringFade(String string, float startX, float startY, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow) {
-        return drawStringFade(string, startX, startY, fontSize, colour, fadeSpeed, fadeSpread, dropShadow, false);
+    public static void drawStringFade(Text text, float startX, float startY, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow) {
+        drawStringFade(text, startX, startY, 0, fontSize, colour, fadeSpeed, fadeSpread, dropShadow, false, false);
     }
 
-    public static float drawStringFade(String string, float startX, float startY, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow, boolean queue) {
-        if (string.isEmpty()) return 0;
-        Color[] inputColour = colour;
+    public static void drawStringFade(Text text, float startX, float startY, float startZ, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow, boolean queue, boolean world) {
+        if (text == ScreenTexts.EMPTY) return;
 
-        float scaleFactor = getScaleFactor();
-        int size = (int) (fontSize * scaleFactor);
+        float upscale = getFontUpscale(world);
+        int scaledFont = getFontSize(fontSize, world);
 
-        FontTexture fontTexture = getFontTexture(size);
+        FontTexture fontTexture = getFontTexture(scaledFont);
 
-        float x = Math.round(startX);
-        float y = Math.round(startY);
+        Object matrices = world ? Render3dUtil.getMatrices().peek() : Render2dUtil.getMatrices();
+        if (matrices == null) return;
+
+        Predicate<VertexConsumer> drawTextRunnable = getDrawTextRunnable(text, colour, fadeSpeed, fadeSpread, dropShadow, matrices, fontTexture, scaledFont, upscale);
+
+        if (world) {
+            ((MatrixStack.Entry) matrices).translate(startX, startY, startZ);
+            // flip it upside down!
+            ((MatrixStack.Entry) matrices).scale(-upscale, -upscale, -upscale);
+            Render3dUtil.drawTexturedQuads(drawTextRunnable, fontTexture.identifier, false);
+        } else {
+            ((Matrix3x2f) matrices).translate(Math.round(startX), Math.round(startY));
+            ((Matrix3x2f) matrices).scale(upscale);
+            RenderUtil.drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, fontTexture.texture, drawTextRunnable, queue);
+        }
+
+        // drawing minecraft characters
+        float width = 0;
+        for (Text drawableString : fixText(text)) {
+            Style textStyle = drawableString.getStyle();
+            if (textStyle.getColor() != null) Arrays.fill(colour, new Color(textStyle.getColor().getRgb()));
+            for (char c : drawableString.getString().toCharArray()) {
+                if (fontTexture.charBounds.get(c) == null) {
+                    drawMinecraftString(String.valueOf(c), startX + width, startY, startZ, fontSize, colour[0], dropShadow, world);
+                }
+                width += getCharWidth(c, fontSize);
+            }
+        }
+    }
+
+    private static Predicate<VertexConsumer> getDrawTextRunnable(Text text, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow, Object matrices, FontTexture fontTexture, int size, float scaleFactor) {
         int fontHeight = fontTexture.height;
 
-        Matrix3x2f matrices = Render2dUtil.getMatrices();
-        Render2dUtil.drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, fontTexture.texture, (vertices) -> {
-            matrices.translate(x, y);
-            float downScale = 1f / scaleFactor;
-            matrices.scale(downScale);
+        return (vertices) -> {
+            float totalWidth = 0;
+            boolean randomStyle, boldStyle, strikethroughStyle, underlineStyle, italicStyle;
 
-            // todo:
-            //ArrayList<UnrenderedCharacter> unrenderedCharacters = new ArrayList<>();
+            for (Text drawableString : fixText(text)) {
+                Style textStyle = drawableString.getStyle();
+                randomStyle = textStyle.isObfuscated();
+                underlineStyle = textStyle.isUnderlined();
+                strikethroughStyle = textStyle.isStrikethrough();
+                boldStyle = textStyle.isBold();
+                italicStyle = textStyle.isItalic();
 
-            boolean randomStyle = false, boldStyle = false, strikethroughStyle = false, underlineStyle = false, italicStyle = false;
+                if (textStyle.getColor() != null) {
+                    Arrays.fill(colour, new Color(textStyle.getColor().getRgb()));
+                }
 
-            int totalWidth = 0;
-            for (int i = 0; i < string.length(); i++) {
-                char c = string.charAt(i);
+                for (int i = 0; i < drawableString.getString().length(); i++) {
+                    char c = drawableString.getString().charAt(i);
 
-                if (c == '§') {
-                    if (i + 2 > string.length()) continue;
-                    String colourCodeString = string.substring(i + 1, i + 2);
-                    char colourCode = colourCodeString.charAt(0);
-                    if (COLOUR_CODES.contains(colourCodeString)) {
-                        Formatting formatting = Formatting.byCode(colourCode);
-                        if (formatting == null || formatting.getColorValue() == null) continue;
+                    if (randomStyle) c = scrambleCharacter(c, size);
 
-                        Color colourCodeColour = new Color(formatting.getColorValue());
-                        for (int j = 0; j < colour.length; j++)
-                            colour[j] = new Color(colourCodeColour.getRed(), colourCodeColour.getGreen(), colourCodeColour.getBlue(), colour[j].getAlpha());
-                        randomStyle = boldStyle = strikethroughStyle = underlineStyle = italicStyle = false;
-                    } else {
-                        switch (colourCode) {
-                            case 'k':
-                                randomStyle = true;
-                                break;
-                            case 'l':
-                                boldStyle = true;
-                                break;
-                            case 'm':
-                                strikethroughStyle = true;
-                                break;
-                            case 'n':
-                                underlineStyle = true;
-                                break;
-                            case 'o':
-                                italicStyle = true;
-                                break;
+                    CharacterInfo characterBounds = fontTexture.charBounds.get(c);
 
-                            default:
-                                for (int j = 0; j < colour.length; j++)
-                                    colour[j] = new Color(inputColour[j].getRed(), inputColour[j].getGreen(), inputColour[j].getBlue(), colour[j].getAlpha());
-                                randomStyle = boldStyle = strikethroughStyle = underlineStyle = italicStyle = false;
-                                break;
-                        }
+                    if (characterBounds == null) {
+                        float characterWidth = getMinecraftCharWidth(c, size);
+                        // todo:
+                        //Color colourFade = RenderUtil.getColorsFade((x + totalWidth[0]) * fadeSpread, colour, fadeSpeed);
+
+                        totalWidth += characterWidth;
+                        continue;
                     }
 
-                    i++;
-                    continue;
-                }
+                    float u = (float) characterBounds.u;
+                    float uw = (float) characterBounds.uw;
+                    int characterWidth = characterBounds.width;
 
-                if (randomStyle) c = scrambleCharacter(c, size);
-
-                CharacterInfo characterBounds = fontTexture.charBounds.get(c);
-
-                if (characterBounds == null) {
                     // todo:
-                    /*
-                    int characterWidth = getMinecraftCharWidth(c, size);
-                    Color colourFade = RenderUtil.getColorsFade((x + totalWidth) * fadeSpread, colour, fadeSpeed);
+                    //Color[] colourFade = RenderUtil.getColorsFade((x + totalWidth) * fadeSpread, characterWidth * fadeSpread, colour, fadeSpeed);
+                    Color[] colourFade = new Color[]{colour[0], colour[1]};
 
-                    unrenderedCharacters.add(new UnrenderedCharacter(c, (int) (totalWidth / scaleFactor), colourFade));
+                    if (dropShadow) {
+                        // in the 1.8.9 version, there is a fun fact here,
+                        // but i removed it cause im not bothered enough to fact check if for this version
+                        Color[] shadowColours = new Color[]{
+                                new Color(22, 22, 22, colourFade[0].getAlpha()),
+                                new Color(22, 22, 22, colourFade[1].getAlpha())
+                        };
+                        drawCharacter(totalWidth + 1, 1, characterWidth, fontHeight, shadowColours, u, uw, vertices, matrices);
+                    }
+                    drawCharacter(totalWidth, 0, characterWidth, fontHeight, colourFade, u, uw, vertices, matrices);
+                    if (boldStyle)
+                        drawCharacter(totalWidth + 1, 0, characterWidth, fontHeight, colourFade, u, uw, vertices, matrices);
+
+                    float filledTextureUW = 1f / fontTexture.width;
+                    if (underlineStyle)
+                        drawCharacter(totalWidth, fontHeight * 0.8f, characterWidth, 1, colourFade, 0, filledTextureUW, vertices, matrices);
+                    if (strikethroughStyle)
+                        drawCharacter(totalWidth, fontHeight / 2f - 1, characterWidth, 2, colourFade, 0, filledTextureUW, vertices, matrices);
+
+                    // todo: impl italics, sounds like effort and they dont look good anyway.
+
                     totalWidth += characterWidth;
-                     */
-                    continue;
                 }
-
-                float u = (float) characterBounds.u;
-                float uw = (float) characterBounds.uw;
-                int characterWidth = characterBounds.width;
-
-                // todo:
-                //Color[] colourFade = RenderUtil.getColorsFade((x + totalWidth) * fadeSpread, characterWidth * fadeSpread, colour, fadeSpeed);
-                Color[] colourFade = new Color[]{colour[0], colour[1]};
-
-                if (dropShadow) {
-                    // in the 1.8.9 version, there is a fun fact here,
-                    // but i removed it cause im not bothered enough to fact check if for this version
-                    Color[] shadowColours = new Color[]{
-                            new Color(22, 22, 22, colourFade[0].getAlpha()),
-                            new Color(22, 22, 22, colourFade[1].getAlpha())
-                    };
-                    drawCharacter(totalWidth + 1, 1, characterWidth, fontHeight, shadowColours, u, uw, vertices, matrices);
-                }
-                drawCharacter(totalWidth, 0, characterWidth, fontHeight, colourFade, u, uw, vertices, matrices);
-                if (boldStyle) drawCharacter(totalWidth + 1, 0, characterWidth, fontHeight, colourFade, u, uw, vertices, matrices);
-
-                float filledTextureUW = 1f / fontTexture.width;
-                if (underlineStyle)
-                    drawCharacter(totalWidth, fontHeight * 0.8f, characterWidth, 1, colourFade, 0, filledTextureUW, vertices, matrices);
-                if (strikethroughStyle)
-                    drawCharacter(totalWidth, fontHeight / 2f - 1, characterWidth, 2, colourFade, 0, filledTextureUW, vertices, matrices);
-
-                // todo: impl italics, sounds like effort and they dont look good anyway.
-
-                totalWidth += characterWidth;
             }
 
             return true;
-        }, queue);
+        };
+    }
 
-        // todo:
-        /*
-        for (UnrenderedCharacter unrenderedCharacter : unrenderedCharacters) {
-            drawMinecraftString(String.valueOf(unrenderedCharacter.character), x + unrenderedCharacter.x, y, size / scaleFactor, unrenderedCharacter.colour, dropShadow);
+    private static void drawCharacter(float x, float y, float w, float h, Color[] colours, float u, float uw, VertexConsumer vertexConsumer, Object matrices) {
+        if (matrices instanceof MatrixStack.Entry matrixStackEntry) {
+            vertexConsumer.vertex(matrixStackEntry, x, y+h, 0).color(colours[0].getRGB()).texture(u, 1);
+            vertexConsumer.vertex(matrixStackEntry, x + w, y+h, 0).color(colours[1].getRGB()).texture(uw, 1);
+            vertexConsumer.vertex(matrixStackEntry, x + w, y, 0).color(colours[1].getRGB()).texture(uw, 0);
+            vertexConsumer.vertex(matrixStackEntry, x, y, 0).color(colours[0].getRGB()).texture(u, 0);
         }
-         */
-
-        //return totalWidth / scaleFactor;
-        return 0;
+        else if (matrices instanceof Matrix3x2f matrix3x2f) {
+            vertexConsumer.vertex(matrix3x2f, x, y+h).color(colours[0].getRGB()).texture(u, 1);
+            vertexConsumer.vertex(matrix3x2f, x + w, y+h).color(colours[1].getRGB()).texture(uw, 1);
+            vertexConsumer.vertex(matrix3x2f, x + w, y).color(colours[1].getRGB()).texture(uw, 0);
+            vertexConsumer.vertex(matrix3x2f, x, y).color(colours[0].getRGB()).texture(u, 0);
+        }
     }
 
-    private static void drawCharacter(float x, float y, float w, float h, Color[] colours, float u, float uw, VertexConsumer vertexConsumer, Matrix3x2f matrices) {
-        vertexConsumer.vertex(matrices, x, y+h).color(colours[0].getRGB()).texture(u, 1);
-        vertexConsumer.vertex(matrices, x + w, y+h).color(colours[1].getRGB()).texture(uw, 1);
-        vertexConsumer.vertex(matrices, x + w, y).color(colours[1].getRGB()).texture(uw, 0);
-        vertexConsumer.vertex(matrices, x, y).color(colours[0].getRGB()).texture(u, 0);
+    public static void drawString(String string, float x, float y, int size, Color colour, boolean dropShadow) {
+        drawStringFade(Text.of(string), x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow);
     }
 
-    public static float drawString(String string, float x, float y, int size, Color colour, boolean dropShadow) {
-        return drawStringFade(string, x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow);
+    public static void drawString(Text text, float x, float y, int size, Color colour, boolean dropShadow) {
+        drawStringFade(text, x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow);
     }
 
-    public static float drawString(String string, float x, float y, int size, Color colour, boolean dropShadow, boolean queue) {
-        return drawStringFade(string, x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow, queue);
+    public static void drawString(String string, float x, float y, int size, Color colour, boolean dropShadow, boolean queue) {
+        drawStringFade(Text.of(string), x, y, 0, size, new Color[] {colour, colour}, 0, 0, dropShadow, queue, false);
+    }
+
+    public static void drawString(String string, float x, float y, float z, int size, Color colour, boolean dropShadow) {
+        drawStringFade(Text.of(string), x, y, z, size, new Color[] {colour, colour}, 0, 0, dropShadow, false, true);
+    }
+    public static void drawString(Text text, float x, float y, float z, int size, Color colour, boolean dropShadow) {
+        drawStringFade(text, x, y, z, size, new Color[] {colour, colour}, 0, 0, dropShadow, false, true);
     }
 
     public static Random fontRandom = new Random();
     private static char scrambleCharacter(char c, int size) {
-        int characterWidth = getCharWidth(c, size);
+        int characterWidth = (int) getCharWidth(c, size);
 
         char scrambledCharacter;
-        while (getCharWidth((scrambledCharacter = LETTERS.charAt(fontRandom.nextInt(LETTERS.length()))), size) != characterWidth);
+        while ((int)getCharWidth((scrambledCharacter = LETTERS.charAt(fontRandom.nextInt(LETTERS.length()))), size) != characterWidth);
 
         return scrambledCharacter;
     }
@@ -276,86 +292,97 @@ public class FontUtil {
         drawString(string, x - getStringWidth(string, size) / 2f, y, size, color, dropShadow);
     }
 
-    public static int getCharWidth(char c, int fontSize) {
+    public static float getCharWidth(char c, int fontSize) {
         FontTexture fontTexture = getFontTexture(fontSize);
-        // todo:
-        //if (fontTexture.charBounds.get(c) == null) return C.mc.fontRendererObj.getCharWidth(c);
-        if (fontTexture.charBounds.get(c) == null) return 0;
+        if (fontTexture.charBounds.get(c) == null) return getMinecraftCharWidth(c, fontSize);
         return fontTexture.charBounds.get(c).width;
     }
 
     public static int getStringWidth(String string, int fontSize) {
-        float scaleFactor = getScaleFactor();
-        fontSize = (int) (fontSize * scaleFactor);
+        return (int) getStringWidth(string, fontSize, false);
+    }
+    public static float getStringWidth(String string, int fontSize, boolean world) {
+        fontSize = getFontSize(fontSize, world);
 
-        int width = 0;
+        float width = 0;
         FontTexture fontTexture = getFontTexture(fontSize);
 
         HashMap<Character, CharacterInfo> charBounds = fontTexture.charBounds;
 
+        string = string.replaceAll(String.valueOf(FORMATTING_CODE_PATTERN), "");
         for (int i = 0; i < string.length(); i++) {
             char c = string.charAt(i);
 
             CharacterInfo characterRect = charBounds.get(c);
-            if (c == '§')  i++;
-            // todo:
-            //else if (characterRect == null) width += getMinecraftCharWidth(c, fontSize);
-            else if (characterRect == null) width += 0;
+            if (characterRect == null) width += getMinecraftCharWidth(c, fontSize);
             else width += characterRect.width;
         }
 
-        return (int) (width / scaleFactor);
+        return width * getFontUpscale(world);
     }
 
     public static int getFontHeight(int fontSize) {
-        float scaleFactor = getScaleFactor();
-        fontSize = (int) (fontSize * scaleFactor);
-
-        FontTexture fontTexture = getFontTexture(fontSize);
-        return (int) (fontTexture.height / scaleFactor);
+        return (int) getFontHeight(fontSize, false);
     }
 
-    private static float getScaleFactor() {
+    public static float getFontHeight(int fontSize, boolean world) {
+        FontTexture fontTexture = getFontTexture(getFontSize(fontSize, world));
+        return fontTexture.height * getFontUpscale(world);
+    }
+
+    private static int getFontSize(int fontSize, boolean world) {
+        if (world) return fontSize;
+
         Matrix3x2f matrix = RenderUtil.getDrawContext().getMatrices();
-        return (float) Math.sqrt(matrix.m00() * matrix.m00() + matrix.m10() * matrix.m10()) * C.res().getScaleFactor();
+        return (int) (fontSize * (float) Math.sqrt(matrix.m00() * matrix.m00() + matrix.m10() * matrix.m10()) * C.res().getScaleFactor());
     }
 
-    // todo:
-    /*
-    private static int getMinecraftCharWidth(char string, double size) {
-        return (int) (C.mc.fontRendererObj.getCharWidth(string) * 0.1 * size);
+    private static float getFontUpscale(boolean world) {
+        if (!world) return 1f/getFontSize(1, false);
+
+        return 1/100f;
+    }
+
+    private static float getMinecraftCharWidth(char string, double size) {
+        return (float) (C.mc.textRenderer.getWidth(String.valueOf(string)) * 0.1f * size);
     }
 
     private static int getMinecraftStringWidth(String string, double size) {
-        return (int) (C.mc.fontRendererObj.getStringWidth(string) * 0.1 * size);
+        return (int) (C.mc.textRenderer.getWidth(string) * 0.1 * size);
     }
-     */
 
-    /*
-    private static int drawMinecraftString(String string, float x, float y, double size, Color colour, boolean dropShadow) {
-        GL11.glPushMatrix();
-        GL11.glTranslated(x, y + size / 3, 0);
-        GL11.glScaled(0.1 * size, 0.1 * size, 1);
-        GL11.glDisable(GL11.GL_DEPTH_TEST);
+    private static float drawMinecraftString(String string, float x, float y, float z, double size, Color colour, boolean dropShadow, boolean world) {
+        y += (float) (size / 3f);
 
-        GlStateManager.enableAlpha();
-
-        FontRendererBridge fontRendererBridge = FontRendererBridge.from(C.mc.fontRendererObj);
-        fontRendererBridge.bridge$resetStyles();
-        int i;
-        if (dropShadow) {
-            i = fontRendererBridge.bridge$renderString(string, 1.0F, 1.0F, colour.getRGB(), true);
-            i = Math.max(i, fontRendererBridge.bridge$renderString(string, 0, 0, colour.getRGB(), false));
-        } else {
-            i = fontRendererBridge.bridge$renderString(string, 0, 0, colour.getRGB(), false);
+        if (world) {
+            MatrixStack matrices3d = Render3dUtil.getMatrices();
+            matrices3d.push();
+            matrices3d.translate(x, y, z);
+            matrices3d.scale(0.1f * (float) size, 0.1f * (float) size, 0.1f * (float) size);
+            C.mc.textRenderer.draw(
+                    string,
+                    0,
+                    0,
+                    colour.getRGB(),
+                    dropShadow,
+                    Render3dUtil.getMatrices().peek().getPositionMatrix(),
+                    Render3dUtil.getVertexConsumerProvider(),
+                    TextRenderer.TextLayerType.NORMAL,
+                    0,
+                    0
+            );
+            matrices3d.pop();
         }
-
-        GL11.glPopMatrix();
-        GL11.glEnable(GL11.GL_DEPTH_TEST);
-
-        return i;
+        else {
+            Matrix3x2fStack matrices2d = RenderUtil.drawContext.getMatrices();
+            matrices2d.pushMatrix();
+            matrices2d.translate(x, y);
+            matrices2d.scale(0.1f * (float) size);
+            RenderUtil.drawContext.drawText(C.mc.textRenderer, string, 0, 0, colour.getRGB(), dropShadow);
+            matrices2d.popMatrix();
+        }
+        return (float) (C.mc.textRenderer.getWidth(string) * size * 0.1f);
     }
-     */
 
     public enum Fonts {
         Verdana("verdana.ttf"),
@@ -373,7 +400,7 @@ public class FontUtil {
             Font font = new Font(Font.SANS_SERIF, Font.PLAIN, 0);
 
             try {
-                font =  Font.createFont(Font.TRUETYPE_FONT, Objects.requireNonNull(Main.class.getResourceAsStream("/fonts/" + name)));
+                font = Font.createFont(Font.TRUETYPE_FONT, Objects.requireNonNull(Main.class.getResourceAsStream("/fonts/" + name)));
             } catch (Exception e) {
                 System.err.println("Failed to load font: " + e.getMessage());
                 e.printStackTrace();
@@ -381,5 +408,40 @@ public class FontUtil {
 
             this.font = font;
         }
+    }
+
+    // from net.minecraft.util.Formatting.FORMATTING_CODE_PATTERN
+    private static final Pattern FORMATTING_CODE_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
+
+    // cancer. im sure there is a minecraft
+    private static List<Text> fixText(Text text) {
+        List<Text> texts = new ArrayList<>();
+
+        for (Text segment : text.getWithStyle(Style.EMPTY)) {
+            String raw = segment.getString();
+            Style baseStyle = segment.getStyle();
+            Matcher matcher = FORMATTING_CODE_PATTERN.matcher(raw);
+
+            int lastEnd = 0;
+            Formatting lastFormatting = null;
+
+            while (matcher.find()) {
+                String part = raw.substring(lastEnd, matcher.start());
+                MutableText t = Text.literal(part).setStyle(baseStyle);
+                if (lastFormatting != null) t.formatted(lastFormatting);
+                texts.add(t);
+
+                lastFormatting = Formatting.byCode(matcher.group().charAt(1));
+                lastEnd = matcher.end();
+            }
+
+            if (lastEnd < raw.length()) {
+                MutableText t = Text.literal(raw.substring(lastEnd)).setStyle(baseStyle);
+                if (lastFormatting != null) t.formatted(lastFormatting);
+                texts.add(t);
+            }
+        }
+
+        return texts;
     }
 }

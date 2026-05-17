@@ -115,22 +115,22 @@ public class ModelModifierModule extends Module {
 
         doTranslations();
 
-        if (outlineColour != null) drawParts(outlineColour, ModelPhase.GLOW);
-        drawParts(color, ModelPhase.MODEL);
-        if (overlayColour != null) drawParts(overlayColour, ModelPhase.OVERLAY);
+        if (outlineColour != null) drawParts(outlineColour, ModelPhase.GLOW, false);
+        else drawParts(color, ModelPhase.MODEL, true);
+        if (overlayColour != null) drawParts(overlayColour, ModelPhase.OVERLAY, outlineColour == null);
 
         matrices.pop();
     }
 
-    private static void drawParts(Color colour, ModelPhase modelPhase) {
-        drawPart(EntityModelPartNames.HEAD, currentModel.head, Vec3f.middle(currentModel.head.box), colour, modelPhase);
-        drawPart(EntityModelPartNames.BODY, currentModel.body, Vec3f.middle(currentModel.body.box), colour, modelPhase);
+    private static void drawParts(Color colour, ModelPhase modelPhase, boolean cull) {
+        drawPart(EntityModelPartNames.HEAD, currentModel.head, Vec3f.middle(currentModel.head.box), colour, modelPhase, cull);
+        drawPart(EntityModelPartNames.BODY, currentModel.body, Vec3f.middle(currentModel.body.box), colour, modelPhase, cull);
 
-        drawPart(EntityModelPartNames.LEFT_ARM, currentModel.rightArm, Vec3f.lerpBox(currentModel.body.box, 1, 1, 0.5f), colour, modelPhase);
-        drawPart(EntityModelPartNames.RIGHT_ARM, currentModel.leftArm, Vec3f.lerpBox(currentModel.body.box, 0, 1, 0.5f), colour, modelPhase);
+        drawPart(EntityModelPartNames.LEFT_ARM, currentModel.rightArm, Vec3f.lerpBox(currentModel.body.box, 1, 1, 0.5f), colour, modelPhase, cull);
+        drawPart(EntityModelPartNames.RIGHT_ARM, currentModel.leftArm, Vec3f.lerpBox(currentModel.body.box, 0, 1, 0.5f), colour, modelPhase, cull);
 
-        drawPart(EntityModelPartNames.LEFT_LEG, currentModel.rightLeg, Vec3f.lerpBox(currentModel.rightLeg.box, 1, 1, 0.5f), colour, modelPhase);
-        drawPart(EntityModelPartNames.RIGHT_LEG, currentModel.leftLeg, Vec3f.lerpBox(currentModel.leftLeg.box, 0, 1, 0.5f), colour, modelPhase);
+        drawPart(EntityModelPartNames.LEFT_LEG, currentModel.rightLeg, Vec3f.lerpBox(currentModel.rightLeg.box, 1, 1, 0.5f), colour, modelPhase, cull);
+        drawPart(EntityModelPartNames.RIGHT_LEG, currentModel.leftLeg, Vec3f.lerpBox(currentModel.leftLeg.box, 0, 1, 0.5f), colour, modelPhase, cull);
     }
 
     private static void doTranslations() {
@@ -161,8 +161,9 @@ public class ModelModifierModule extends Module {
                     .build()
     );
 
-    private static void drawPart(String part, ModelUtil.Model objModel, Vec3f pivot, Color colour, ModelPhase modelPhase) {
+    private static void drawPart(String part, ModelUtil.Model objModel, Vec3f pivot, Color colour, ModelPhase modelPhase, boolean cull) {
         ModelPart modelPart = entityModel.getChildPart(part);
+        if (modelPart == null) return;
 
         matrices.push();
         matrices.multiply(new Quaternionf().rotationZYX(-modelPart.roll, -modelPart.yaw, modelPart.pitch), pivot.x, pivot.y, pivot.z);
@@ -172,10 +173,10 @@ public class ModelModifierModule extends Module {
                 drawGlow(objModel, colour);
             }
             case MODEL -> {
-                Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, colour);
+                Render3dUtil.drawModel(0, 0, 0, objModel, currentModel.texture, colour, cull);
             }
             case OVERLAY -> {
-                Render3dUtil.drawModel(0, 0, 0, objModel, colour);
+                Render3dUtil.drawModel(0, 0, 0, objModel, colour, cull);
             }
         }
 
@@ -189,20 +190,12 @@ public class ModelModifierModule extends Module {
                 (objModel.box.maxZ + objModel.box.minZ) / 2
         );
 
-        // black outline
-        matrices.push();
-        matrices.translate(modelCenter.x, modelCenter.y, modelCenter.z);
-        matrices.scale(1.2f, 1.2f, 1.2f);
-        matrices.translate(-modelCenter.x, -modelCenter.y, -modelCenter.z);
-        Render3dUtil.drawModel(0, 0, 0, objModel, new Color(0,0,0), OUTLINE_LAYER);
-        matrices.pop();
-
         // coloured outline
         matrices.push();
         matrices.translate(modelCenter.x, modelCenter.y, modelCenter.z);
         matrices.scale(1.1f, 1.1f, 1.1f);
         matrices.translate(-modelCenter.x, -modelCenter.y, -modelCenter.z);
-        Render3dUtil.drawModel(0, 0, 0, objModel, colour, OUTLINE_LAYER);
+        Render3dUtil.drawModel(0, 0, 0, objModel, colour, false);
         matrices.pop();
     }
 
@@ -238,11 +231,11 @@ public class ModelModifierModule extends Module {
         matrices.scale(SCALE,SCALE,SCALE);
         if (rightHand) {
             matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, -0.2f, 0.1f), -0.3f, 0.35f, -0.1f);
-            Render3dUtil.drawModel(0, 0, 0, currentModel.leftArm, currentModel.texture, Color.WHITE);
+            Render3dUtil.drawModel(0, 0, 0, currentModel.leftArm, currentModel.texture, Color.WHITE, true);
         }
         else {
             matrices.multiply(new Quaternionf().rotateAxis((float) Math.toRadians(180), 0.7f, 0f, -0.1f), 0.3f, 0.35f, -0.1f);
-            Render3dUtil.drawModel(0, 0, 0, currentModel.rightArm, currentModel.texture, Color.WHITE);
+            Render3dUtil.drawModel(0, 0, 0, currentModel.rightArm, currentModel.texture, Color.WHITE, true);
         }
         matrices.pop();
     }

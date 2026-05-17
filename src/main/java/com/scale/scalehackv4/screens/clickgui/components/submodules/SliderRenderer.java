@@ -9,6 +9,8 @@ import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector2f;
 
@@ -20,7 +22,7 @@ public class SliderRenderer extends SubModuleRenderer {
         int rectWidth = SubModuleRenderer.getMiddleWidth(subModule);
         int fontHeight = FontUtil.getFontHeight(ClickGuiScreen.FONT_SIZE)-1;
         double value = Double.parseDouble(subModule.get().toString());
-        String valueString = "§l" + value;
+        String valueString = "" + value;
         int valueWidth = FontUtil.getStringWidth(valueString, ClickGuiScreen.FONT_SIZE);
 
         matrices.pushMatrix();
@@ -41,7 +43,7 @@ public class SliderRenderer extends SubModuleRenderer {
         Render2dUtil.drawRect(sliderWidth, 0, rectWidth-sliderWidth, 2, ClickGuiScreen.OUTLINE_COLOUR);
         Render2dUtil.drawRect(0, 0, sliderWidth, 2, ClickGuiModule.guiColour);
 
-        FontUtil.drawString(valueString, Math.clamp(sliderWidth - (valueWidth/2), 0, rectWidth-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        FontUtil.drawString(Text.literal(valueString).formatted(Formatting.BOLD), Math.clamp(sliderWidth - (valueWidth/2), 0, rectWidth-valueWidth), -1, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         matrices.popMatrix();
     }

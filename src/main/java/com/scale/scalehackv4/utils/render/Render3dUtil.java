@@ -1,13 +1,10 @@
 package com.scale.scalehackv4.utils.render;
 
-import com.mojang.blaze3d.pipeline.RenderPipeline;
-import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.Main;
 import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import lombok.Getter;
 import lombok.Setter;
-import net.minecraft.client.gl.RenderPipelines;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.BufferAllocator;
@@ -18,21 +15,25 @@ import org.joml.Vector3f;
 
 import java.awt.*;
 import java.util.HashMap;
+import java.util.function.Predicate;
 
 public class Render3dUtil extends RenderUtil {
     @Getter private static MatrixStack matrices;
-    private static VertexConsumerProvider.Immediate vertexConsumers = VertexConsumerProvider.immediate(BufferAllocator.fixedSized(0));
+    @Getter private static VertexConsumerProvider.Immediate vertexConsumers = VertexConsumerProvider.immediate(BufferAllocator.fixedSized(0));
+    @Getter private static VertexConsumerProvider vertexConsumerProvider = VertexConsumerProvider.immediate(BufferAllocator.fixedSized(0));
 
     @Setter @Getter private static RenderTickCounter tickCounter = new RenderTickCounter.Dynamic(0,0, FloatUnaryOperator.negation());
 
-    private static final HashMap<VertexFormat, HashMap<VertexFormat.DrawMode, RenderLayer>> LAYERS = new HashMap<>();
-    private static final HashMap<VertexFormat, HashMap<VertexFormat.DrawMode, HashMap<Identifier, RenderLayer>>> TEXTURED_LAYERS = new HashMap<>();
+    private static final HashMap<PipelineIdentifier, RenderLayer> LAYERS = new HashMap<>();
 
-    public static void tickRender(MatrixStack matrices, VertexConsumerProvider.Immediate vertexConsumers, CameraRenderState camera) {
+    public static void tickRender(MatrixStack matrices, VertexConsumerProvider vertexConsumerProvider, CameraRenderState camera) {
         matrices.push();
 
         Render3dUtil.matrices = matrices;
-        if (vertexConsumers != null) Render3dUtil.vertexConsumers = vertexConsumers;
+        if (vertexConsumerProvider != null) {
+            Render3dUtil.vertexConsumerProvider = vertexConsumerProvider;
+            vertexConsumers = (VertexConsumerProvider.Immediate) vertexConsumerProvider;
+        }
         if (camera != null) matrices.translate(-camera.pos.getX(), -camera.pos.getY(), -camera.pos.getZ());
     }
 
@@ -44,85 +45,24 @@ public class Render3dUtil extends RenderUtil {
         return matrices.peek().copy();
     }
 
-    protected static RenderLayer getRenderLayer(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode) {
-        HashMap<VertexFormat.DrawMode, RenderLayer> layersMap = LAYERS.get(vertexFormat);
-
-        if (layersMap == null || !layersMap.containsKey(drawMode)) {
-            layersMap = new HashMap<>();
-
-            RenderLayer layer = RenderLayer.of(
-                    Main.MOD_NAME + "3d" + LAYERS.size(),
-                    RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode))
-                            .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
-                            .build()
-            );
-
-            layersMap.put(drawMode, layer);
-            LAYERS.put(vertexFormat, layersMap);
-
-            return layer;
-        }
-
-        return layersMap.get(drawMode);
+    protected static RenderLayer getRenderLayer(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, boolean cull) {
+        return getRenderLayer(vertexFormat, drawMode, cull, null);
     }
 
-    protected static RenderLayer getRenderLayerTexture(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, Identifier texture) {
-        HashMap<VertexFormat.DrawMode, HashMap<Identifier, RenderLayer>> texturesMap = TEXTURED_LAYERS.get(vertexFormat);
-        HashMap<Identifier, RenderLayer> layersMap = texturesMap == null ? null : texturesMap.get(drawMode);
+    protected static RenderLayer getRenderLayer(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, boolean cull, Identifier texture) {
+        PipelineIdentifier pipelineIdentifier = new PipelineIdentifier(vertexFormat, drawMode, cull, texture);
+        RenderLayer layer = LAYERS.get(pipelineIdentifier);
+        if (layer != null) return layer;
 
-        if (layersMap == null || !layersMap.containsKey(texture)) {
-            texturesMap = new HashMap<>();
-            layersMap = new HashMap<>();
+        RenderSetup.Builder base = RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode, cull))
+                .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD);
+        if (texture != null) base = base.texture("Sampler0", texture);
 
-            RenderLayer layer = RenderLayer.of(
-                    Main.MOD_NAME + "textured3d" + TEXTURED_LAYERS.size(),
-                    RenderSetup.builder(getRenderPipeline(vertexFormat, drawMode))
-                            .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
-                            .texture("Sampler0", texture)
-                            .build()
-            );
+        layer = RenderLayer.of(Main.MOD_NAME + "3d" + LAYERS.size(), base.build());
+        LAYERS.put(pipelineIdentifier, layer);
 
-            layersMap.put(texture, layer);
-            texturesMap.put(drawMode, layersMap);
-
-            TEXTURED_LAYERS.put(vertexFormat, texturesMap);
-
-            return layer;
-        }
-
-        return layersMap.get(texture);
+        return layer;
     }
-
-    // todo: auto generate cull and non cull versions
-    private static final RenderLayer QUADS_NO_CULL = RenderLayer.of(
-            Main.MOD_ID + "quadsnocull3d",
-            RenderSetup.builder(
-                            RenderPipelines.register(
-                                    RenderPipeline.builder(RenderUtil.getRenderPipelineSnippet(VertexFormats.POSITION_COLOR))
-                                            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-                                            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                                            .withLocation(Main.MOD_ID + "quadsnocull")
-                                            .build()
-                            )
-                    )
-                    .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
-                    .build()
-    );
-
-    private static final RenderLayer DEBUG_LINES_NO_CULL = RenderLayer.of(
-            Main.MOD_ID + "debuglinenocull3d",
-            RenderSetup.builder(
-                            RenderPipelines.register(
-                                    RenderPipeline.builder(RenderUtil.getRenderPipelineSnippet(VertexFormats.POSITION_COLOR))
-                                            .withVertexFormat(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINE_STRIP)
-                                            .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
-                                            .withLocation(Main.MOD_ID + "debuglinenocull")
-                                            .build()
-                            )
-                    )
-                    .layeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING_FORWARD)
-                    .build()
-    );
 
     public static void drawSquare(float x, float y, float z, float width, float height, float depth, Color colour) {
         drawSquare(x, y, z, width, height, depth, colour, true, false);
@@ -130,14 +70,22 @@ public class Render3dUtil extends RenderUtil {
 
     public static void drawSquare(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull, boolean outline) {
         VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
-                cull
-                        ? outline ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES) : getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-                        : outline ? DEBUG_LINES_NO_CULL : QUADS_NO_CULL
+                        outline
+                                ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES, cull)
+                                : getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS, cull)
         );
 
         MatrixStack.Entry entry = getEntry();
 
         addSquare(x, y, z, width, height, depth, colour, vertexConsumer, entry, outline);
+
+        vertexConsumers.drawCurrentLayer();
+    }
+
+    public static void drawTexturedQuads(Predicate<VertexConsumer> drawPredicate, Identifier texture, boolean cull) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, cull, texture));
+
+        drawPredicate.test(vertexConsumer);
 
         vertexConsumers.drawCurrentLayer();
     }
@@ -148,9 +96,9 @@ public class Render3dUtil extends RenderUtil {
 
     public static void drawBox(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull, boolean outline) {
         VertexConsumer vertexConsumer = vertexConsumers.getBuffer(
-                cull
-                        ? outline ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES) : getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS)
-                        : outline ? DEBUG_LINES_NO_CULL : QUADS_NO_CULL
+                outline
+                        ? getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES, cull)
+                        : getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.QUADS, cull)
         );
 
         MatrixStack.Entry entry = getEntry();
@@ -167,8 +115,8 @@ public class Render3dUtil extends RenderUtil {
         vertexConsumers.drawCurrentLayer();
     }
 
-    public static void drawLine(Vector3f one, Vector3f two, Color colour) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(DEBUG_LINES_NO_CULL);
+    public static void drawLine(Vector3f one, Vector3f two, Color colour, boolean cull) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.DEBUG_LINES, cull));
 
         MatrixStack.Entry entry = getEntry();
 
@@ -195,8 +143,8 @@ public class Render3dUtil extends RenderUtil {
         }
     }
 
-    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Identifier texture, Color colour) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayerTexture(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.TRIANGLES, texture));
+    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Identifier texture, Color colour, boolean cull) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.TRIANGLES, cull, texture));
 
         MatrixStack.Entry entry = getEntry();
         entry.translate(x, y, z);
@@ -223,13 +171,8 @@ public class Render3dUtil extends RenderUtil {
     }
 
     // blehhh, similar to the one above, but just not quite >.<
-    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour) {
-        drawModel(x, y, z, model, colour, getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES));
-    }
-
-    // ditto
-    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour, RenderLayer layer) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(layer);
+    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour, boolean cull) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES, cull));
 
         MatrixStack.Entry entry = getEntry();
         entry.translate(x, y, z);

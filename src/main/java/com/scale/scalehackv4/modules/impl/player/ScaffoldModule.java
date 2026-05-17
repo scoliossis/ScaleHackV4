@@ -68,7 +68,7 @@ public class ScaffoldModule extends Module {
                     return false;
                 }
 
-                for (int i = 60; i <= 90; i++) {
+                for (int i = 90; i >= 45; i--) {
                     HitResult hitResult = WorldUtil.getMouseOver(new Rotation(RotationEvent.clientRotation.yaw, i));
                     if (hitResult instanceof BlockHitResult blockHitResult
                             && WorldUtil.isBlockHitResultValid(blockHitResult)
@@ -136,15 +136,16 @@ public class ScaffoldModule extends Module {
         return Math.abs(rotation.yaw - RotationEvent.getLastRotation().yaw) - ((RotationEvent.clientRotation.yaw-rotation.yaw) % 45)*2;
     }
 
+    private BlockPos closestBlock;
     public Event onRotationEvent = new RotationEvent(this, params -> {
         if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem()) && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Holding_Block) || wasActive)) {
             InventoryUtil.swapToBestBlocks();
         }
 
         rotationSuccessful = false;
+        closestBlock = findClosestBlock();
         if (!(wasActive = shouldScaffold())) return false;
 
-        BlockPos closestBlock = findClosestBlock();
         if (closestBlock == null || !C.p().canInteractWithBlockAt(closestBlock, 0)) return false;
 
         return rotationSuccessful = rotationMode.rotate(params, closestBlock);
@@ -152,17 +153,28 @@ public class ScaffoldModule extends Module {
 
     public Event onAllowRightClick = new CheckClickEvent.Right(this, params -> {
         HitResult hitResult = WorldUtil.getMouseOver(RotationEvent.getLastRotation());
-        if (!autoplace || !shouldScaffold() || (!rotationSuccessful && rotationMode != RotationMode.None) || !(hitResult instanceof BlockHitResult blockHitResult) || !WorldUtil.isBlockHitResultValid(blockHitResult)) return false;
+        if (!autoplace
+                || !shouldScaffold()
+                || !(hitResult instanceof BlockHitResult blockHitResult)
+                || !WorldUtil.isBlockHitResultValid(blockHitResult)
+                || !blockHitResult.getBlockPos().equals(closestBlock)
+        ) return false;
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
     });
 
     public static int getPlaceDelay() {
-        return C.p().getMainHandStack().getItem() instanceof BlockItem
-                && ModuleUtil.isEnabled(ScaffoldModule.class)
-                && fastPlace
-                ? placeDelay : 4;
+        boolean isPlacingBlock = C.mc.crosshairTarget instanceof BlockHitResult blockHitResult
+                && blockHitResult.getType() == HitResult.Type.BLOCK
+                && (C.p().isSneaking() || !InventoryUtil.isBlockInteractable(C.w().getBlockState(blockHitResult.getBlockPos()).getBlock()));
+        boolean isDoingNothing = C.mc.crosshairTarget == null || C.mc.crosshairTarget.getType() == HitResult.Type.MISS;
+
+        return (isPlacingBlock || isDoingNothing)
+                && C.p().getMainHandStack().getItem() instanceof BlockItem
+                && ModuleUtil.isEnabled(ScaffoldModule.class) && fastPlace
+                ? placeDelay
+                : 4;
     }
 
     public static boolean shouldEagle() {

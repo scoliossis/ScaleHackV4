@@ -12,6 +12,8 @@ import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector2f;
 import org.joml.Vector2i;
@@ -95,7 +97,7 @@ public class ModuleRenderer {
         Render2dUtil.drawGradientDown(0, module.height-10, module.width, 10, new Color(22, 22, 22, 0), new Color(22, 22, 22));
 
         // module name
-        FontUtil.drawString("§l"+moduleName, titleX, -fontHeight / 2f, ClickGuiScreen.FONT_SIZE, new Color(255, 255, 255), false);
+        FontUtil.drawString(Text.literal(moduleName).formatted(Formatting.BOLD), titleX, -fontHeight / 2f, ClickGuiScreen.FONT_SIZE, new Color(255, 255, 255), false);
 
         handleScrollBar(module.height, subModulesHeight, module);
     }

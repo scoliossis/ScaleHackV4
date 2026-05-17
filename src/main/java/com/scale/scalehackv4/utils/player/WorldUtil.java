@@ -6,7 +6,6 @@ import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.block.Blocks;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttackRangeComponent;
 import net.minecraft.item.ItemStack;
@@ -80,27 +79,32 @@ public class WorldUtil {
         return getMouseOver(rotation, C.p().getBlockInteractionRange(), entityReach);
     }
     public static HitResult getMouseOver(Rotation rotation, double blockReach, double entityReach) {
-        ClientPlayerEntity playerCopy = (ClientPlayerEntity) C.p().getEntity();
-        if (playerCopy == null) return null;
+        // store rotations, then change rots and check raycast
+        float headYaw = C.p().getHeadYaw(), yaw = C.p().getYaw(), pitch = C.p().getPitch();
 
         // head yaw is used somewhere, didnt note down where, trust me this is needed
-        playerCopy.setHeadYaw(rotation.yaw);
-        playerCopy.setYaw(rotation.yaw);
-        playerCopy.setPitch(rotation.pitch);
+        C.p().setHeadYaw(rotation.yaw);
+        C.p().setYaw(rotation.yaw);
+        C.p().setPitch(rotation.pitch);
 
-        ItemStack itemStack = playerCopy.getActiveOrMainHandStack();
+        ItemStack itemStack = C.p().getActiveOrMainHandStack();
         AttackRangeComponent attackRangeComponent = itemStack.get(DataComponentTypes.ATTACK_RANGE);
         HitResult hitResult = null;
         if (attackRangeComponent != null) {
-            hitResult = attackRangeComponent.getHitResult(playerCopy, 1, EntityPredicates.CAN_HIT);
+            hitResult = attackRangeComponent.getHitResult(C.p(), 1, EntityPredicates.CAN_HIT);
             if (hitResult instanceof BlockHitResult) {
-                hitResult = MouseTargetBridge.from(playerCopy).bridge$checkCrosshairTargetRange(hitResult, playerCopy.getCameraPosVec(1), blockReach);
+                hitResult = MouseTargetBridge.from(C.p()).bridge$checkCrosshairTargetRange(hitResult, C.p().getCameraPosVec(1), blockReach);
             }
         }
 
         if (hitResult == null || hitResult.getType() == HitResult.Type.MISS) {
-            hitResult = MouseTargetBridge.from(playerCopy).bridge$getCrosshairTarget(playerCopy, blockReach, entityReach, 1);
+            hitResult = MouseTargetBridge.from(C.p()).bridge$getCrosshairTarget(C.p(), blockReach, entityReach, 1);
         }
+
+        // reset rotations!
+        C.p().setHeadYaw(headYaw);
+        C.p().setYaw(yaw);
+        C.p().setPitch(pitch);
 
         return hitResult;
     }

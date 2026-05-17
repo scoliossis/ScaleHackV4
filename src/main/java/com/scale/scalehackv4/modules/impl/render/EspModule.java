@@ -8,8 +8,11 @@ import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.TargetUtil;
+import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
+import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
+import net.minecraft.text.Text;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -24,17 +27,19 @@ public class EspModule extends Module {
     public static boolean glow = false;
 
     @RegisterSubModule(name = "Square")
-    public static boolean square = true;
+    public boolean square = true;
     @RegisterSubModule(name = "Width", parent = "Square", min = 0.5, max = 2)
-    public static float squareWidth = 1;
+    public float squareWidth = 1;
     @RegisterSubModule(name = "Height", parent = "Square", min = 1.5, max = 2.5)
-    public static float squareHeight = 2;
+    public float squareHeight = 2;
+
+    @RegisterSubModule(name = "Nametags")
+    public static boolean nametags = true;
+    public int nametagSize = 30;
 
     private final Event renderEsp = new RenderWorldEvent(this, params -> {
-        if (!square) return false;
-
         TargetUtil.getPlayers().forEach(player -> {
-            if (player == C.p()) return;
+            if (player == C.p() && C.mc.options.getPerspective() == Perspective.FIRST_PERSON) return;
 
             float x = (float) (player.lastX + (player.getX() - player.lastX) * C.mc.getRenderTickCounter().getTickProgress(false));
             float y = (float) (player.lastY + (player.getY() - player.lastY) * C.mc.getRenderTickCounter().getTickProgress(false));
@@ -46,12 +51,23 @@ public class EspModule extends Module {
             Render3dUtil.getMatrices().translate(x, y, z);
             Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, (float) -Math.toRadians(C.p().getYaw()), 0f));
 
-            drawCorner(squareWidth/2, squareHeight, cornerSize, cornerSize, player);
-            drawCorner(-squareWidth/2, squareHeight, -cornerSize, cornerSize, player);
-            drawCorner(squareWidth/2, -squareHeight/2 + player.getHeight()/2, cornerSize, -cornerSize, player);
-            drawCorner(-squareWidth/2, -squareHeight/2 + player.getHeight()/2, -cornerSize, -cornerSize, player);
+            if (square) {
+                drawCorner(squareWidth / 2, squareHeight, cornerSize, cornerSize, player);
+                drawCorner(-squareWidth / 2, squareHeight, -cornerSize, cornerSize, player);
+                drawCorner(squareWidth / 2, -squareHeight / 2 + player.getHeight() / 2, cornerSize, -cornerSize, player);
+                drawCorner(-squareWidth / 2, -squareHeight / 2 + player.getHeight() / 2, -cornerSize, -cornerSize, player);
+            }
 
-            //Render3dUtil.drawSquare(-squareWidth/2, -squareHeight/2 + player.getHeight()/2, 0, squareWidth, squareHeight, 0, new Color(player.getTeamColorValue()), false, true);
+            nametagSize = (int) (20);
+            if (nametags) {
+                if (C.mc.options.getPerspective() == Perspective.THIRD_PERSON_FRONT) Render3dUtil.getMatrices().scale(-1, 1, 1);
+
+                Text playerName = player.getDisplayName() == null ? player.getName() : player.getDisplayName();
+                Render3dUtil.getMatrices().translate(0, squareHeight + FontUtil.getFontHeight(nametagSize, true) + .1, 0);
+                Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, 0f, (float) Math.toRadians(C.p().getPitch())));
+                FontUtil.drawString(playerName, FontUtil.getStringWidth(playerName.getString(), nametagSize, true) / 2f, 0, 0, nametagSize, Color.WHITE, true);
+            }
+
             Render3dUtil.getMatrices().pop();
         });
 
@@ -62,12 +78,14 @@ public class EspModule extends Module {
         Render3dUtil.drawLine(
                 new Vector3f(x, y, 0),
                 new Vector3f(x + width, y, 0),
-                new Color(entity.getTeamColorValue())
+                new Color(entity.getTeamColorValue()),
+                false
         );
         Render3dUtil.drawLine(
                 new Vector3f(x, y, 0),
                 new Vector3f(x, y + height, 0),
-                new Color(entity.getTeamColorValue())
+                new Color(entity.getTeamColorValue()),
+                false
         );
     }
 

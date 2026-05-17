@@ -297,7 +297,7 @@ public class AutoRoutes extends SecretsHelper {
                     Render3dUtil.drawBox(targetPos.getX(), targetPos.getY(), targetPos.getZ(), 1, 1, 1, stonkColour, false, true);
                 }
                 case AOTE -> {
-                    Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetPos.toCenterPos().toVector3f(), new Color(nodeColour.getRed(), nodeColour.getGreen(), nodeColour.getBlue(), 255));
+                    Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), targetPos.toCenterPos().toVector3f(), new Color(nodeColour.getRed(), nodeColour.getGreen(), nodeColour.getBlue(), 255), false);
                 }
             }
         }
@@ -310,7 +310,7 @@ public class AutoRoutes extends SecretsHelper {
                 BlockPos nodeTargetPos = NodeUtil.getNodePos(node.targetPos, currentRoom);
 
                 Render3dUtil.drawBox(nodePos.getX(), nodePos.getY(), nodePos.getZ(), 1, 1, 1, nodeColour, false, !node.firstNode);
-                Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), nodeTargetPos.toCenterPos().toVector3f(), nodeColour);
+                Render3dUtil.drawLine(nodePos.toCenterPos().toVector3f(), nodeTargetPos.toCenterPos().toVector3f(), nodeColour, false);
             }
         }
     }

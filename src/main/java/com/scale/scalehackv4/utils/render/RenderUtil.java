@@ -2,6 +2,7 @@ package com.scale.scalehackv4.utils.render;
 
 import com.mojang.blaze3d.pipeline.BlendFunction;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.DepthTestFunction;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
@@ -30,7 +31,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Predicate;
 
 public class RenderUtil {
-    private static final HashMap<VertexFormat, HashMap<VertexFormat.DrawMode, RenderPipeline>> PIPELINES = new HashMap<>();
+    private static final HashMap<PipelineIdentifier, RenderPipeline> PIPELINES = new HashMap<>();
 
     @Setter @Getter protected static DrawContext drawContext;
 
@@ -39,25 +40,24 @@ public class RenderUtil {
     public static final Color[] TRANS = new Color[] {new Color(91, 206, 250), new Color(245, 169, 184), new Color(255, 255, 255), new Color(245, 169, 184)};
     public static final Color[] GAY = new Color[] {new Color(255, 0, 0), new Color(255, 145, 0), new Color(255, 255, 0), new Color(0, 255, 0), new Color(0, 0, 255), new Color(150, 0, 255)};
 
-    protected static RenderPipeline getRenderPipeline(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode) {
-        HashMap<VertexFormat.DrawMode, RenderPipeline> pipelineMap = PIPELINES.get(vertexFormat);
+    protected record PipelineIdentifier(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, boolean cull, Identifier identifier) {}
 
-        if (pipelineMap == null || !pipelineMap.containsKey(drawMode)) {
-            pipelineMap = new HashMap<>();
+    protected static RenderPipeline getRenderPipeline(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, boolean cull) {
+        PipelineIdentifier pipelineIdentifier = new PipelineIdentifier(vertexFormat, drawMode, cull, null);
+        RenderPipeline pipeline = PIPELINES.get(pipelineIdentifier);
+        if (pipeline != null) return pipeline;
 
-            RenderPipeline pipeline = RenderPipelines.register(
-                    RenderPipeline.builder(getRenderPipelineSnippet(vertexFormat))
-                            .withVertexFormat(vertexFormat, drawMode)
-                            .withLocation(Main.MOD_ID + "2d" + PIPELINES.size())
-                            .build()
-            );
+        RenderPipeline.Snippet base = RenderPipeline.builder(getRenderPipelineSnippet(vertexFormat))
+                .withVertexFormat(vertexFormat, drawMode)
+                .buildSnippet();
+        if (!cull) base = RenderPipeline.builder(base)
+                .withDepthTestFunction(DepthTestFunction.NO_DEPTH_TEST)
+                .buildSnippet();
 
-            pipelineMap.put(drawMode, pipeline);
-            PIPELINES.put(vertexFormat, pipelineMap);
-            return pipeline;
-        }
+        pipeline = RenderPipelines.register(RenderPipeline.builder(base).withLocation(Main.MOD_ID + "2d" + PIPELINES.size()).build());
+        PIPELINES.put(pipelineIdentifier, pipeline);
 
-        return pipelineMap.get(drawMode);
+        return pipeline;
     }
 
     public static RenderPipeline.Snippet getRenderPipelineSnippet(VertexFormat vertexFormat) {
@@ -143,7 +143,7 @@ public class RenderUtil {
 
             @Override
             public RenderPipeline pipeline() {
-                return getRenderPipeline(vertexFormat, drawMode);
+                return getRenderPipeline(vertexFormat, drawMode, false);
             }
 
             @Override

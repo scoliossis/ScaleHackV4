@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.render;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
@@ -9,6 +10,7 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.player.Rotation;
+import net.minecraft.client.option.Perspective;
 import net.minecraft.util.math.Vec3d;
 
 @RegisterModule(
@@ -55,34 +57,52 @@ public class Freelook extends Module {
         if (isRotationLocked() && realRotation == null) {
             realRotation = new Rotation(C.p().getYaw(), C.p().getPitch());
         }
-        if ((!isPositionLocked() && realPos != null) || (!isRotationLocked() && realRotation != null)) {
-            onDisable();
-        }
 
         return false;
     }));
 
+    private final Event onToggleSubmodules = new SubModuleToggledEvent(this, params -> {
+        if (params.field.getName().equals("lockRotation")) onSetRotationLock((boolean) params.value);
+        if (params.field.getName().equals("lockPosition")) onSetPositionLock((boolean) params.value);
+
+        return false;
+    });
+
     @Override
     public void onEnable() {
-
+        onSetPositionLock(lockPosition);
+        onSetRotationLock(lockRotation);
     }
 
     @Override
     public void onDisable() {
-        if (C.isInGame()) {
-            if (realPos != null && !isPositionLocked()) {
-                if (C.isInGame()) {
-                    C.p().setPos(realPos.x, realPos.y, realPos.z);
-                }
-                renderPos = lastRenderPos = lastRealPos = realPos = null;
+        onSetPositionLock(lockPosition);
+        onSetRotationLock(lockRotation);
+    }
+
+    private Perspective perspective = Perspective.FIRST_PERSON;
+
+    private void onSetRotationLock(boolean lockRotation) {
+        if (!lockRotation) {
+            if (C.isInGame() && realRotation != null) {
+                C.p().setYaw(realRotation.yaw);
+                C.p().setPitch(realRotation.pitch);
             }
-            if (realRotation != null && !isRotationLocked()) {
-                if (C.isInGame()) {
-                    C.p().setYaw(realRotation.yaw);
-                    C.p().setPitch(realRotation.pitch);
-                }
-                renderRotation = lastRenderRotation = lastRealRotation = realRotation = null;
+            renderRotation = lastRenderRotation = lastRealRotation = realRotation = null;
+            if (C.mc.options.getPerspective() == Perspective.THIRD_PERSON_BACK) C.mc.options.setPerspective(perspective);
+        }
+        else {
+            if (C.isInGame()) {
+                perspective = C.mc.options.getPerspective();
+                C.mc.options.setPerspective(Perspective.THIRD_PERSON_BACK);
             }
+        }
+    }
+
+    private void onSetPositionLock(boolean lockPosition) {
+        if (!lockPosition) {
+            if (C.isInGame()) C.p().setPos(realPos.x, realPos.y, realPos.z);
+            renderPos = lastRenderPos = lastRealPos = realPos = null;
         }
     }
 }

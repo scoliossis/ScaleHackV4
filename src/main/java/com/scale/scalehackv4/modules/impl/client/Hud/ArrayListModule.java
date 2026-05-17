@@ -6,6 +6,8 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 import java.util.Comparator;
 import java.util.List;
@@ -37,18 +39,18 @@ public class ArrayListModule extends HudModule {
 
                 if (modules.isEmpty()) return new int[] {0,0};
 
-                modules.sort(Comparator.comparingDouble(e -> -FontUtil.getStringWidth(getModuleName(e), fontSize)));
+                modules.sort(Comparator.comparingDouble(e -> -FontUtil.getStringWidth(getModuleName(e).getString(), fontSize)));
 
                 int height = FontUtil.getFontHeight(fontSize) + yGap;
 
-                int maxWidth = FontUtil.getStringWidth(getModuleName(modules.getFirst()), fontSize);
+                int maxWidth = FontUtil.getStringWidth(getModuleName(modules.getFirst()).getString(), fontSize);
                 int totalHeight = height*modules.size();
 
                 for (int i = 0; i < modules.size(); i++) {
                     Module module = modules.get(i);
 
-                    int x = isRightToLeft() ? -FontUtil.getStringWidth(getModuleName(module), fontSize) : 0;
-                    int y = isBottomToTop() ? -(height*(i+1)) : height*i ;
+                    int x = isRightToLeft() ? -FontUtil.getStringWidth(getModuleName(module).getString(), fontSize) : 0;
+                    int y = isBottomToTop() ? -(height*(i+1)) : height*i;
                     FontUtil.drawString(getModuleName(module), x, y, fontSize, RenderUtil.TRANS[i % RenderUtil.TRANS.length], true);
                 }
 
@@ -66,11 +68,13 @@ public class ArrayListModule extends HudModule {
         return arrayListDraggable.y > 0.5;
     }
 
-    private static String getModuleName(Module module) {
+    private static Text getModuleName(Module module) {
         String name = module.getAnnotation().name();
         if (noCapitals) name = name.toLowerCase();
-        if (noSpaces) name = name.replaceAll(" ", "");
+        if (noSpaces) name = name.replace(" ", "");
         String arrayListExtraInfo = module.arrayListExtraInfo();
-        return name + (arrayListExtraInfo.isEmpty() || !showMode ? "" : " §8[" + arrayListExtraInfo + "]");
+
+        return Text.literal(name)
+                .append(Text.literal((arrayListExtraInfo.isEmpty() || !showMode ? "" : " [" + arrayListExtraInfo + "]")).formatted(Formatting.DARK_GRAY));
     }
 }
