@@ -18,8 +18,7 @@ public class HelmetRendererMixin {
             at = @At("HEAD"),
             cancellable = true)
     public void render(MatrixStack matrices, OrderedRenderCommandQueue queue, int light, EntityRenderState state, float limbAngle, float limbDistance, CallbackInfo ci) {
-        if (ModelModifierModule.shouldHideHelmet() && state instanceof PlayerEntityRenderState player && ModelModifierModule.isValidTarget(player.id)) {
+        if (ModelModifierModule.shouldChangeModel() && state instanceof PlayerEntityRenderState player && ModelModifierModule.isValidTarget(player.id))
             ci.cancel();
-        }
     }
 }
