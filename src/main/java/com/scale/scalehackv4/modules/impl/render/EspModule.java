@@ -7,12 +7,15 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import net.minecraft.client.option.Perspective;
 import net.minecraft.entity.Entity;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
@@ -35,7 +38,8 @@ public class EspModule extends Module {
 
     @RegisterSubModule(name = "Nametags")
     public static boolean nametags = true;
-    public int nametagSize = 30;
+    @RegisterSubModule(name = "Nametag Size", min = 10, max = 50, parent = "Nametags")
+    public int nametagSize = 20;
 
     private final Event renderEsp = new RenderWorldEvent(this, params -> {
         TargetUtil.getPlayers().forEach(player -> {
@@ -58,14 +62,29 @@ public class EspModule extends Module {
                 drawCorner(-squareWidth / 2, -squareHeight / 2 + player.getHeight() / 2, -cornerSize, -cornerSize, player);
             }
 
-            nametagSize = (int) (20);
             if (nametags) {
                 if (C.mc.options.getPerspective() == Perspective.THIRD_PERSON_FRONT) Render3dUtil.getMatrices().scale(-1, 1, 1);
 
-                Text playerName = player.getDisplayName() == null ? player.getName() : player.getDisplayName();
+                MutableText playerName = (MutableText) player.getName();
+                double playerHealthRatio = (player.getHealth() + player.getAbsorptionAmount()) / player.getMaxHealth();
+                // todo: maybe do the colours smoother ig.
+                Formatting healthColor = playerHealthRatio > 1 ? Formatting.YELLOW
+                        : playerHealthRatio > 0.7 ? Formatting.GREEN
+                          : playerHealthRatio > 0.5 ? Formatting.GOLD
+                            : playerHealthRatio > 0.3 ? Formatting.RED
+                              : Formatting.DARK_RED;
+                String playerHealth = MathUtil.roundTo(player.getHealth() + player.getAbsorptionAmount(), 1) +"";
+                String playerArmor = (String.valueOf(player.getArmor()));
+
+                MutableText nametag = playerName.withColor(player.getTeamColorValue())
+                        .append(Text.literal(" ").formatted(Formatting.GRAY))
+                        .append(Text.literal(playerHealth).formatted(healthColor))
+                        .append(Text.literal(" ").formatted(Formatting.GRAY))
+                        .append(Text.literal(playerArmor).formatted(Formatting.BLUE));
+
                 Render3dUtil.getMatrices().translate(0, squareHeight + FontUtil.getFontHeight(nametagSize, true) + .1, 0);
                 Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, 0f, (float) Math.toRadians(C.p().getPitch())));
-                FontUtil.drawString(playerName, FontUtil.getStringWidth(playerName.getString(), nametagSize, true) / 2f, 0, 0, nametagSize, Color.WHITE, true);
+                FontUtil.drawString(nametag, FontUtil.getStringWidth(nametag.getString(), nametagSize, true) / 2f, 0, 0, nametagSize, Color.WHITE, true);
             }
 
             Render3dUtil.getMatrices().pop();

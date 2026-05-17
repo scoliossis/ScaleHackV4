@@ -46,19 +46,14 @@ public class ModelModifierModule extends Module {
     @RegisterSubModule(name = "Others")
     public static boolean others = true;
 
-    @RegisterSubModule(name = "Hide Armor")
-    public static boolean hideArmor = true;
-    @RegisterSubModule(name = "Hide Helmet", parent = "Hide Armor")
+    @RegisterSubModule(name = "Hide Helmet")
     public static boolean hideHelmet = false;
 
     @RegisterSubModule(name = "Hide Capes")
     public static boolean hideCapes = true;
 
     public static boolean shouldHideHelmet() {
-        return shouldChangeModel() && hideHelmet && hideArmor;
-    }
-    public static boolean shouldHideArmor() {
-        return shouldChangeModel() && hideArmor;
+        return shouldChangeModel() && hideHelmet;
     }
     public static boolean shouldHideCape() {
         return shouldChangeModel() && hideCapes;

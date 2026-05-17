@@ -35,10 +35,9 @@ public abstract class ArmorRendererMixin<S extends BipedEntityRenderState, M ext
     public void render(MatrixStack matrixStack, OrderedRenderCommandQueue orderedRenderCommandQueue, int i, S bipedEntityRenderState, float f, float g, CallbackInfo ci) {
         if (bipedEntityRenderState.entityType != EntityType.PLAYER || !ModelModifierModule.isValidTarget(((PlayerEntityRenderState) bipedEntityRenderState).id)) return;
 
-        if (ModelModifierModule.shouldHideArmor()) {
-            if (!ModelModifierModule.shouldHideHelmet()) {
+        if (ModelModifierModule.shouldChangeModel()) {
+            if (!ModelModifierModule.shouldHideHelmet())
                 this.renderArmor(matrixStack, orderedRenderCommandQueue, bipedEntityRenderState.equippedHeadStack, EquipmentSlot.HEAD, i, bipedEntityRenderState);
-            }
             ci.cancel();
         }
     }

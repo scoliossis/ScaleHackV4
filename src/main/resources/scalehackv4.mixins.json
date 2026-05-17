@@ -27,6 +27,7 @@
     "player.FastPlaceMixin",
     "player.ItemUseCooldownBridgeMixin",
     "player.JumpingCooldownBridgeMixin",
+    "player.KeybindPressedMixin",
     "player.KeyboardInputMixin",
     "player.MouseTargetBridgeMixin",
     "player.PacketSequenceBridgeMixin",

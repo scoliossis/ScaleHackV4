@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.combat;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
@@ -9,6 +10,12 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.PacketUtil;
+import com.scale.scalehackv4.utils.player.BlinkUtil;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
+import com.scale.scalehackv4.utils.player.RotationUtil;
+import com.scale.scalehackv4.utils.player.WorldUtil;
+import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
 import net.minecraft.util.math.Vec3d;
@@ -25,23 +32,37 @@ public class VelocityModule extends Module {
     @RegisterSubModule(name = "Vertical", parent = "Knockback Mode", modeParentString = {"Edit", "Add"}, min = -2, max = 2)
     public static float vertical = 0;
 
+    @RegisterSubModule(name = "Max Delay Ticks", parent = "Knockback Mode", modeParentString = {"Delay", "Dynamic"}, min = 1, max = 20)
+    public static int maxDelayTicks = 13;
+
+    @RegisterSubModule(name = "Force Sprint", parent = "Knockback Mode", modeParentString = {"Jump_Reset", "Dynamic"})
+    public static boolean forceSprint = true;
+
     @RegisterSubModule(name = "Ignore Explosions")
     public static boolean ignoreExplosions = true;
+    @RegisterSubModule(name = "Ignore Fall Damage")
+    public static boolean ignoreFallDamage = true;
 
     private static boolean handledVelocity = true;
+    private static Mode lastVelocityMode = mode;
+    private static Vec3d lastVelocity = Vec3d.ZERO;
+    private static int lastUnhandledVelocityTick = 0;
 
     public enum Mode {
         Cancel,
         Edit,
         Add,
-        Jump_Reset
+        Jump_Reset,
+        // god bypass tech from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/Velocity.java
+        Dynamic,
+        Delay
     }
 
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
         if (!C.isInGame()) return false;
 
-
         Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket && velocityPacket.getEntityId() == C.p().getId()
+                && (!ignoreFallDamage || !isFallDamage(velocityPacket.getVelocity()))
                 ? velocityPacket.getVelocity()
                 : (params.packet instanceof ExplosionS2CPacket explosionS2CPacket && !ignoreExplosions)
                   ? explosionS2CPacket.playerKnockback().orElse(null)
@@ -49,7 +70,12 @@ public class VelocityModule extends Module {
 
         if (velocity == null) return false;
 
-        handledVelocity = false;
+        if (handledVelocity) {
+            lastUnhandledVelocityTick = WorldUtil.ticks;
+            handledVelocity = false;
+            lastVelocityMode = mode;
+        }
+        lastVelocity = velocity;
 
         return switch (mode) {
             case Cancel -> true;
@@ -65,28 +91,82 @@ public class VelocityModule extends Module {
                 C.p().setVelocity(velocity.x * horizontal, velocity.y * vertical, velocity.z * horizontal);
                 yield true;
             }
+            case Dynamic, Delay -> {
+                if (!PacketUtil.clientSentPackets.contains(params.packet) && !BlinkUtil.isBlinking(false, true, this.getClass())) {
+                    BlinkUtil.pushBlink(false, true, this.getClass(), params.packet);
+                    yield true;
+                }
+                yield false;
+            }
             default -> false;
         };
     });
 
-    private final Event handleVelocityOnRotation = new RotationEvent(this, params -> {
+    private boolean isFallDamage(Vec3d velocity) {
+        return velocity.y == -0.0783739241897089;
+    }
+
+    private final Event handleVelocityKeyInputs = new KeyboardInputEvent(this, params -> {
         if (handledVelocity) return false;
+
+        switch (lastVelocityMode) {
+            case Dynamic:
+                if (!C.p().isOnGround()) {
+                    handledVelocity |= WorldUtil.ticks - lastUnhandledVelocityTick > maxDelayTicks;
+                    return false;
+                }
+            case Jump_Reset:
+                handledVelocity = true;
+                if (forceSprint) params.forwardKey = params.sprintKey = params.jumpKey = true;
+                else if (C.p().isSprinting()) params.jumpKey = true;
+        }
 
         return false;
     });
 
-    private final Event handleVelocityKeyInputs = new KeyboardInputEvent(this, params -> {
+    private final Event handleVelocityRotation = new RotationEvent(this, params -> {
         if (handledVelocity) return false;
-        handledVelocity = true;
 
-        switch (mode) {
-            case Jump_Reset:
-                if (params.forwardKey && params.sprintKey) params.jumpKey = true;
+        switch (lastVelocityMode) {
+            case Dynamic, Jump_Reset:
+                if (!C.p().isOnGround() || !forceSprint) return false;
+                params.rotation.yaw = RotationUtil.applyWrap360(params.rotation.yaw, getYawFromVelocity(lastVelocity));
+
+                return true;
+        }
+        return false;
+    });
+
+    private final Event resetBlink = new ClientTickEvent(null, params -> {
+        if (handledVelocity || !C.isInGame()) return false;
+
+        boolean stopBlinking = WorldUtil.ticks - lastUnhandledVelocityTick > maxDelayTicks;
+        switch (lastVelocityMode) {
+            case Delay:
+                handledVelocity |= stopBlinking;
+                BlinkUtil.popBlink(false, stopBlinking, this.getClass());
+                break;
+            case Dynamic:
+                if (C.p().isOnGround()) {
+                    stopBlinking = true;
+
+                    // stops you blocking ur sword, so u can sprint, im sure the 1 tick of not blocking wont matter.
+                    if (C.p().getMainHandStack().getUseAction() == UseAction.BLOCK || !C.p().isUsingItem())
+                        PlayerUtil.oneTickKeybind(C.mc.options.useKey, false);
+                }
+
+                BlinkUtil.popBlink(false, stopBlinking, this.getClass());
                 break;
         }
 
         return false;
     });
+
+    // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/Velocity.java#L203
+    private static float getYawFromVelocity(Vec3d velocity) {
+        float yaw = (float) (Math.toDegrees(Math.atan2(velocity.x + velocity.z, velocity.x - velocity.z)) + 45);
+        return yaw > 180 ? yaw - 360 : yaw;
+    }
 
     @Override
     public void onEnable() {

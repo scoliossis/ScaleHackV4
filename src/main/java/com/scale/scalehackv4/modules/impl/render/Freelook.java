@@ -89,7 +89,7 @@ public class Freelook extends Module {
                 C.p().setPitch(realRotation.pitch);
             }
             renderRotation = lastRenderRotation = lastRealRotation = realRotation = null;
-            if (C.mc.options.getPerspective() == Perspective.THIRD_PERSON_BACK) C.mc.options.setPerspective(perspective);
+            if (C.mc.options != null && C.mc.options.getPerspective() == Perspective.THIRD_PERSON_BACK) C.mc.options.setPerspective(perspective);
         }
         else {
             if (C.isInGame()) {
