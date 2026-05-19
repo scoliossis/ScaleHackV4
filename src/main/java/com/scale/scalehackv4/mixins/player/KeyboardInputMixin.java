@@ -39,6 +39,7 @@ public abstract class KeyboardInputMixin extends Input {
                 this.settings.sprintKey.isPressed()
         );
         Bus.post(KeyboardInputEvent.class, params);
+        KeyboardInputEvent.lastInput = params;
 
         this.playerInput = Freelook.isPositionLocked()
                 ? PlayerInput.DEFAULT

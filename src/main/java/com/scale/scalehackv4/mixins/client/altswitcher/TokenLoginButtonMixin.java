@@ -6,6 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.session.Session;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -22,7 +23,10 @@ public abstract class TokenLoginButtonMixin extends Screen {
     protected void init(CallbackInfo ci) {
         this.addDrawableChild(
                 ButtonWidget.builder(Text.of("Token Login"), (buttonWidget) -> {
-                    ((OverrideSessionMixin)C.mc).setSession(SessionUtil.queryPlayerProfile(this.client.keyboard.getClipboard()));
+                    Session session = SessionUtil.queryPlayerProfile(this.client.keyboard.getClipboard());
+                    if (session == null) return;
+
+                    ((OverrideSessionMixin)C.mc).setSession(session);
                 }).dimensions(10, 10, 100, 20).build()
         );
     }

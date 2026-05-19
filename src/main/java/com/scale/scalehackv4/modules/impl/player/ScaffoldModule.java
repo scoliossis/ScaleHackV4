@@ -183,7 +183,7 @@ public class ScaffoldModule extends Module {
 
     private static boolean shouldScaffold() {
         return (!MultiSelectUtil.isEnabled(ScaffoldConditions.Holding_Block) || InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem()))
-                && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Looking_Down) || C.p().getPitch() > 45)
+                && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Looking_Down) || C.p().getPitch() > 20)
                 && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Holding_S) || C.mc.options.backKey.isPressed())
                 && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Right_Click_Down) || MouseUtil.isButtonDown(1))
                 && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Crouch_Down) || C.mc.options.sneakKey.isPressed());

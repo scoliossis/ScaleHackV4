@@ -67,4 +67,24 @@ public class RotationUtil {
 
         return currentYaw + delta;
     }
+
+    public static Rotation getLimitedRotation(Vec3d toVector, float maxTurnAmount) {
+        Rotation to = getRotation(toVector);
+
+        Rotation rotationDifference = to.subtract(RotationEvent.getLastRotation());
+        float pitchDelta = MathHelper.clamp(rotationDifference.pitch, -maxTurnAmount, maxTurnAmount);
+        float yawDelta = MathHelper.clamp(rotationDifference.yaw, -maxTurnAmount, maxTurnAmount);
+
+        return applyGcd(RotationEvent.getLastRotation(), new Rotation(yawDelta, pitchDelta).add(RotationEvent.getLastRotation()));
+    }
+
+    public static Rotation getSmoothRotation(Vec3d toVector, float smoothing) {
+        Rotation to = getRotation(toVector);
+
+        Rotation rotationDifference = to.subtract(RotationEvent.getLastRotation());
+        float pitchDelta = rotationDifference.pitch / smoothing;
+        float yawDelta = rotationDifference.yaw / smoothing;
+
+        return applyGcd(RotationEvent.getLastRotation(), new Rotation(yawDelta, pitchDelta).add(RotationEvent.getLastRotation()));
+    }
 }

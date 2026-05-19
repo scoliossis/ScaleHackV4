@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import java.util.function.Predicate;
 
 public class KeyboardInputEvent extends Event {
+    public static Params lastInput = null;
+
     @AllArgsConstructor
     public static class Params {
         public boolean forwardKey;

@@ -82,12 +82,28 @@ public class KillAuraModule extends Module {
 
     @RegisterSubModule(name = "Rotation Mode")
     public RotationMode rotationMode = RotationMode.Simple;
+    @RegisterSubModule(name = "Max Rotation", min = 1, max = 180, parent = "Rotation Mode", modeParentString = "Limited")
+    public static int maxRotation = 60;
+    @RegisterSubModule(name = "Rotation Smoothing Factor", min = 1, max = 5, parent = "Rotation Mode", modeParentString = "Smooth", increment = 0.1)
+    public static float rotationSmoothing = 3;
 
     public enum RotationMode {
         Simple {
             @Override
             public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
                 params.rotation = RotationUtil.getRotation(rotationVector);
+            }
+        },
+        Limited {
+            @Override
+            public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
+                params.rotation = RotationUtil.getLimitedRotation(rotationVector, maxRotation);
+            }
+        },
+        Smooth {
+            @Override
+            public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
+                params.rotation = RotationUtil.getSmoothRotation(rotationVector, rotationSmoothing);
             }
         };
 
@@ -183,7 +199,7 @@ public class KillAuraModule extends Module {
     }
 
     private float getYawToTarget(Entity target) {
-        return Math.abs(RotationUtil.getRotation(target.getEyePos()).yaw - RotationEvent.clientRotation.yaw);
+        return Math.abs(RotationUtil.getRotation(target.getEyePos()).yaw - RotationEvent.clientRotation.yaw) % 180;
     }
 
     private boolean getValidEntity(List<Entity> targets, RotationEvent.Params params) {
@@ -205,8 +221,13 @@ public class KillAuraModule extends Module {
         Vec3d rotationVector = TargetUtil.getTargetRotationPoint(target, rotationRange);
         if (rotationVector == null) return false;
 
-        rotationMode.rotate(target, rotationVector, params);
         targetEntity = target;
+        if (isHoveringTargetEntity()) {
+            params.rotation = RotationEvent.getLastRotation();
+            return true;
+        }
+
+        rotationMode.rotate(target, rotationVector, params);
         return true;
     }
 

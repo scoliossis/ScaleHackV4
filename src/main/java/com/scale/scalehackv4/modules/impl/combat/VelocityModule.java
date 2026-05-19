@@ -112,9 +112,10 @@ public class VelocityModule extends Module {
         switch (lastVelocityMode) {
             case Dynamic:
                 if (!C.p().isOnGround()) {
-                    handledVelocity |= WorldUtil.ticks - lastUnhandledVelocityTick > maxDelayTicks;
+                    handledVelocity |= !BlinkUtil.isBlinking(false, true, this.getClass());
                     return false;
                 }
+                BlinkUtil.popBlink(false, true, this.getClass());
             case Jump_Reset:
                 handledVelocity = true;
                 if (forceSprint) params.forwardKey = params.sprintKey = params.jumpKey = true;
