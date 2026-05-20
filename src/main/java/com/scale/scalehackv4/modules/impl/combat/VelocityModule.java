@@ -10,15 +10,16 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
 import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.item.consume.UseAction;
+import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.math.Vec3d;
 
 @RegisterModule(
@@ -59,17 +60,21 @@ public class VelocityModule extends Module {
         Delay
     }
 
+    public Packet<?> lastPacket = null;
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
         if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet)) return false;
 
         Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket && velocityPacket.getEntityId() == C.p().getId()
-                && (!ignoreFallDamage || !isFallDamage(velocityPacket.getVelocity()))
                 ? velocityPacket.getVelocity()
                 : (params.packet instanceof ExplosionS2CPacket explosionS2CPacket && !ignoreExplosions)
                   ? explosionS2CPacket.playerKnockback().orElse(null)
                   : null;
 
-        if (velocity == null) return false;
+        // if a velocity packet is preceded by a PlayerPositionLookS2CPacket then its NOT real.
+        if (velocity == null || lastPacket instanceof PlayerPositionLookS2CPacket || (ignoreFallDamage && isFallDamage(velocity))) {
+            lastPacket = params.packet;
+            return false;
+        }
 
         if (handledVelocity) {
             lastUnhandledVelocityTick = WorldUtil.ticks;
@@ -78,24 +83,27 @@ public class VelocityModule extends Module {
         }
         lastVelocity = velocity;
 
-        ChatUtil.prefixMessage("yea " + velocity);
-
         return switch (mode) {
-            case Cancel -> true;
+            case Cancel -> {
+                handledVelocity = true;
+                yield true;
+            }
             case Add -> {
                 C.p().setVelocity(
                         velocity.x * horizontal + C.p().getVelocity().x * (1 - horizontal),
                         velocity.y * vertical + C.p().getVelocity().y * (1 - vertical),
                         velocity.z * horizontal + C.p().getVelocity().z * (1 - horizontal)
                 );
+                handledVelocity = true;
                 yield true;
             }
             case Edit -> {
                 C.p().setVelocity(velocity.x * horizontal, velocity.y * vertical, velocity.z * horizontal);
+                handledVelocity = true;
                 yield true;
             }
             case Dynamic, Delay -> {
-                if (!PacketUtil.clientSentPackets.contains(params.packet) && !BlinkUtil.isBlinking(false, true, this.getClass())) {
+                if (!BlinkUtil.isBlinking(false, true, this.getClass())) {
                     BlinkUtil.pushBlink(false, true, this.getClass(), params.packet);
                     yield true;
                 }
@@ -118,6 +126,7 @@ public class VelocityModule extends Module {
                     handledVelocity |= !BlinkUtil.isBlinking(false, true, this.getClass());
                     return false;
                 }
+                BlinkUtil.popBlink(false, true, this.getClass());
             case Jump_Reset:
                 handledVelocity = true;
                 if (forceSprint) params.forwardKey = params.sprintKey = params.jumpKey = true;

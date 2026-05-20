@@ -3,6 +3,8 @@ package com.scale.scalehackv4.modules.impl.client.Hud;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
+import com.scale.scalehackv4.utils.client.MultiSelectEnum;
+import com.scale.scalehackv4.utils.client.MultiSelectUtil;
 import com.scale.scalehackv4.utils.render.Draggable;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
@@ -14,22 +16,19 @@ import java.util.List;
 
 // todo: show keybind submodules
 public class ArrayListModule extends HudModule {
-    @RegisterSubModule(
-            name = "Array List"
-    )
+    @RegisterSubModule(name = "Array List")
     public static boolean arrayList = true;
 
     @RegisterSubModule(name = "Font Size", parent = "Array List", min = 5, max = 40)
-    public static int fontSize = 10;
-    @RegisterSubModule(name = "Gap", parent = "Array List", max = 10)
-    public static int yGap = 0;
+    public static int fontSize = 8;
 
-    @RegisterSubModule(name = "No Capitals", parent = "Array List")
-    public static boolean noCapitals = true;
-    @RegisterSubModule(name = "No Spaces", parent = "Array List")
-    public static boolean noSpaces = true;
-    @RegisterSubModule(name = "Show Mode", parent = "Array List")
-    public static boolean showMode = true;
+    @RegisterSubModule(name = "Array List Options", parent = "Array List")
+    public static ArrayListOption options = ArrayListOption.No_Capitals;
+    public enum ArrayListOption implements MultiSelectEnum {
+        No_Capitals,
+        No_Spaces,
+        Show_Mode
+    }
 
     public final Draggable arrayListDraggable = new Draggable(
             "Array List",
@@ -41,7 +40,7 @@ public class ArrayListModule extends HudModule {
 
                 modules.sort(Comparator.comparingDouble(e -> -FontUtil.getStringWidth(getModuleName(e).getString(), fontSize)));
 
-                int height = FontUtil.getFontHeight(fontSize) + yGap;
+                int height = FontUtil.getFontHeight(fontSize);
 
                 int maxWidth = FontUtil.getStringWidth(getModuleName(modules.getFirst()).getString(), fontSize);
                 int totalHeight = height*modules.size();
@@ -70,11 +69,12 @@ public class ArrayListModule extends HudModule {
 
     private static Text getModuleName(Module module) {
         String name = module.getAnnotation().name();
-        if (noCapitals) name = name.toLowerCase();
-        if (noSpaces) name = name.replace(" ", "");
+        if (MultiSelectUtil.isEnabled(ArrayListOption.No_Capitals)) name = name.toLowerCase();
+        if (MultiSelectUtil.isEnabled(ArrayListOption.No_Spaces)) name = name.replace(" ", "");
         String arrayListExtraInfo = module.arrayListExtraInfo();
+        String arrayListExtraInfoFormatted = arrayListExtraInfo.isEmpty() || !MultiSelectUtil.isEnabled(ArrayListOption.Show_Mode) ? "" : " [" + arrayListExtraInfo + "]";
 
         return Text.literal(name)
-                .append(Text.literal((arrayListExtraInfo.isEmpty() || !showMode ? "" : " [" + arrayListExtraInfo + "]")).formatted(Formatting.DARK_GRAY));
+                .append(Text.literal(arrayListExtraInfoFormatted).formatted(Formatting.DARK_GRAY));
     }
 }

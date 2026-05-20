@@ -147,6 +147,9 @@ public class SpeedModule extends Module {
                             KeyboardInputEvent.lastInput.sneakKey,
                             true
                     )));
+
+                    // ambient only swings once extra, but i find swinging twice gives better hit reg, shrug.
+                    C.p().swingHand(Hand.MAIN_HAND);
                     C.p().swingHand(Hand.MAIN_HAND);
                 }
         );
