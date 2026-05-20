@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.mixins.combat;
 
-import com.scale.scalehackv4.modules.impl.combat.KeepSprintModule;
+import com.scale.scalehackv4.modules.impl.movement.SpeedModule;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.entity.ContainerUser;
 import net.minecraft.entity.EntityType;
@@ -21,13 +21,13 @@ public abstract class KeepSprintMixin extends PlayerLikeEntity implements Contai
 
     @Redirect(method = "knockbackTarget", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;setSprinting(Z)V"))
     private void onSetSprinting(PlayerEntity instance, boolean b) {
-        if (C.p() != null && this.getId() == C.p().getId() && KeepSprintModule.shouldKeepsprint()) return;
+        if (C.p() != null && this.getId() == C.p().getId() && SpeedModule.shouldKeepsprint()) return;
         this.setSprinting(b);
     }
 
     @Redirect(method = "knockbackTarget", at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/player/PlayerEntity;setVelocity(Lnet/minecraft/util/math/Vec3d;)V"))
     private void onSetVelocity(PlayerEntity instance, Vec3d vec3d) {
-        if (C.p() != null && this.getId() == C.p().getId() && KeepSprintModule.shouldKeepsprint()) return;
+        if (C.p() != null && this.getId() == C.p().getId() && SpeedModule.shouldKeepsprint()) return;
         this.setVelocity(vec3d);
     }
 }

@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
 import com.scale.scalehackv4.utils.player.PlayerUtil;
@@ -59,7 +60,7 @@ public class VelocityModule extends Module {
     }
 
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
-        if (!C.isInGame()) return false;
+        if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet)) return false;
 
         Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket && velocityPacket.getEntityId() == C.p().getId()
                 && (!ignoreFallDamage || !isFallDamage(velocityPacket.getVelocity()))
@@ -76,6 +77,8 @@ public class VelocityModule extends Module {
             lastVelocityMode = mode;
         }
         lastVelocity = velocity;
+
+        ChatUtil.prefixMessage("yea " + velocity);
 
         return switch (mode) {
             case Cancel -> true;
@@ -115,7 +118,6 @@ public class VelocityModule extends Module {
                     handledVelocity |= !BlinkUtil.isBlinking(false, true, this.getClass());
                     return false;
                 }
-                BlinkUtil.popBlink(false, true, this.getClass());
             case Jump_Reset:
                 handledVelocity = true;
                 if (forceSprint) params.forwardKey = params.sprintKey = params.jumpKey = true;

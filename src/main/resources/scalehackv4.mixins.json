@@ -21,7 +21,7 @@
     "client.altswitcher.TokenLoginButtonMixin",
     "client.antibot.AntiBotMixin",
     "client.fixrotation.ShowRotationMixin",
-    "combat.HypixelKeepSprintMixin",
+    "combat.HandlePrePostHitMixin",
     "player.BreakBlockCooldownBridgeMixin",
     "player.CheckClickEventMixin",
     "player.ClickEventMixin",

@@ -130,11 +130,11 @@ public class FontUtil {
         return graphics;
     }
 
-    public static void drawStringFade(Text text, float startX, float startY, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow) {
+    public static void drawStringFade(Text text, float startX, float startY, int fontSize, Color colour, double fadeSpeed, double fadeSpread, boolean dropShadow) {
         drawStringFade(text, startX, startY, 0, fontSize, colour, fadeSpeed, fadeSpread, dropShadow, false, false);
     }
 
-    public static void drawStringFade(Text text, float startX, float startY, float startZ, int fontSize, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow, boolean queue, boolean world) {
+    public static void drawStringFade(Text text, float startX, float startY, float startZ, int fontSize, Color colour, double fadeSpeed, double fadeSpread, boolean dropShadow, boolean queue, boolean world) {
         if (text == ScreenTexts.EMPTY) return;
 
         float upscale = getFontUpscale(world);
@@ -160,26 +160,27 @@ public class FontUtil {
 
         // drawing minecraft characters
         float width = 0;
-        for (Text drawableString : fixText(text)) {
+        for (Text drawableString : fixText(text, colour)) {
             Style textStyle = drawableString.getStyle();
-            if (textStyle.getColor() != null) Arrays.fill(colour, new Color(textStyle.getColor().getRgb()));
+            if (textStyle.getColor() != null) colour = new Color(textStyle.getColor().getRgb());
             for (char c : drawableString.getString().toCharArray()) {
                 if (fontTexture.charBounds.get(c) == null) {
-                    drawMinecraftString(String.valueOf(c), startX + width, startY, startZ, fontSize, colour[0], dropShadow, world);
+                    drawMinecraftString(String.valueOf(c), startX + width, startY, startZ, fontSize, colour, dropShadow, world);
                 }
                 width += getCharWidth(c, fontSize);
             }
         }
     }
 
-    private static Predicate<VertexConsumer> getDrawTextRunnable(Text text, Color[] colour, double fadeSpeed, double fadeSpread, boolean dropShadow, Object matrices, FontTexture fontTexture, int size, float scaleFactor) {
+    private static Predicate<VertexConsumer> getDrawTextRunnable(Text text, Color finalColour, double fadeSpeed, double fadeSpread, boolean dropShadow, Object matrices, FontTexture fontTexture, int size, float scaleFactor) {
         int fontHeight = fontTexture.height;
 
         return (vertices) -> {
+            Color colour = finalColour;
             float totalWidth = 0;
             boolean randomStyle, boldStyle, strikethroughStyle, underlineStyle, italicStyle;
 
-            for (Text drawableString : fixText(text)) {
+            for (Text drawableString : fixText(text, colour)) {
                 Style textStyle = drawableString.getStyle();
                 randomStyle = textStyle.isObfuscated();
                 underlineStyle = textStyle.isUnderlined();
@@ -188,7 +189,7 @@ public class FontUtil {
                 italicStyle = textStyle.isItalic();
 
                 if (textStyle.getColor() != null) {
-                    Arrays.fill(colour, new Color(textStyle.getColor().getRgb()));
+                    colour = new Color(textStyle.getColor().getRgb());
                 }
 
                 for (int i = 0; i < drawableString.getString().length(); i++) {
@@ -211,28 +212,20 @@ public class FontUtil {
                     float uw = (float) characterBounds.uw;
                     int characterWidth = characterBounds.width;
 
-                    // todo:
-                    //Color[] colourFade = RenderUtil.getColorsFade((x + totalWidth) * fadeSpread, characterWidth * fadeSpread, colour, fadeSpeed);
-                    Color[] colourFade = new Color[]{colour[0], colour[1]};
-
                     if (dropShadow) {
                         // in the 1.8.9 version, there is a fun fact here,
                         // but i removed it cause im not bothered enough to fact check if for this version
-                        Color[] shadowColours = new Color[]{
-                                new Color(22, 22, 22, colourFade[0].getAlpha()),
-                                new Color(22, 22, 22, colourFade[1].getAlpha())
-                        };
-                        drawCharacter(totalWidth + 1, 1, characterWidth, fontHeight, shadowColours, u, uw, vertices, matrices);
+                        drawCharacter(totalWidth + 1, 1, characterWidth, fontHeight, new Color(22, 22, 22, colour.getAlpha()), u, uw, vertices, matrices);
                     }
-                    drawCharacter(totalWidth, 0, characterWidth, fontHeight, colourFade, u, uw, vertices, matrices);
+                    drawCharacter(totalWidth, 0, characterWidth, fontHeight, colour, u, uw, vertices, matrices);
                     if (boldStyle)
-                        drawCharacter(totalWidth + 1, 0, characterWidth, fontHeight, colourFade, u, uw, vertices, matrices);
+                        drawCharacter(totalWidth + 1, 0, characterWidth, fontHeight, colour, u, uw, vertices, matrices);
 
                     float filledTextureUW = 1f / fontTexture.width;
                     if (underlineStyle)
-                        drawCharacter(totalWidth, fontHeight * 0.8f, characterWidth, 1, colourFade, 0, filledTextureUW, vertices, matrices);
+                        drawCharacter(totalWidth, fontHeight * 0.8f, characterWidth, 1, colour, 0, filledTextureUW, vertices, matrices);
                     if (strikethroughStyle)
-                        drawCharacter(totalWidth, fontHeight / 2f - 1, characterWidth, 2, colourFade, 0, filledTextureUW, vertices, matrices);
+                        drawCharacter(totalWidth, fontHeight / 2f - 1, characterWidth, 2, colour, 0, filledTextureUW, vertices, matrices);
 
                     // todo: impl italics, sounds like effort and they dont look good anyway.
 
@@ -244,38 +237,38 @@ public class FontUtil {
         };
     }
 
-    private static void drawCharacter(float x, float y, float w, float h, Color[] colours, float u, float uw, VertexConsumer vertexConsumer, Object matrices) {
+    private static void drawCharacter(float x, float y, float w, float h, Color colour, float u, float uw, VertexConsumer vertexConsumer, Object matrices) {
         if (matrices instanceof MatrixStack.Entry matrixStackEntry) {
-            vertexConsumer.vertex(matrixStackEntry, x, y+h, 0).color(colours[0].getRGB()).texture(u, 1);
-            vertexConsumer.vertex(matrixStackEntry, x + w, y+h, 0).color(colours[1].getRGB()).texture(uw, 1);
-            vertexConsumer.vertex(matrixStackEntry, x + w, y, 0).color(colours[1].getRGB()).texture(uw, 0);
-            vertexConsumer.vertex(matrixStackEntry, x, y, 0).color(colours[0].getRGB()).texture(u, 0);
+            vertexConsumer.vertex(matrixStackEntry, x, y+h, 0).color(colour.getRGB()).texture(u, 1);
+            vertexConsumer.vertex(matrixStackEntry, x + w, y+h, 0).color(colour.getRGB()).texture(uw, 1);
+            vertexConsumer.vertex(matrixStackEntry, x + w, y, 0).color(colour.getRGB()).texture(uw, 0);
+            vertexConsumer.vertex(matrixStackEntry, x, y, 0).color(colour.getRGB()).texture(u, 0);
         }
         else if (matrices instanceof Matrix3x2f matrix3x2f) {
-            vertexConsumer.vertex(matrix3x2f, x, y+h).color(colours[0].getRGB()).texture(u, 1);
-            vertexConsumer.vertex(matrix3x2f, x + w, y+h).color(colours[1].getRGB()).texture(uw, 1);
-            vertexConsumer.vertex(matrix3x2f, x + w, y).color(colours[1].getRGB()).texture(uw, 0);
-            vertexConsumer.vertex(matrix3x2f, x, y).color(colours[0].getRGB()).texture(u, 0);
+            vertexConsumer.vertex(matrix3x2f, x, y+h).color(colour.getRGB()).texture(u, 1);
+            vertexConsumer.vertex(matrix3x2f, x + w, y+h).color(colour.getRGB()).texture(uw, 1);
+            vertexConsumer.vertex(matrix3x2f, x + w, y).color(colour.getRGB()).texture(uw, 0);
+            vertexConsumer.vertex(matrix3x2f, x, y).color(colour.getRGB()).texture(u, 0);
         }
     }
 
     public static void drawString(String string, float x, float y, int size, Color colour, boolean dropShadow) {
-        drawStringFade(Text.of(string), x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow);
+        drawStringFade(Text.of(string), x, y, size, colour, 0, 0, dropShadow);
     }
 
     public static void drawString(Text text, float x, float y, int size, Color colour, boolean dropShadow) {
-        drawStringFade(text, x, y, size, new Color[] {colour, colour}, 0, 0, dropShadow);
+        drawStringFade(text, x, y, size, colour, 0, 0, dropShadow);
     }
 
     public static void drawString(String string, float x, float y, int size, Color colour, boolean dropShadow, boolean queue) {
-        drawStringFade(Text.of(string), x, y, 0, size, new Color[] {colour, colour}, 0, 0, dropShadow, queue, false);
+        drawStringFade(Text.of(string), x, y, 0, size, colour, 0, 0, dropShadow, queue, false);
     }
 
     public static void drawString(String string, float x, float y, float z, int size, Color colour, boolean dropShadow) {
-        drawStringFade(Text.of(string), x, y, z, size, new Color[] {colour, colour}, 0, 0, dropShadow, false, true);
+        drawStringFade(Text.of(string), x, y, z, size, colour, 0, 0, dropShadow, false, true);
     }
     public static void drawString(Text text, float x, float y, float z, int size, Color colour, boolean dropShadow) {
-        drawStringFade(text, x, y, z, size, new Color[] {colour, colour}, 0, 0, dropShadow, false, true);
+        drawStringFade(text, x, y, z, size, colour, 0, 0, dropShadow, false, true);
     }
 
     public static Random fontRandom = new Random();
@@ -414,7 +407,7 @@ public class FontUtil {
     private static final Pattern FORMATTING_CODE_PATTERN = Pattern.compile("(?i)§[0-9A-FK-OR]");
 
     // cancer. im sure there is a minecraft
-    private static List<Text> fixText(Text text) {
+    private static List<Text> fixText(Text text, Color colour) {
         List<Text> texts = new ArrayList<>();
 
         for (Text segment : text.getWithStyle(Style.EMPTY)) {
@@ -429,6 +422,7 @@ public class FontUtil {
                 String part = raw.substring(lastEnd, matcher.start());
                 MutableText t = Text.literal(part).setStyle(baseStyle);
                 if (lastFormatting != null) t.formatted(lastFormatting);
+                if (lastEnd == 0) t.withColor(colour.getRGB());
                 texts.add(t);
 
                 lastFormatting = Formatting.byCode(matcher.group().charAt(1));
