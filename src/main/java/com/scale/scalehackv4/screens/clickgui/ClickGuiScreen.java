@@ -20,7 +20,6 @@ import org.joml.Matrix3x2fStack;
 import java.awt.*;
 
 // todo: text options
-//  multi select
 //  min-max sliders
 //  resizing the whole gui
 //  show which settings are sub settings

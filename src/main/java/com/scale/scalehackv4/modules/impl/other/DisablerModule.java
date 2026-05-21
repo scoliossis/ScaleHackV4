@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.player;
+package com.scale.scalehackv4.modules.impl.other;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
@@ -22,15 +22,16 @@ import java.security.PublicKey;
 
 @RegisterModule(
         name = "Disabler",
-        category = Category.PLAYER,
+        category = Category.OTHER,
         enabledByDefault = true
 )
+// todo: disable racism
 public class DisablerModule extends Module {
     @RegisterSubModule(name = "Anti Rat")
     public boolean antirat = true;
     @RegisterSubModule(name = "Max Requests", min = 1, max = 10, parent = "Anti Rat")
     public static int maxRequests = 10;
-    @RegisterSubModule(name = "Request Delay", min = 10, max = 500, parent = "Anti Rat", increment = 10)
+    @RegisterSubModule(name = "Request Delay", min = 10, max = 200, parent = "Anti Rat", increment = 10)
     public static int requestDelay = 50;
 
     private static long lastRequest = 0;

@@ -198,9 +198,9 @@ public class BlockTracker {
         }
     }
 
-    public static ArrayList<BlockPos> getBlockPositions(Block block) {
+    public static BlockPos[] getBlockPositions(Block block) {
         ArrayList<BlockPos> positions = trackedBlocks.get(block);
-        return positions == null ? new ArrayList<>() : (ArrayList<BlockPos>) positions.clone();
+        return positions == null ? new BlockPos[]{} : positions.toArray(BlockPos[]::new);
     }
 
     public static Block getTrackedBlockAtPos(BlockPos pos) {

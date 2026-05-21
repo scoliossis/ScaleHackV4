@@ -46,7 +46,12 @@ public class SpeedModule extends Module {
     public static KeepSprint keepSprint = KeepSprint.None;
 
     public static boolean shouldKeepsprint() {
-        return ModuleUtil.isEnabled(SpeedModule.class) && keepSprint != KeepSprint.None && C.p().forwardSpeed > 0;
+        return ModuleUtil.isEnabled(SpeedModule.class)
+                && keepSprint != KeepSprint.None
+                && !C.p().horizontalCollision
+                && C.p().forwardSpeed > 0
+                && C.p().isSprinting()
+                && C.p().hurtTime < 8;
     }
 
     private final Event overrideSprinting = new KeyboardInputEvent(this, params -> {
@@ -148,7 +153,8 @@ public class SpeedModule extends Module {
                             true
                     )));
 
-                    // ambient only swings once extra, but i find swinging twice gives better hit reg, shrug.
+                    // ambient only swings once extra, but i find swinging more gives better hit reg, shrug.
+                    C.p().swingHand(Hand.MAIN_HAND);
                     C.p().swingHand(Hand.MAIN_HAND);
                     C.p().swingHand(Hand.MAIN_HAND);
                 }

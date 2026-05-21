@@ -83,9 +83,24 @@ public class ModuleRenderer {
 
         // outline
         Color outlineColour = activeModule == module ? ClickGuiModule.guiColour : ClickGuiScreen.OUTLINE_COLOUR;
+        // top left to module name
         Render2dUtil.drawRect(-1, -1, titleX-1, module.height+2, outlineColour);
+        // right of module name to top right
         Render2dUtil.drawRect(titleX+2+moduleNameWidth, -1, module.width-titleX-1-moduleNameWidth, module.height+2, outlineColour);
+        // bottom of outline
         Render2dUtil.drawRect(-1, module.height, module.width+2, 1, outlineColour);
+
+        /*
+        // todo:
+        int size = 5;
+        // arrow in bottom right!
+        Render2dUtil.drawPoints(
+                new int[]{module.width - size, module.width, module.width},
+                new int[]{module.height, module.height-size, module.height},
+                outlineColour,
+                false
+        );
+         */
 
         // interior crocodile alligator
         Render2dUtil.drawRect(0, 0, module.width, module.height, new Color(22, 22, 22));

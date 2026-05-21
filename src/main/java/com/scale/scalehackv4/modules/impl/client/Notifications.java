@@ -5,6 +5,7 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.SubModule;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 
 @RegisterModule(
         name = "Notifications",
@@ -13,6 +14,8 @@ import com.scale.scalehackv4.utils.client.ChatUtil;
 )
 public class Notifications extends Module {
     public static void post(SubModule subModule, boolean enabled) {
+        if (!ModuleUtil.isEnabled(Notifications.class)) return;
+
         String moduleName = subModule.getAnnotation().name();
         moduleName = moduleName.equals(Module.ENABLED_STRING)
                 ? subModule.getParentModule().getAnnotation().name()

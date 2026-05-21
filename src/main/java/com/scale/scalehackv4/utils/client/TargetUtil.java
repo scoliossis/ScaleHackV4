@@ -43,7 +43,6 @@ public class TargetUtil {
     private final Event reloadValidTargets = new WorldJoinEvent(null, params -> {
         ENTITY_VALID_TICKS.clear();
         PLAYER_LIST_WIDGET = new SocialInteractionsPlayerListWidget(new SocialInteractionsScreen(), C.mc, Integer.MAX_VALUE, Integer.MAX_VALUE, 0, 0);
-
         return false;
     });
 
@@ -52,8 +51,13 @@ public class TargetUtil {
         List<SocialInteractionsPlayerListEntry> players = AntiBotBridge.from(PLAYER_LIST_WIDGET).bridge$getPlayers();
         for (SocialInteractionsPlayerListEntry player : players) {
             ENTITY_VALID_TICKS.putIfAbsent(player.getUuid(), 0);
-            // if player is offline, they lose 1 score, online gains a score, positive score means they likely arent a bot!
-            ENTITY_VALID_TICKS.computeIfPresent(player.getUuid(), (k, validTicks) -> validTicks + (player.isOffline() ? -1 : 1));
+
+            if (C.w().getEntity(player.getUuid()) != null) {
+                // if player is offline, they lose 1 score, online gains a score, positive score means they likely arent a bot!
+                ENTITY_VALID_TICKS.computeIfPresent(player.getUuid(), (k, validTicks) -> validTicks + (player.isOffline() ? -1 : 1));
+            }
+            else ENTITY_VALID_TICKS.put(player.getUuid(), 0);
+
         }
 
         return false;

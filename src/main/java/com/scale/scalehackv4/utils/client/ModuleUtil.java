@@ -52,6 +52,7 @@ public class ModuleUtil {
                     // dumb blehhh, but it isnt broken yet, so i wont fix it.
                     SubModule enabled = new SubModule(m, moduleClazz.getField("enabled"));
                     m.getChildren().add(enabled);
+                    enabled.setKeybind(annotation.defaultKeybind());
                 }
 
                 for (Field field : clazz.getDeclaredFields()) {

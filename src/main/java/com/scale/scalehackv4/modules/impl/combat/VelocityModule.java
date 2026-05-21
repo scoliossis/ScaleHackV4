@@ -17,6 +17,7 @@ import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.EntityTrackerUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
@@ -63,18 +64,24 @@ public class VelocityModule extends Module {
     public Packet<?> lastPacket = null;
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
         if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet)) return false;
+        boolean isExplosion = params.packet instanceof ExplosionS2CPacket
+                || (params.packet instanceof EntityVelocityUpdateS2CPacket && lastPacket instanceof EntityTrackerUpdateS2CPacket);
+        boolean isVelocity = !isExplosion
+                && params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket
+                && velocityPacket.getEntityId() == C.p().getId()
+                && (!ignoreFallDamage || !isFallDamage(velocityPacket.getVelocity()))
+                // if a velocity packet is preceded by a PlayerPositionLookS2CPacket then its NOT real.
+                && !(lastPacket instanceof PlayerPositionLookS2CPacket);
 
-        Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket && velocityPacket.getEntityId() == C.p().getId()
-                ? velocityPacket.getVelocity()
-                : (params.packet instanceof ExplosionS2CPacket explosionS2CPacket && !ignoreExplosions)
+        lastPacket = params.packet;
+        if ((isExplosion && !ignoreExplosions) || !isVelocity) return false;
+
+        Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket ? velocityPacket.getVelocity()
+                : params.packet instanceof ExplosionS2CPacket explosionS2CPacket
                   ? explosionS2CPacket.playerKnockback().orElse(null)
                   : null;
 
-        // if a velocity packet is preceded by a PlayerPositionLookS2CPacket then its NOT real.
-        if (velocity == null || lastPacket instanceof PlayerPositionLookS2CPacket || (ignoreFallDamage && isFallDamage(velocity))) {
-            lastPacket = params.packet;
-            return false;
-        }
+        if (velocity == null) return false;
 
         if (handledVelocity) {
             lastUnhandledVelocityTick = WorldUtil.ticks;
@@ -114,7 +121,7 @@ public class VelocityModule extends Module {
     });
 
     private boolean isFallDamage(Vec3d velocity) {
-        return velocity.y == -0.0783739241897089;
+        return velocity.y <= 0;
     }
 
     private final Event handleVelocityKeyInputs = new KeyboardInputEvent(this, params -> {
