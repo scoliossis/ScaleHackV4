@@ -11,6 +11,10 @@ public class RotationUtil {
         return applyGcd(RotationEvent.getLastRotation(), getRotationNoGcd(RotationEvent.getLastRotation(), C.p().getEyePos(), to));
     }
 
+    public static Rotation getRotation(Rotation currentRotation, Vec3d to) {
+        return applyGcd(RotationEvent.getLastRotation(), getRotationNoGcd(currentRotation, C.p().getEyePos(), to));
+    }
+
     public static Rotation getRotation(Rotation currentRotation, Vec3d from, Vec3d to) {
         return applyGcd(currentRotation, getRotationNoGcd(currentRotation, from, to));
     }
@@ -68,23 +72,23 @@ public class RotationUtil {
         return currentYaw + delta;
     }
 
-    public static Rotation getLimitedRotation(Vec3d toVector, float maxTurnAmount) {
-        Rotation to = getRotation(toVector);
+    public static Rotation getLimitedRotation(Rotation currentRotation, Vec3d toVector, float maxTurnAmount) {
+        Rotation to = getRotation(currentRotation, toVector);
 
-        Rotation rotationDifference = to.subtract(RotationEvent.getLastRotation());
+        Rotation rotationDifference = to.subtract(currentRotation);
         float pitchDelta = MathHelper.clamp(rotationDifference.pitch, -maxTurnAmount, maxTurnAmount);
         float yawDelta = MathHelper.clamp(rotationDifference.yaw, -maxTurnAmount, maxTurnAmount);
 
-        return applyGcd(RotationEvent.getLastRotation(), new Rotation(yawDelta, pitchDelta).add(RotationEvent.getLastRotation()));
+        return applyGcd(currentRotation, new Rotation(yawDelta, pitchDelta).add(currentRotation));
     }
 
-    public static Rotation getSmoothRotation(Vec3d toVector, float smoothing) {
-        Rotation to = getRotation(toVector);
+    public static Rotation getSmoothRotation(Rotation currentRotation, Vec3d toVector, float smoothing) {
+        Rotation to = getRotation(currentRotation, toVector);
 
-        Rotation rotationDifference = to.subtract(RotationEvent.getLastRotation());
+        Rotation rotationDifference = to.subtract(currentRotation);
         float pitchDelta = rotationDifference.pitch / smoothing;
         float yawDelta = rotationDifference.yaw / smoothing;
 
-        return applyGcd(RotationEvent.getLastRotation(), new Rotation(yawDelta, pitchDelta).add(RotationEvent.getLastRotation()));
+        return applyGcd(currentRotation, new Rotation(yawDelta, pitchDelta).add(currentRotation));
     }
 }

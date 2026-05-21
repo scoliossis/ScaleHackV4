@@ -3,6 +3,7 @@ package com.scale.scalehackv4.modules.impl.combat;
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
+import com.scale.scalehackv4.events.impl.player.UpdateMouseEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
@@ -11,9 +12,11 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.*;
 import com.scale.scalehackv4.utils.player.*;
 import com.scale.scalehackv4.utils.render.MouseUtil;
+import com.scale.scalehackv4.utils.render.Render3dUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.Comparator;
@@ -79,9 +82,13 @@ public class KillAuraModule extends Module {
 
     @RegisterSubModule(name = "Rotation Mode")
     public RotationMode rotationMode = RotationMode.Lock;
+
+    @RegisterSubModule(name = "Client Side Rotation")
+    public static boolean clientSideRotation = false;
+
     @RegisterSubModule(name = "Max Rotation", min = 1, max = 180, parent = "Rotation Mode", modeParentString = "Limited")
     public static int maxRotation = 60;
-    @RegisterSubModule(name = "Rotation Smoothing Factor", min = 1, max = 5, parent = "Rotation Mode", modeParentString = "Smooth", increment = 0.1)
+    @RegisterSubModule(name = "Rotation Smoothing Factor", min = 1, max = 10, parent = "Rotation Mode", modeParentString = "Smooth", increment = 0.1)
     public static float rotationSmoothing = 3;
 
     public enum RotationMode {
@@ -101,13 +108,13 @@ public class KillAuraModule extends Module {
         Limited {
             @Override
             public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
-                params.rotation = RotationUtil.getLimitedRotation(rotationVector, maxRotation);
+                params.rotation = RotationUtil.getLimitedRotation(getLastRotation(), rotationVector, maxRotation);
             }
         },
         Smooth {
             @Override
             public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
-                params.rotation = RotationUtil.getSmoothRotation(rotationVector, rotationSmoothing);
+                params.rotation = RotationUtil.getSmoothRotation(getLastRotation(), rotationVector, rotationSmoothing);
             }
         };
 
@@ -160,8 +167,11 @@ public class KillAuraModule extends Module {
 
     private static Entity targetEntity = null;
     private static int switchOrdinal = 0;
+    private Rotation targetRotation;
 
     private final Event handleRotations = new RotationEvent(this, params -> {
+        targetRotation = null;
+
         // dont wanna override other rotations!
         if (Bus.isEventCancelled(RotationEvent.class) || !shouldAura()) {
             targetEntity = null;
@@ -179,6 +189,18 @@ public class KillAuraModule extends Module {
 
         return true;
     }, 2000);
+
+    private final Event sendMovementPacketEvent = new UpdateMouseEvent(this, params -> {
+        if (targetRotation == null || !clientSideRotation) return false;
+
+        targetRotation = targetRotation.add(new Rotation(params.cursorDeltaY, params.cursorDeltaX));
+
+        float delta = Render3dUtil.getTickCounter().getTickProgress(true);
+        C.p().setYaw(MathHelper.lerp(delta, RotationEvent.clientRotation.yaw, targetRotation.yaw));
+        C.p().setPitch(MathHelper.lerp(delta, RotationEvent.clientRotation.pitch, targetRotation.pitch));
+
+        return true;
+    });
 
     private static boolean willAttack(Rotation rotation) {
         return (swingMisses || isHoveringTargetEntity(rotation)) && attackSpeed.shouldAttack.test(null);
@@ -207,7 +229,7 @@ public class KillAuraModule extends Module {
     }
 
     private float getYawToTarget(Entity target) {
-        return Math.abs(RotationUtil.getRotation(target.getEyePos()).yaw - RotationEvent.clientRotation.yaw) % 180;
+        return Math.abs(RotationUtil.getRotation(getLastRotation(), C.p().getEyePos(), target.getEyePos()).yaw - RotationEvent.clientRotation.yaw) % 180;
     }
 
     private boolean getValidEntity(List<Entity> targets, RotationEvent.Params params) {
@@ -230,13 +252,18 @@ public class KillAuraModule extends Module {
         if (rotationVector == null) return false;
 
         targetEntity = target;
-        if (isHoveringTargetEntity(RotationEvent.getLastRotation()) && rotationMode != RotationMode.Snap) {
-            params.rotation = RotationEvent.getLastRotation();
+        if (isHoveringTargetEntity(getLastRotation()) && rotationMode != RotationMode.Snap) {
+            params.rotation = getLastRotation();
             return true;
         }
 
         rotationMode.rotate(target, rotationVector, params);
+        targetRotation = params.rotation;
         return true;
+    }
+
+    private static Rotation getLastRotation() {
+        return clientSideRotation ? RotationEvent.clientRotation : RotationEvent.getLastRotation();
     }
 
     // net.minecraft.entity.player.PlayerEntity.canInteractWithEntityIn

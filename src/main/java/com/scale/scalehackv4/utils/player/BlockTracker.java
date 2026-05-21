@@ -52,18 +52,18 @@ public class BlockTracker {
         if (C.w() == null || currentlyUpdating) return false;
 
         C.ASYNC.execute(() -> {
+            Update[] updates = incomingUpdates.toArray(Update[]::new);
             try {
                 currentlyUpdating = true;
-                Update[] updates = incomingUpdates.toArray(Update[]::new);
 
                 for (Update update : updates) {
-                    if (update != null) {
-                        switch (update.updateType) {
-                            case CHUNK_LOAD -> loadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
-                            case CHUNK_UNLOAD -> unloadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
-                            case BLOCK_UPDATE -> updateBlock(update.pos, update.newBlock.getFirst());
-                        }
+                    if (update != null) switch (update.updateType) {
+                        case CHUNK_LOAD -> loadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
+                        case CHUNK_UNLOAD ->
+                                unloadBlocksFromChunk(update.pos.getX(), update.pos.getZ(), update.newBlock);
+                        case BLOCK_UPDATE -> updateBlock(update.pos, update.newBlock.getFirst());
                     }
+                    // note to self: removeAll is VERY slow
                     incomingUpdates.remove(update);
                 }
             } finally {

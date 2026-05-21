@@ -90,6 +90,23 @@ public class Render3dUtil extends RenderUtil {
         vertexConsumers.drawCurrentLayer();
     }
 
+    public static void drawTexturedQuads(float x, float y, float z, float w, float h, Color colour, Identifier texture, boolean cull) {
+        drawTexturedQuads(x, y, z, w, h, 0, 0, 1, 1, colour, texture, cull);
+    }
+
+    public static void drawTexturedQuads(float x, float y, float z, float w, float h, float u0, float v0, float u1, float v1, Color colour, Identifier texture, boolean cull) {
+        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, cull, texture));
+
+        MatrixStack.Entry entry = getEntry();
+
+        vertexConsumer.vertex(entry, x, y+h, 0).color(colour.getRGB()).texture(u0, v1);
+        vertexConsumer.vertex(entry, x + w, y+h, 0).color(colour.getRGB()).texture(u1, v1);
+        vertexConsumer.vertex(entry, x + w, y, 0).color(colour.getRGB()).texture(u1, v0);
+        vertexConsumer.vertex(entry, x, y, 0).color(colour.getRGB()).texture(u0, v0);
+
+        vertexConsumers.drawCurrentLayer();
+    }
+
     public static void drawBox(float x, float y, float z, float width, float height, float depth, Color colour, boolean cull) {
         drawBox(x, y, z, width, height, depth, colour, cull, false);
     }

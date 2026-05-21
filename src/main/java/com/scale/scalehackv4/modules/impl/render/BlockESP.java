@@ -9,14 +9,16 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.player.BlockTracker;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
-import com.scale.scalehackv4.utils.render.Vec3f;
 import net.minecraft.block.BedBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.enums.BedPart;
+import net.minecraft.client.texture.Sprite;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
+import org.joml.Quaternionf;
 
 import java.awt.*;
 import java.util.List;
@@ -28,7 +30,7 @@ import java.util.List;
 // todo: allow ANY block to be picked, not just beds
 public class BlockESP extends Module {
     @RegisterSubModule(name = "ESP Colour")
-    public static Color espColour = new Color(0xFF00F1);
+    public static Color espColour = new Color(240, 139, 248,100);
 
     // uh huh.
     private final List<Block> BED_COLOURS = List.of(
@@ -54,22 +56,35 @@ public class BlockESP extends Module {
         BED_COLOURS.forEach(bed -> {
             for (BlockPos blockPos : BlockTracker.getBlockPositions(bed)) {
                 BlockState blockState = C.w().getBlockState(blockPos);
-                if (!(blockState.getBlock() instanceof BedBlock bedBlock) || C.w().getBlockState(blockPos).get(BedBlock.PART) != BedPart.FOOT) continue;
+                if (!(blockState.getBlock() instanceof BedBlock bedBlock) || blockState.get(BedBlock.PART) != BedPart.FOOT) continue;
 
-                Direction facing = C.w().getBlockState(blockPos).get(BedBlock.FACING);
+                Direction facing = blockState.get(BedBlock.FACING);
                 // shrug, https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/render/BedESP.java#L53
-                Vec3f size = new Vec3f(1.0F + Math.abs(facing.getOffsetX()), 0.5625F, 1.0F + Math.abs(facing.getOffsetZ()));
+                Box box = new Box(
+                        Math.min(facing.getOffsetX(), 0), 0, Math.min(facing.getOffsetZ(), 0),
+                        1.0F + Math.abs(facing.getOffsetX()), 0.5625F, 1.0F + Math.abs(facing.getOffsetZ())
+                );
+
+                Render3dUtil.getMatrices().push();
+                Render3dUtil.getMatrices().translate(blockPos.getX(), blockPos.getY(), blockPos.getZ());
 
                 Render3dUtil.drawBox(
-                        blockPos.getX() + Math.min(facing.getOffsetX(), 0),
-                        blockPos.getY(),
-                        blockPos.getZ() + Math.min(facing.getOffsetZ(), 0),
-                        size.x,
-                        size.y,
-                        size.z,
+                        (float) box.minX, (float) box.minY, (float) box.minZ,
+                        (float) box.maxX, (float) box.maxY, (float) box.maxZ,
                         espColour,
                         false
                 );
+
+                Render3dUtil.getMatrices().translate(box.minX + 0.5, 1.25, box.minZ + 0.5);
+                Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, (float) -Math.toRadians(C.p().getYaw()), (float) Math.toRadians(C.p().getPitch())));
+                Sprite sprite = C.mc.getBlockRenderManager().getModel(C.w().getBlockState(blockPos.up())).particleSprite();
+                float u0 = sprite.getMinU(), u1 = sprite.getMaxU(), v0 = sprite.getMinV(), v1 = sprite.getMaxV();
+
+                Render3dUtil.drawTexturedQuads(-0.25f, -0.25f, -0.25f, 0.5f, 0.5f, u0, v1, u1, v0, Color.WHITE, sprite.getAtlasId(), false);
+
+                sprite.close();
+
+                Render3dUtil.getMatrices().pop();
             };
         });
         return false;

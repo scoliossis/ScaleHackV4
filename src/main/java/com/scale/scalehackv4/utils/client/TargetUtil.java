@@ -56,8 +56,6 @@ public class TargetUtil {
                 // if player is offline, they lose 1 score, online gains a score, positive score means they likely arent a bot!
                 ENTITY_VALID_TICKS.computeIfPresent(player.getUuid(), (k, validTicks) -> validTicks + (player.isOffline() ? -1 : 1));
             }
-            else ENTITY_VALID_TICKS.put(player.getUuid(), 0);
-
         }
 
         return false;
