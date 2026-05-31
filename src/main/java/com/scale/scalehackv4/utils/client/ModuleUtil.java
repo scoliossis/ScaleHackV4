@@ -196,7 +196,7 @@ public class ModuleUtil {
         return ModuleUtil.MODULES.values().stream().filter(e -> e.getAnnotation().category() == category).toList();
     }
 
-    // -------------- from https://github.com/scoliossis/ScaleHackOpenSrc ---------------------
+    // -------------- from https://github.com/scoliossis/ScaleHackV3 ---------------------
     public static void openConfigFolder() {
         try {
             Files.createDirectories(Paths.get(Main.CONFIG_PATH));

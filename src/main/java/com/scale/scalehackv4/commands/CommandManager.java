@@ -20,7 +20,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-// based of the command manager from https://github.com/scoliossis/ScaleHackOpenSrc
+// based of the command manager from https://github.com/scoliossis/ScaleHackV3
 @RegisterListeners
 public class CommandManager {
     public static char prefix = '.';

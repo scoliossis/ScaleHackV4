@@ -94,7 +94,7 @@ public class TargetUtil {
         return WorldUtil.getClosestPoint(target.getBoundingBox());
     }
 
-    // from scalehackv3 https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/TargetUtil.java#L88
+    // from scalehackv3 https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/TargetUtil.java#L88
     public static Vec3d getTargetRotationPoint(Entity entity, double range) {
         if (entity == null) return null;
 

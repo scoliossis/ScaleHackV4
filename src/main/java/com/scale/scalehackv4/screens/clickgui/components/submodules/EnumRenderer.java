@@ -89,7 +89,7 @@ public class EnumRenderer extends SubModuleRenderer {
     public boolean handleClick(SubModule subModule) {
         int rectWidth = SubModuleRenderer.getMiddleWidth(subModule);
 
-        boolean hoveringEnum = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, ENUM_Y, rectWidth, ENUM_HEIGHT, false);
+        boolean hoveringEnum = MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, ENUM_Y, rectWidth, ENUM_HEIGHT, true);
         if (SubModuleRenderer.activeSubModule != subModule && hoveringEnum) {
             SubModuleRenderer.activeSubModule = subModule;
 

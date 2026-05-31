@@ -10,7 +10,7 @@ import net.minecraft.network.packet.Packet;
 
 import java.util.ArrayList;
 
-// roughly based on https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlinkUtil.java
+// roughly based on https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlinkUtil.java
 @RegisterListeners
 public class BlinkUtil {
     private static final ArrayList<BlinkedClass> OUTGOING_BLINK = new ArrayList<>();

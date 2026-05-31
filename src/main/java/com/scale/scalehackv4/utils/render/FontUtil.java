@@ -27,7 +27,7 @@ import java.util.function.Predicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-// straight ripped from https://github.com/scoliossis/ScaleHackOpenSrc which isnt great
+// straight ripped from https://github.com/scoliossis/ScaleHackV3 which isnt great
 // todo: yeah rewrite most of this.
 public class FontUtil {
     private static Fonts currentFont;

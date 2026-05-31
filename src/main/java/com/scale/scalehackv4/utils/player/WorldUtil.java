@@ -52,7 +52,7 @@ public class WorldUtil {
         return new Vec3d(f1 * f2, f3, f * f2).normalize();
     }
 
-    // https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/WorldUtil.java#L208
+    // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/WorldUtil.java#L208
     public static Vec3d getClosestPoint(Box collisionBox) {
         Vec3d eyePos = C.p().getEyePos();
 

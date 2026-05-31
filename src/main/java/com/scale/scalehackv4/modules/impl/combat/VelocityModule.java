@@ -17,7 +17,6 @@ import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.Packet;
-import net.minecraft.network.packet.s2c.play.EntityTrackerUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
@@ -64,8 +63,7 @@ public class VelocityModule extends Module {
     public Packet<?> lastPacket = null;
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
         if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet)) return false;
-        boolean isExplosion = params.packet instanceof ExplosionS2CPacket
-                || (params.packet instanceof EntityVelocityUpdateS2CPacket && lastPacket instanceof EntityTrackerUpdateS2CPacket);
+        boolean isExplosion = params.packet instanceof ExplosionS2CPacket;
         boolean isVelocity = !isExplosion
                 && params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket
                 && velocityPacket.getEntityId() == C.p().getId()

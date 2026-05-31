@@ -2,7 +2,7 @@ package com.scale.scalehackv4.utils.player;
 
 import lombok.AllArgsConstructor;
 
-// https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/RotationUtil.java#L124
+// https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/RotationUtil.java#L124
 @AllArgsConstructor
 public class Rotation {
     public float yaw;

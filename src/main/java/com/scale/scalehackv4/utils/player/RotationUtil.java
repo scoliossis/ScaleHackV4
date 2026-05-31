@@ -23,7 +23,7 @@ public class RotationUtil {
         return new Rotation(C.p().getYaw(), C.p().getPitch());
     }
 
-    // https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/RotationUtil.java#L64
+    // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/RotationUtil.java#L64
     private static Rotation getRotationNoGcd(Rotation currentRotation, Vec3d from, Vec3d to) {
         Vec3d diff = to.subtract(from);
         double dist = Math.sqrt(diff.x * diff.x + diff.z * diff.z);
@@ -46,7 +46,7 @@ public class RotationUtil {
         );
     }
 
-    // https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/RotationUtil.java#L25
+    // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/RotationUtil.java#L25
     public static Rotation applyGcd(Rotation currentRotation, Rotation targetRotation) {
         double f = C.mc.options.getMouseSensitivity().getValue() * (double) 0.6F + (double) 0.2F;
         double sens = (f * f * f) * (double) 8.0F;

@@ -214,15 +214,17 @@ public class KillAuraModule extends Module {
     }
 
     private List<Entity> getTargets() {
-        // get a list of all targets in rotation distance and ones within attack range
+        // get a list of all targets in rotation distance
         List<Entity> targets = TargetUtil.getTargets(rotationRange);
         targets.removeIf(entity -> getYawToTarget(entity) > auraFOV);
 
+        // and targets within attack range
         List<Entity> attackRangeTargets = targets.stream().filter(entity -> getMinDistance(entity) <= reach).collect(Collectors.toList());
 
         // ignore all out of swing distance if there are some in attack range
         if (!attackRangeTargets.isEmpty()) targets = attackRangeTargets;
 
+        // sort by the currently selected target selection mode
         targetSelection.sort(targets);
 
         return targets;

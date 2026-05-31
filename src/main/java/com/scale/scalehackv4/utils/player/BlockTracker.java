@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-// ripped 1:1 from https://github.com/scoliossis/ScaleHackOpenSrc/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlockTracker.java
+// ripped 1:1 from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlockTracker.java,
 // but i added async this time, how swag
 @RegisterListeners
 public class BlockTracker {

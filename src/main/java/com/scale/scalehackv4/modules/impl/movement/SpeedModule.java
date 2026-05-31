@@ -156,7 +156,6 @@ public class SpeedModule extends Module {
                     // ambient only swings once extra, but i find swinging more gives better hit reg, shrug.
                     C.p().swingHand(Hand.MAIN_HAND);
                     C.p().swingHand(Hand.MAIN_HAND);
-                    C.p().swingHand(Hand.MAIN_HAND);
                 }
         );
 
