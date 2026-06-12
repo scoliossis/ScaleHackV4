@@ -6,7 +6,6 @@ import lombok.AllArgsConstructor;
 
 import java.util.function.Predicate;
 
-// todo: allow editing x,y,z,sneak,onground in this event
 public class SendMovementPacketEvent extends Event {
     @AllArgsConstructor
     public static class Params {

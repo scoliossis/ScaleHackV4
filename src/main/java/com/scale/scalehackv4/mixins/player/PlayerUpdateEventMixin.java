@@ -64,4 +64,14 @@ public abstract class PlayerUpdateEventMixin extends AbstractClientPlayerEntity 
     private float overridePacketPitch(ClientPlayerEntity instance) {
         return lastMovementPacket.pitch;
     }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isOnGround()Z"))
+    private boolean overridePacketIsOnGround(ClientPlayerEntity instance) {
+        return lastMovementPacket.onGround;
+    }
+
+    @Redirect(method = "sendMovementPackets", at = @At(value = "FIELD", target = "Lnet/minecraft/client/network/ClientPlayerEntity;horizontalCollision:Z"))
+    private boolean overridePacketHorizontalCollision(ClientPlayerEntity instance) {
+        return lastMovementPacket.horizontalCollision;
+    }
 }

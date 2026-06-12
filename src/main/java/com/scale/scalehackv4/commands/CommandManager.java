@@ -21,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 // based of the command manager from https://github.com/scoliossis/ScaleHackV3
+// todo: minecraft command manager when?!
 @RegisterListeners
 public class CommandManager {
     public static char prefix = '.';

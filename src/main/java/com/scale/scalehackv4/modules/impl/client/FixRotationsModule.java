@@ -20,7 +20,7 @@ import net.minecraft.util.math.MathHelper;
         enabledByDefault = true
 )
 // todo: ig add option to disable showing rotations, but blehhh
-//  allow all rotations to be client side
+//  pitch rotation isnt shown when freelook is enabled
 //  maybe allow no fix rotation on interact
 public class FixRotationsModule extends Module {
     @RegisterSubModule(name = "Fix Movement")

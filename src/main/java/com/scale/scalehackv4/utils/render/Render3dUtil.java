@@ -160,57 +160,6 @@ public class Render3dUtil extends RenderUtil {
         }
     }
 
-    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Identifier texture, Color colour, boolean cull) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.TRIANGLES, cull, texture));
-
-        MatrixStack.Entry entry = getEntry();
-        entry.translate(x, y, z);
-
-        for (ModelUtil.ModelFace face : model.faces) {
-            // the v coordinates are inverted..?
-            vertexConsumer
-                    .vertex(entry, face.vertex().vertex1().x, face.vertex().vertex1().y, face.vertex().vertex1().z)
-                    .texture(face.textureCoordinates().vertex1().x, 1-face.textureCoordinates().vertex1().y)
-                    .color(colour.getRGB());
-
-            vertexConsumer
-                    .vertex(entry, face.vertex().vertex2().x, face.vertex().vertex2().y, face.vertex().vertex2().z)
-                    .texture(face.textureCoordinates().vertex2().x, 1-face.textureCoordinates().vertex2().y)
-                    .color(colour.getRGB());
-
-            vertexConsumer
-                    .vertex(entry, face.vertex().vertex3().x, face.vertex().vertex3().y, face.vertex().vertex3().z)
-                    .texture(face.textureCoordinates().vertex3().x, 1-face.textureCoordinates().vertex3().y)
-                    .color(colour.getRGB());
-        }
-
-        vertexConsumers.drawCurrentLayer();
-    }
-
-    // blehhh, similar to the one above, but just not quite >.<
-    public static void drawModel(float x, float y, float z, ModelUtil.Model model, Color colour, boolean cull) {
-        VertexConsumer vertexConsumer = vertexConsumers.getBuffer(getRenderLayer(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLES, cull));
-
-        MatrixStack.Entry entry = getEntry();
-        entry.translate(x, y, z);
-
-        for (ModelUtil.ModelFace face : model.faces) {
-            vertexConsumer
-                    .vertex(entry, face.vertex().vertex1().x, face.vertex().vertex1().y, face.vertex().vertex1().z)
-                    .color(colour.getRGB());
-
-            vertexConsumer
-                    .vertex(entry, face.vertex().vertex2().x, face.vertex().vertex2().y, face.vertex().vertex2().z)
-                    .color(colour.getRGB());
-
-            vertexConsumer
-                    .vertex(entry, face.vertex().vertex3().x, face.vertex().vertex3().y, face.vertex().vertex3().z)
-                    .color(colour.getRGB());
-        }
-
-        vertexConsumers.drawCurrentLayer();
-    }
-
     public static double lerp(double prev, double current) {
         return prev + (current - prev) * tickCounter.getTickProgress(true);
     }

@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.render;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.Category;
@@ -54,16 +55,32 @@ public class Freelook extends Module {
     private final Event acceptPositionPacket = new PacketEvent.Received(this, (params -> {
         if (!C.isInGame()) return false;
 
-        if (isRotationLocked() && realRotation == null) {
+        if (isRotationLocked() && realRotation == null)
             realRotation = new Rotation(C.p().getYaw(), C.p().getPitch());
-        }
 
         return false;
     }));
 
+    private boolean changedLockRotation = false;
+    private boolean changedLockPosition = false;
+
     private final Event onToggleSubmodules = new SubModuleToggledEvent(this, params -> {
-        if (params.field.getName().equals("lockRotation")) onSetRotationLock((boolean) params.value);
-        if (params.field.getName().equals("lockPosition")) onSetPositionLock((boolean) params.value);
+        if (params.field.getName().equals("lockRotation")) changedLockRotation = true;
+        if (params.field.getName().equals("lockPosition")) changedLockPosition = true;
+
+        return false;
+    });
+
+    // smth was wrong w disabling them on SubModuleToggledEvent and idk why, i assume this should fix wtv caused it
+    private final Event onPlayerTick = new ClientTickEvent(this, params -> {
+        if (changedLockRotation) {
+            onSetRotationLock(lockRotation);
+            changedLockRotation = false;
+        }
+        if (changedLockPosition) {
+            onSetPositionLock(lockPosition);
+            changedLockPosition = false;
+        }
 
         return false;
     });
