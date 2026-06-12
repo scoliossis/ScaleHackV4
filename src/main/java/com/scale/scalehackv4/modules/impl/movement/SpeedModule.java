@@ -3,6 +3,7 @@ package com.scale.scalehackv4.modules.impl.movement;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
@@ -12,8 +13,10 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import lombok.AllArgsConstructor;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
@@ -22,6 +25,8 @@ import net.minecraft.network.packet.c2s.play.PlayerInputC2SPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.PlayerInput;
 import net.minecraft.util.math.Vec3d;
+
+import java.util.function.Predicate;
 
 @RegisterModule(
         name = "Speed",
@@ -68,6 +73,15 @@ public class SpeedModule extends Module {
 
         return false;
     });
+
+    private final Event onRotationEvent = new RotationEvent(this, params -> {
+        // hypixel keepsprint only works at 10 cps :pensive:
+        Predicate<Entity> attackedLastTick = e -> WorldUtil.tick - PlayerUtil.lastAttackTick == 1;
+        if (shouldKeepsprint() && PlayerUtil.getThisTickAttackEntity(attackedLastTick) != null)
+            PlayerUtil.unsetAttack();
+
+        return false;
+    }, 3001);
 
     public enum SpeedModifier {
         None {

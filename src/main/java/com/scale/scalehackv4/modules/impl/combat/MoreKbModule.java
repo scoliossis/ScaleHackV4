@@ -1,6 +1,5 @@
 package com.scale.scalehackv4.modules.impl.combat;
 
-import com.scale.scalehackv4.bridge.KeybindingBridge;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
@@ -13,14 +12,11 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.InventoryUtil;
 import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.player.PlayerUtil;
-import com.scale.scalehackv4.utils.player.Rotation;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.enchantment.Enchantments;
 import net.minecraft.entity.Entity;
-import net.minecraft.util.hit.EntityHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
@@ -92,7 +88,7 @@ public class MoreKbModule extends Module {
 
     private final Event onRotationEvent = new RotationEvent(this, params -> {
         // check if we would've hit an entity this tick, if we dont, we have failed, commit seppuku
-        if (removeAttackedEnemies() && targetEntity == null && (targetEntity = getAttackingEntity(params.rotation)) != null) lastAttackTick = WorldUtil.ticks;
+        if (removeAttackedEnemies() && targetEntity == null && (targetEntity = getAttackingEntity()) != null) lastAttackTick = WorldUtil.tick;
 
         // sets rotation, if it fails to set rotation, then reset
         if (shouldSetup() && !mode.handleRotation.test(params, targetEntity)) resetAttackTick();
@@ -105,12 +101,12 @@ public class MoreKbModule extends Module {
             if (targetRotation == null) return false;
 
             params.rotation = RotationUtil.getRotation(targetRotation);
-            PlayerUtil.onAttack.add(() -> attackedEnemies.put(targetEntity, WorldUtil.ticks));
+            PlayerUtil.onAttack.add(() -> attackedEnemies.put(targetEntity, WorldUtil.tick));
             return true;
         }
         // please dont swing while we are trying to morekb. tyvm in advance
         else if (isActive()) {
-            unsetAttack();
+            PlayerUtil.unsetAttack();
             return true;
         }
 
@@ -119,25 +115,18 @@ public class MoreKbModule extends Module {
 
     private boolean removeAttackedEnemies() {
         for (Entity entity : attackedEnemies.keySet().toArray(new Entity[0])) {
-            if (WorldUtil.ticks - attackedEnemies.get(entity) >= delay) attackedEnemies.remove(entity);
+            if (WorldUtil.tick - attackedEnemies.get(entity) >= delay) attackedEnemies.remove(entity);
         }
 
         return true;
     }
 
-    private Entity getAttackingEntity(Rotation rotation) {
-        HitResult crosshairTarget = WorldUtil.getMouseOver(rotation, C.p().getAttackRange().maxRange());
-
-        if (!C.p().isBlocking()
-                && (!kbWeaponOnly || InventoryUtil.getEnchantLevel(C.p().getMainHandStack(), Enchantments.KNOCKBACK) > 0)
-                && (KeybindingBridge.from(C.mc.options.attackKey).bridge$getTimesPressed() > 0 || !PlayerUtil.onAttack.isEmpty())
-                && crosshairTarget instanceof EntityHitResult entityHitResult
-                && TargetUtil.isValidTarget(entityHitResult.getEntity())
-                && !attackedEnemies.containsKey(entityHitResult.getEntity())) {
-            return entityHitResult.getEntity();
-        }
-
-        return null;
+    private Entity getAttackingEntity() {
+        return PlayerUtil.getThisTickAttackEntity(entity ->
+                !kbWeaponOnly || InventoryUtil.getEnchantLevel(C.p().getMainHandStack(), Enchantments.KNOCKBACK) > 0
+                && TargetUtil.isValidTarget(entity.getEntity())
+                && attackedEnemies.containsKey(entity.getEntity())
+        );
     }
 
     private final Event forceSprint = new KeyboardInputEvent(this, params -> {
@@ -153,7 +142,7 @@ public class MoreKbModule extends Module {
     });
 
     private static int getTicksSinceAttack() {
-        return (int) (WorldUtil.ticks - lastAttackTick);
+        return (int) (WorldUtil.tick - lastAttackTick);
     }
     private static boolean shouldSetup() {
         return getTicksSinceAttack() <= setupTicks && targetEntity != null;
@@ -164,10 +153,7 @@ public class MoreKbModule extends Module {
     private static boolean isActive() {
         return shouldAttack() || shouldSetup();
     }
-    private static void unsetAttack() {
-        while (C.mc.options.attackKey.wasPressed());
-        PlayerUtil.onAttack.clear();
-    }
+
 
     private static void resetAttackTick() {
         lastAttackTick = -setupTicks-1;

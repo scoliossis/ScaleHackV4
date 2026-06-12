@@ -20,11 +20,11 @@ import net.minecraft.world.RaycastContext;
 
 @RegisterListeners
 public class WorldUtil {
-    public static int ticks = 0;
+    public static int tick = 0;
     public static int airTicks = 0;
 
     private final Event countTicks = new RotationEvent(null, params -> {
-        ticks++;
+        tick++;
         if (C.p().isOnGround()) airTicks = 0; else airTicks++;
         return false;
     }, 0);

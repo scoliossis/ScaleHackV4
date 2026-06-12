@@ -2,6 +2,8 @@ package com.scale.scalehackv4.mixins.combat;
 
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.modules.impl.movement.SpeedModule;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
+import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.client.MinecraftClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -20,6 +22,8 @@ public class HandlePrePostHitMixin {
 
     @Inject(method = "doAttack", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerInteractionManager;attackEntity(Lnet/minecraft/entity/player/PlayerEntity;Lnet/minecraft/entity/Entity;)V"))
     private void onPreAttack(CallbackInfoReturnable<Boolean> cir) {
+        PlayerUtil.lastAttackTick = WorldUtil.tick;
+
         if (!SpeedModule.shouldKeepsprint()) return;
 
         attacked = true;

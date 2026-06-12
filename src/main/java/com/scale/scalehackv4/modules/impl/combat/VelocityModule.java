@@ -82,7 +82,7 @@ public class VelocityModule extends Module {
         if (velocity == null) return false;
 
         if (handledVelocity) {
-            lastUnhandledVelocityTick = WorldUtil.ticks;
+            lastUnhandledVelocityTick = WorldUtil.tick;
             handledVelocity = false;
             lastVelocityMode = mode;
         }
@@ -157,7 +157,7 @@ public class VelocityModule extends Module {
     private final Event resetBlink = new ClientTickEvent(null, params -> {
         if (handledVelocity || !C.isInGame()) return false;
 
-        boolean stopBlinking = WorldUtil.ticks - lastUnhandledVelocityTick > maxDelayTicks;
+        boolean stopBlinking = WorldUtil.tick - lastUnhandledVelocityTick > maxDelayTicks;
         switch (lastVelocityMode) {
             case Delay:
                 handledVelocity |= stopBlinking;

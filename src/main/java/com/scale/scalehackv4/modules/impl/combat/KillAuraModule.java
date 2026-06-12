@@ -133,15 +133,15 @@ public class KillAuraModule extends Module {
     @AllArgsConstructor
     public enum AttackSpeed {
         _1DOT20(e -> C.p().getAttackCooldownProgress(0) >= swingPercentage, () -> {}),
-        // generic cps from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/KillAura.java#L326
-        CPS(e -> WorldUtil.ticks >= nextAttackTick, () -> {
+        // generic cps check from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/KillAura.java#L326
+        CPS(e -> WorldUtil.tick >= nextAttackTick, () -> {
             int nextCps = (int) MathUtil.getRandomInRange(Math.min(minCPS, maxCPS), Math.max(minCPS, maxCPS));
             double ticksTillNextAttack = 20d / (Math.max(nextCps, 1)) + lostPrecision;
             lostPrecision += ticksTillNextAttack - Math.floor(ticksTillNextAttack);
             lostPrecision = lostPrecision - Math.floor(lostPrecision);
             ticksTillNextAttack = Math.floor(ticksTillNextAttack);
 
-            nextAttackTick = (int) (WorldUtil.ticks + ticksTillNextAttack);
+            nextAttackTick = (int) (WorldUtil.tick + ticksTillNextAttack);
         });
 
         public final Predicate<?> shouldAttack;
