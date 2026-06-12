@@ -13,7 +13,8 @@ import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 
 import java.awt.*;
-import java.time.Clock;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class Watermark extends HudModule {
     @RegisterSubModule(name = "Watermark")
@@ -32,14 +33,16 @@ public class Watermark extends HudModule {
         Server_IP {
             @Override
             public String getString() {
-                return C.mc.isInSingleplayer() ? "singleplayer" : C.mc.getCurrentServerEntry() != null ? C.mc.getCurrentServerEntry().address : "unknown";
+                return !C.isInGame() ? "Main Menu"
+                        : C.mc.isInSingleplayer()
+                          ? "singleplayer" : C.mc.getCurrentServerEntry() != null ? C.mc.getCurrentServerEntry().address : "unknown";
             }
             @Override public boolean enabledByDefault() {return true;}
         },
         Time {
             @Override
             public String getString() {
-                return Clock.systemUTC().instant().toString().substring(11, 16);
+                return LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm"));
             }
             @Override public boolean enabledByDefault() {return true;}
         };
@@ -59,7 +62,7 @@ public class Watermark extends HudModule {
     private static final int GAMESENSE_FONT_SIZE = 10;
     private static final int TEXT_INDENT_X = 2;
 
-    public final Draggable watermarkDraggable = new Draggable(
+    public static final Draggable watermarkDraggable = new Draggable(
             "Watermark",
             () -> {
                 MutableText hudText = Text.literal(CLIENT_NAME).withColor(Color.WHITE.getRGB()).append(Text.literal(GAMESENSE_TAG).withColor(new Color(255, 117, 117).getRGB()));

@@ -1,7 +1,7 @@
 package com.scale.scalehackv4.mixins.client.altswitcher;
 
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.client.altswitcher.SessionUtil;
+import com.scale.scalehackv4.utils.alts.SessionUtil;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;

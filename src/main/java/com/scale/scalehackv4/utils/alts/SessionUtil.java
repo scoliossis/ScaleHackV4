@@ -1,6 +1,5 @@
-package com.scale.scalehackv4.utils.client.altswitcher;
+package com.scale.scalehackv4.utils.alts;
 
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.scale.scalehackv4.mixins.client.altswitcher.OverrideSessionMixin;
 import com.scale.scalehackv4.utils.C;
@@ -20,10 +19,17 @@ import java.util.UUID;
 // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/alts/SessionUtil.java
 // https://minecraft.wiki/w/Mojang_API
 public class SessionUtil {
-    private static final String VALID_NAME_CHARATERS_REGEX = "[a-zA-Z0-9]";
+    private static final String VALID_NAME_CHARACTERS_REGEX = "[a-zA-Z0-9]";
 
-    public static JsonObject getJSONObject(HttpRequest req) throws IOException, InterruptedException {
-        return C.gson.fromJson(C.CLIENT.send(req, HttpResponse.BodyHandlers.ofString()).body(), JsonElement.class).getAsJsonObject();
+    // todo: save alts
+    public static void login(Session session) {
+        if (session == null) {
+            AltManagerUtil.setErrorMessage("Session is null!");
+            return;
+        }
+
+        AltManagerUtil.addProgressReport("Successfully logged into " + session.getUsername() + "!");
+        ((OverrideSessionMixin)C.mc).setSession(session);
     }
 
     // https://minecraft.wiki/w/Mojang_API#Query_player_profile
@@ -34,7 +40,7 @@ public class SessionUtil {
                     .GET()
                     .build();
 
-            JsonObject res = getJSONObject(req);
+            JsonObject res = NetworkUtil.getJSONObject(req);
 
             if (res.has("id") && res.has("name")) {
                 String uuid = res.get("id").getAsString();
@@ -62,7 +68,7 @@ public class SessionUtil {
                     .GET()
                     .build();
 
-            JsonObject res = getJSONObject(req);
+            JsonObject res = NetworkUtil.getJSONObject(req);
             if (!res.has("status")) return "Access token is invalid.";
 
             return res.get("status").getAsString();
@@ -80,7 +86,7 @@ public class SessionUtil {
                     .GET()
                     .build();
 
-            JsonObject res = getJSONObject(req);
+            JsonObject res = NetworkUtil.getJSONObject(req);
 
             if (res.has("nameChangeAllowed")) {
                 boolean allowed = res.get("nameChangeAllowed").getAsBoolean();
@@ -110,7 +116,7 @@ public class SessionUtil {
             return "Cannot change name, last name change was: " + lastChange;
         }
 
-        String invalidCharacters = newName.replaceAll(VALID_NAME_CHARATERS_REGEX, "");
+        String invalidCharacters = newName.replaceAll(VALID_NAME_CHARACTERS_REGEX, "");
         if (!invalidCharacters.isEmpty()) return "Name contains invalid characters: \"" + invalidCharacters + "\"";
         if (newName.length() > 16) return "Name is " + newName.length() + " characters, 16 is the limit.";
 
@@ -201,7 +207,7 @@ public class SessionUtil {
                     .GET()
                     .build();
 
-            JsonObject res = getJSONObject(req);
+            JsonObject res = NetworkUtil.getJSONObject(req);
 
             String value = res.get("properties").getAsJsonArray()
                     .get(0).getAsJsonObject()
