@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.render;
+package com.scale.scalehackv4.modules.impl.fun;
 
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.DepthTestFunction;
@@ -35,7 +35,7 @@ import java.awt.*;
 @RegisterModule(
         name = "Model Modifier",
         enabledByDefault = true,
-        category = Category.RENDER
+        category = Category.FUN
 )
 public class ModelModifierModule extends Module {
     @RegisterSubModule(name = "Self")

@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.mixins.render.ModelModifier;
 
-import com.scale.scalehackv4.modules.impl.render.ModelModifierModule;
+import com.scale.scalehackv4.modules.impl.fun.ModelModifierModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import net.minecraft.client.render.command.OrderedRenderCommandQueue;

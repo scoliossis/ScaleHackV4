@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.other;
+package com.scale.scalehackv4.modules.impl.fun;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.Event;
@@ -11,7 +11,7 @@ import com.scale.scalehackv4.utils.client.ChatUtil;
 
 @RegisterModule(
         name = "Hilarity",
-        category = Category.OTHER,
+        category = Category.FUN,
         enabledByDefault = true
 )
 // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/client/Hilarity.java

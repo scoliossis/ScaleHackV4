@@ -69,7 +69,6 @@
     "player.BlockScanner.ChunkLoadMixin",
     "render.EspMixin",
     "render.HideNametagsMixin",
-    "render.RenderWorldEventMixin",
-    "skyblock.DungeonMapMixin"
+    "render.RenderWorldEventMixin"
   ]
 }

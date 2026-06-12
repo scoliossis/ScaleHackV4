@@ -1,4 +1,4 @@
-package com.scale.scalehackv4.modules.impl.movement;
+package com.scale.scalehackv4.modules.impl.fun;
 
 import com.scale.scalehackv4.bridge.BreakBlockCooldownBridge;
 import com.scale.scalehackv4.bridge.ItemUseCooldownBridge;
@@ -25,7 +25,7 @@ import net.minecraft.util.hit.HitResult;
 
 @RegisterModule(
         name = "Anti Aim",
-        category = Category.MOVEMENT
+        category = Category.FUN
 )
 // todo: new modes, and maybe actually dodging arrows...
 public class AntiAimModule extends Module {
