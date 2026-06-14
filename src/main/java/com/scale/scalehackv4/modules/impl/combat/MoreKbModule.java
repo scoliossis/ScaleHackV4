@@ -123,9 +123,9 @@ public class MoreKbModule extends Module {
 
     private Entity getAttackingEntity() {
         return PlayerUtil.getThisTickAttackEntity(entity ->
-                !kbWeaponOnly || InventoryUtil.getEnchantLevel(C.p().getMainHandStack(), Enchantments.KNOCKBACK) > 0
+                (!kbWeaponOnly || InventoryUtil.getEnchantLevel(C.p().getMainHandStack(), Enchantments.KNOCKBACK) > 0)
                 && TargetUtil.isValidTarget(entity.getEntity())
-                && attackedEnemies.containsKey(entity.getEntity())
+                && !attackedEnemies.containsKey(entity.getEntity())
         );
     }
 

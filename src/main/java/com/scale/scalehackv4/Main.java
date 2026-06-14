@@ -1,7 +1,10 @@
 package com.scale.scalehackv4;
 
 import com.scale.scalehackv4.commands.CommandManager;
+import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.alts.AltManagerUtil;
 import com.scale.scalehackv4.utils.alts.DroppedFileListener;
+import com.scale.scalehackv4.utils.alts.SessionUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.render.DraggableRenderer;
 import com.scale.scalehackv4.utils.render.FontUtil;
@@ -29,5 +32,9 @@ public class Main implements ModInitializer {
         DraggableRenderer.loadDraggingPositions();
         // the window isnt here yet. await.
         ClientLifecycleEvents.CLIENT_STARTED.register(DroppedFileListener::init);
+
+        if (SessionUtil.queryPlayerProfile(C.mc.getSession().getAccessToken()) != null)
+            AltManagerUtil.saveAlt(AltManagerUtil.Alt.getCurrent());
+        AltManagerUtil.loadAlts();
     }
 }

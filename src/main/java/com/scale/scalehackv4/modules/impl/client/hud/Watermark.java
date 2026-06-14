@@ -1,7 +1,8 @@
-package com.scale.scalehackv4.modules.impl.client.Hud;
+package com.scale.scalehackv4.modules.impl.client.hud;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.modules.RegisterSubModule;
+import com.scale.scalehackv4.modules.impl.client.HudModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
 import com.scale.scalehackv4.utils.client.MultiSelectEnum;

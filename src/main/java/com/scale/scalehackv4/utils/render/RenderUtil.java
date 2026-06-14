@@ -94,8 +94,8 @@ public class RenderUtil {
         return getTexture(C.mc.getTextureManager().getTexture(texture));
     }
 
-    protected static TextureSetup getTexture(BufferedImage bufferedImage, String name) {
-        return getTexture(createTexture(bufferedImage, name));
+    protected static TextureSetup getTexture(Identifier identifier, BufferedImage bufferedImage) {
+        return getTexture(createTexture(identifier, bufferedImage));
     }
 
     protected static TextureSetup getTexture(AbstractTexture abstractTexture) {
@@ -103,7 +103,7 @@ public class RenderUtil {
     }
 
 
-    public static AbstractTexture createTexture(BufferedImage bufferedImage, String name) {
+    public static AbstractTexture createTexture(Identifier identifier, BufferedImage bufferedImage) {
         NativeImage nativeImage = new NativeImage(bufferedImage.getWidth(), bufferedImage.getHeight(), false);
         for (int x = 0; x < bufferedImage.getWidth(); x++) {
             for (int y = 0; y < bufferedImage.getHeight(); y++) {
@@ -112,7 +112,10 @@ public class RenderUtil {
             }
         }
 
-        return new NativeImageBackedTexture(() -> name, nativeImage);
+        AbstractTexture abstractTexture = new NativeImageBackedTexture(identifier::getPath, nativeImage);
+        C.mc.getTextureManager().registerTexture(identifier, abstractTexture);
+
+        return abstractTexture;
     }
 
     public static Vector2f projectPos(Vector2f pos, Matrix3x2f matrices) {

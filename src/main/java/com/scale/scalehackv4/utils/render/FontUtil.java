@@ -110,15 +110,14 @@ public class FontUtil {
         String textureName = "font/" + font.getFontName().toLowerCase().replace(" ", "_") + "_" + font.getSize();
         Identifier identifier = Identifier.of(Main.MOD_ID, textureName);
 
-        AbstractTexture abstractTexture = RenderUtil.createTexture(texture, textureName);
-        C.mc.getTextureManager().registerTexture(identifier, abstractTexture);
+        AbstractTexture abstractTexture = RenderUtil.createTexture(identifier, texture);
 
         return new FontTexture(RenderUtil.getTexture(abstractTexture), identifier, charBounds, stringBounds.width, stringBounds.height);
     }
 
     private static Rectangle getFontTextureBounds(Font font, String string) {
         DUMMY_GRAPHICS.setFont(font);
-        // getStringBounds takes into account the antialiasing i think.
+        // getStringBounds takes into account the antialiasing i think. whereas getStringWidth DOESNT!
         return DUMMY_GRAPHICS.getFontMetrics().getStringBounds(string, DUMMY_GRAPHICS).getBounds();
     }
 

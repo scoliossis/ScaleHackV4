@@ -126,35 +126,37 @@ public class Render2dUtil extends RenderUtil {
         return playerListEntry.getSkinTextures().body().id();
     }
 
-    private static final int HEAD_WIDTH = 64;
-    private static final float HEAD_DIAMETER = 8f/HEAD_WIDTH;
-    private static final float HEAD_Y_OFFSET = 8f/HEAD_WIDTH;
-    private static final float BOTTOM_HEAD_LAYER_OFFSET = 8f/HEAD_WIDTH;
-    private static final float TOP_HEAD_LAYER_OFFSET = 40f/HEAD_WIDTH;
-
-    public static void drawPlayerHead(PlayerEntity player, int x, int y, int width, int height, Color tint) {
-        drawSkinHead(getPlayerSkin(player), x, y, width, height, tint);
+    public static void drawPlayerHead(PlayerEntity player, int x, int y, int width, int height, Color tint, boolean showHat) {
+        drawSkinHead(getPlayerSkin(player), x, y, width, height, tint, showHat);
     }
 
     // https://open.spotify.com/track/722tgOgdIbNe3BEyLnejw4
-    public static void drawSkinHead(Identifier skin, int x, int y, int width, int height, Color tint) {
+    public static void drawSkinHead(Identifier skin, int x, int y, int width, int height, Color tint, boolean showHat) {
         Matrix3x2f matrices = getMatrices();
 
-        if (skin == null) {
-            skin = getPlayerSkin(C.p());
-            if (skin == null) return;
-        }
+        // yes these depend on the skin...
+        int TEXTURE_WIDTH = C.mc.getTextureManager().getTexture(skin).getGlTexture().getWidth(0);
+        int TEXTURE_HEIGHT = C.mc.getTextureManager().getTexture(skin).getGlTexture().getHeight(0);
+
+        float HEAD_WIDTH = 8f/TEXTURE_WIDTH;
+        float HEAD_HEIGHT = 8f/TEXTURE_HEIGHT;
+
+        float HEAD_Y_OFFSET = 8f/TEXTURE_HEIGHT;
+        float BOTTOM_HEAD_LAYER_OFFSET = 8f/TEXTURE_WIDTH;
+        float TOP_HEAD_LAYER_OFFSET = 40f/TEXTURE_WIDTH;
 
         drawVertexes(VertexFormats.POSITION_TEXTURE_COLOR, VertexFormat.DrawMode.QUADS, getTexture(skin), (vertices) -> {
             vertices.vertex(matrices, x, y).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET).color(tint.getRGB());
-            vertices.vertex(matrices, x, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
-            vertices.vertex(matrices, x+width, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
-            vertices.vertex(matrices, x+width, y).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET).color(tint.getRGB());
+            vertices.vertex(matrices, x, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_HEIGHT).color(tint.getRGB());
+            vertices.vertex(matrices, x+width, y+height).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_WIDTH, HEAD_Y_OFFSET+HEAD_HEIGHT).color(tint.getRGB());
+            vertices.vertex(matrices, x+width, y).texture(BOTTOM_HEAD_LAYER_OFFSET+HEAD_WIDTH, HEAD_Y_OFFSET).color(tint.getRGB());
 
-            vertices.vertex(matrices, x, y).texture(TOP_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET).color(tint.getRGB());
-            vertices.vertex(matrices, x, y+height).texture(TOP_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
-            vertices.vertex(matrices, x+width, y+height).texture(TOP_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET+HEAD_DIAMETER).color(tint.getRGB());
-            vertices.vertex(matrices, x+width, y).texture(TOP_HEAD_LAYER_OFFSET+HEAD_DIAMETER, HEAD_Y_OFFSET).color(tint.getRGB());
+            if (showHat) {
+                vertices.vertex(matrices, x, y).texture(TOP_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET).color(tint.getRGB());
+                vertices.vertex(matrices, x, y+height).texture(TOP_HEAD_LAYER_OFFSET, HEAD_Y_OFFSET+HEAD_HEIGHT).color(tint.getRGB());
+                vertices.vertex(matrices, x+width, y+height).texture(TOP_HEAD_LAYER_OFFSET+HEAD_WIDTH, HEAD_Y_OFFSET+HEAD_HEIGHT).color(tint.getRGB());
+                vertices.vertex(matrices, x+width, y).texture(TOP_HEAD_LAYER_OFFSET+HEAD_WIDTH, HEAD_Y_OFFSET).color(tint.getRGB());
+            }
 
             return true;
         }, false);

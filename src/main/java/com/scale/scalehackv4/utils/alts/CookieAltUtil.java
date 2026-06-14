@@ -19,19 +19,19 @@ import java.util.List;
 // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/alts/microsoft/Cookies.java
 // stole urls from novoline
 public class CookieAltUtil {
-    public static void authenticate(String cookie) {
+    public static boolean authenticate(String cookie) {
         AltManagerUtil.addProgressReport("Logging in with cookies");
 
         AltManagerUtil.addProgressReport("Getting xbox redirect.");
         String redirectLocation = getRedirectLocation(cookie);
-        if (redirectLocation == null) return;
+        if (redirectLocation == null) return false;
 
         String xboxUrl = getXboxUrl(redirectLocation, cookie);
-        if (xboxUrl == null) return;
+        if (xboxUrl == null) return false;
 
         AltManagerUtil.addProgressReport("Getting XSTS token and user hashcode from xbox redirect");
         String XSTSTokenAndHashcode = getXSTSTokenAndHashcode(xboxUrl, cookie);
-        if (XSTSTokenAndHashcode == null) return;
+        if (XSTSTokenAndHashcode == null) return false;
 
         AltManagerUtil.addProgressReport("Getting minecraft access token");
         JsonArray tokensArray = new Gson().fromJson(new String(Base64.getDecoder().decode(XSTSTokenAndHashcode)), JsonArray.class);
@@ -43,14 +43,16 @@ public class CookieAltUtil {
         String minecraftAccessToken = oAuthUtil.getMinecraftAccessToken(userHashcode, XSTSaccessToken);
         if (minecraftAccessToken == null) {
             AltManagerUtil.setErrorMessage("Minecraft access token is not valid!");
-            return;
+            return false;
         }
 
         if (ownsMinecraft(minecraftAccessToken)) {
             Session session = SessionUtil.queryPlayerProfile(minecraftAccessToken);
-            SessionUtil.login(session);
+            return SessionUtil.login(session);
         }
         else AltManagerUtil.setErrorMessage("Cookie does NOT own minecraft!");
+
+        return false;
     }
 
     private static boolean ownsMinecraft(String accessToken) {

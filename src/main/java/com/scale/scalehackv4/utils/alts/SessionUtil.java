@@ -3,7 +3,10 @@ package com.scale.scalehackv4.utils.alts;
 import com.google.gson.JsonObject;
 import com.scale.scalehackv4.mixins.client.altswitcher.OverrideSessionMixin;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.session.Session;
+import net.minecraft.client.util.DefaultSkinHelper;
+import net.minecraft.util.Identifier;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -22,14 +25,16 @@ public class SessionUtil {
     private static final String VALID_NAME_CHARACTERS_REGEX = "[a-zA-Z0-9]";
 
     // todo: save alts
-    public static void login(Session session) {
+    public static boolean login(Session session) {
         if (session == null) {
             AltManagerUtil.setErrorMessage("Session is null!");
-            return;
+            return false;
         }
 
         AltManagerUtil.addProgressReport("Successfully logged into " + session.getUsername() + "!");
         ((OverrideSessionMixin)C.mc).setSession(session);
+
+        return true;
     }
 
     // https://minecraft.wiki/w/Mojang_API#Query_player_profile
@@ -227,24 +232,17 @@ public class SessionUtil {
         }
     }
 
-    // great name, well done scale
-    public static BufferedImage getHead(String uuid) {
+    public static Identifier getSkinIdentifier(UUID uuid) {
         try {
-            BufferedImage skinImage = ImageIO.read(new URL(getSkin(uuid)));
+            Identifier name = Identifier.of("skincache/"+uuid.toString());
 
-            return getHead(skinImage);
-        } catch (IOException e) {
+            BufferedImage skinImage = ImageIO.read(new URL(getSkin(uuid.toString())));
+            RenderUtil.createTexture(name, skinImage);
+
+            return name;
+        } catch (Exception e) {
             e.printStackTrace();
-            return new BufferedImage(1,1, BufferedImage.TYPE_INT_ARGB);
+            return DefaultSkinHelper.getTexture();
         }
-    }
-
-    public static BufferedImage getHead(BufferedImage skinImage) {
-        BufferedImage head = skinImage.getSubimage(8, 8, 8, 8);
-        BufferedImage secondaryLayer = skinImage.getSubimage(40, 8, 8, 8);
-
-        head.getGraphics().drawImage(secondaryLayer, 0, 0, null);
-
-        return head;
     }
 }

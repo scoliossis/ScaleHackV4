@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.screens.mainmenu;
 
-import com.scale.scalehackv4.modules.impl.client.Hud.Watermark;
+import com.scale.scalehackv4.modules.impl.client.hud.Watermark;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
@@ -40,30 +40,47 @@ public class MainMenuScreen extends Screen {
     };
 
     private final int OPTIONS_FONT_SIZE = 20;
-    private final String HOVER_INDICATOR = "> ";
-    private final int X_INDENT = 10;
-    private final int Y_INDENT = 10;
+    private final int OPTIONS_X_INDENT = 10;
+    private final int OPTIONS_Y_INDENT = 5;
+
+    private final String COPYRIGHT_STRING = "an awesome mod by https://github.com/scoliossis";
+    private final int COPYRIGHT_STRING_FONT_SIZE = 10;
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float deltaTicks) {
         RenderUtil.setDrawContext(context);
-        Matrix3x2fStack matrixStack = context.getMatrices();
 
-        matrixStack.pushMatrix();
+        drawOptions();
+        drawCopyright();
+        drawWatermark();
+        AltManager.render();
+    }
 
+    private void drawOptions() {
         for (int i = 0; i < OPTIONS.length; i++) {
             Option option = OPTIONS[i];
-            boolean hovered = isOptionHovered(i);
 
+            boolean hovered = isOptionHovered(i);
             Color color = hovered ? Color.WHITE : new Color(150, 150, 150);
 
-            FontUtil.drawString(option.name, getOptionX(i), getOptionY(i), OPTIONS_FONT_SIZE, color, false);
-            if (hovered) {
-                int hoverIndicatorWidth = FontUtil.getStringWidth(HOVER_INDICATOR, OPTIONS_FONT_SIZE);
-                FontUtil.drawString(HOVER_INDICATOR, getOptionX(i)-hoverIndicatorWidth, getOptionY(i), OPTIONS_FONT_SIZE, Color.WHITE, false);
-            }
+            FontUtil.drawString(option.name, getOptionX(i), getOptionY(i), OPTIONS_FONT_SIZE, color, true);
         }
+    }
 
+    // we GOTTA replace the minecraft copyright, scale RUNS this minecraft stuff.
+    private void drawCopyright() {
+        int copyrightStringWidth = FontUtil.getStringWidth(COPYRIGHT_STRING, COPYRIGHT_STRING_FONT_SIZE);
+        int copyrightStringHeight = FontUtil.getFontHeight(COPYRIGHT_STRING_FONT_SIZE);
+        int copyrightStringX = C.res().getScaledWidth() - copyrightStringWidth - 5;
+        int copyrightStringY = C.res().getScaledHeight() - copyrightStringHeight - 2;
+        FontUtil.drawString(COPYRIGHT_STRING, copyrightStringX, copyrightStringY, COPYRIGHT_STRING_FONT_SIZE, Color.WHITE, true);
+    }
+
+    // todo: bad, make a logo
+    private void drawWatermark() {
+        Matrix3x2fStack matrixStack = RenderUtil.getDrawContext().getMatrices();
+
+        matrixStack.pushMatrix();
         matrixStack.translate(10, 10);
         Watermark.watermarkDraggable.render();
 
@@ -72,14 +89,14 @@ public class MainMenuScreen extends Screen {
 
     // takes an index in case i wanna change the style in the future
     private int getOptionX(int index) {
-        return FontUtil.getStringWidth(HOVER_INDICATOR, OPTIONS_FONT_SIZE) + X_INDENT;
+        return OPTIONS_X_INDENT;
     }
 
     private int getOptionY(int index) {
         index = OPTIONS.length-index;
-        return (C.res().getScaledHeight() - Y_INDENT)
+        return (C.res().getScaledHeight() - OPTIONS_Y_INDENT)
                 - (FontUtil.getFontHeight(OPTIONS_FONT_SIZE) * index)
-                - (5 * index);
+                - (OPTIONS_Y_INDENT * index);
     }
 
     private boolean isOptionHovered(int index) {
@@ -90,9 +107,11 @@ public class MainMenuScreen extends Screen {
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
-        if (click.button() != 0) return false;
+        return AltManager.handleClick(click) || handleClickingOptions(click);
+    }
 
-        for (int i = 0; i < OPTIONS.length; i++) if (isOptionHovered(i)) {
+    private boolean handleClickingOptions(Click click) {
+        if (click.button() == 0) for (int i = 0; i < OPTIONS.length; i++) if (isOptionHovered(i)) {
             OPTIONS[i].setScreen();
             return true;
         }
