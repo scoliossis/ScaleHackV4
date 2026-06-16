@@ -2,12 +2,17 @@ package com.scale.scalehackv4.utils.alts;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 import lombok.AllArgsConstructor;
+import net.minecraft.client.util.DefaultSkinHelper;
 import net.minecraft.util.Identifier;
 import org.apache.commons.io.FileUtils;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -20,6 +25,9 @@ public class AltManagerUtil {
     public static Alt currentAlt;
 
     public static void loadAlts() {
+        if (SessionUtil.queryPlayerProfile(C.mc.getSession().getAccessToken()) != null) {
+            Alt.getCurrent().save();
+        }
         currentAlt = Alt.getCurrent();
         ALTS.add(currentAlt);
 
@@ -33,20 +41,11 @@ public class AltManagerUtil {
                 if (ALTS.stream().anyMatch(a -> a.uuid.equals(alt.uuid))) continue;
 
                 ALTS.add(alt);
+                alt.loadSkin();
             } catch (IOException e) {
                 e.printStackTrace();
                 System.err.println("Failed to load alt " + file.getName());
             }
-        }
-    }
-
-    public static void saveAlt(Alt alt) {
-        if (!ALTS_FOLDER.exists() && !ALTS_FOLDER.mkdirs()) return;
-
-        try {
-            Files.write(new File(ALTS_FOLDER, alt.uuid.toString() + ".json").toPath(), alt.toString().getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
         }
     }
 
@@ -72,6 +71,8 @@ public class AltManagerUtil {
         public UUID uuid;
         public LoginData loginData;
         public long lastLogin;
+
+        public BufferedImage skinImage;
         public Identifier skin;
 
         public static Alt getCurrent() {
@@ -81,9 +82,10 @@ public class AltManagerUtil {
             return new Alt(
                     C.mc.getGameProfile().name(),
                     C.mc.getGameProfile().id(),
-                    new LoginData(C.mc.getSession().getAccessToken(), null, null, null),
+                    new LoginData(C.mc.getSession().getAccessToken(), null, null, null, null),
                     System.currentTimeMillis(),
-                    SessionUtil.getSkinIdentifier(C.mc.getGameProfile().id())
+                    null,
+                    DefaultSkinHelper.getTexture()
             );
         }
 
@@ -91,9 +93,60 @@ public class AltManagerUtil {
             if (loginData.attemptLogin()) {
                 lastLogin = System.currentTimeMillis();
                 currentAlt = this;
-                this.skin = SessionUtil.getSkinIdentifier(uuid);
-                saveAlt(this);
+                this.loginData.ssid = C.mc.getSession().getAccessToken();
+                this.save();
             }
+        }
+
+        public void save() {
+            if (!ALTS_FOLDER.exists() && !ALTS_FOLDER.mkdirs()) return;
+
+            C.mc.execute(() -> {
+                try {
+                    updateSkin();
+                    Files.write(new File(ALTS_FOLDER, this.uuid.toString() + ".json").toPath(), this.toString().getBytes());
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    setErrorMessage("Failed to save alt: " + e.getMessage());
+                }
+            });
+        }
+
+
+        public void delete() {
+            ALTS.remove(this);
+            try {
+                Files.delete(getFile().toPath());
+            } catch (IOException e) {
+                setErrorMessage("Failed to delete alt: " + e.getMessage());
+            }
+        }
+
+        public void updateSkin() {
+            try {
+                this.skinImage = ImageIO.read(new URL(SessionUtil.getSkin(this.uuid.toString())));
+                this.skin = getSkinIdentifier();
+                RenderUtil.createTexture(this.skin, this.skinImage);
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.err.println("Failed to update alt skin: " + e.getMessage());
+            }
+        }
+
+        public void loadSkin() {
+            if (this.skinImage == null) return;
+
+            C.mc.execute(() -> {
+                RenderUtil.createTexture(getSkinIdentifier(), this.skinImage);
+            });
+        }
+
+        private Identifier getSkinIdentifier() {
+            return Identifier.of("skincache/" + this.uuid.toString());
+        }
+
+        public File getFile() {
+            return new File(ALTS_FOLDER, this.uuid.toString() + ".json");
         }
 
         @Override
@@ -102,10 +155,14 @@ public class AltManagerUtil {
         }
     }
 
-    public record LoginData(String ssid, String cookie, String refreshToken, String clientID) {
+    @AllArgsConstructor
+    public static class LoginData {
+        String ssid, cookie, refreshToken, clientId, scope;
+
         public boolean attemptLogin() {
+            System.out.println(clientId);
             if (ssid != null && SessionUtil.login(SessionUtil.queryPlayerProfile(ssid))) return true;
-            if (refreshToken != null && clientID != null && oAuthUtil.authWithRefreshToken(refreshToken, clientID)) return true;
+            if (refreshToken != null && clientId != null && oAuthUtil.authWithRefreshToken(refreshToken, clientId, scope, oAuthUtil.DEFAULT_REDIRECT, false)) return true;
             return cookie != null && CookieAltUtil.authenticate(cookie);
         }
     }

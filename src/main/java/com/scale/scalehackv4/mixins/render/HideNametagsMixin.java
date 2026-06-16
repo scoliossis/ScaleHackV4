@@ -23,6 +23,6 @@ public abstract class HideNametagsMixin <AvatarlikeEntity extends PlayerLikeEnti
 
     @Inject(method = "hasLabel(Lnet/minecraft/entity/PlayerLikeEntity;D)Z", at = @At("HEAD"), cancellable = true)
     private void hasLabel(AvatarlikeEntity playerLikeEntity, double d, CallbackInfoReturnable<Boolean> cir) {
-        if (EspModule.nametags && TargetUtil.isValidTarget(playerLikeEntity)) cir.setReturnValue(false);
+        if (EspModule.nametags && TargetUtil.isValidTarget(playerLikeEntity, true)) cir.setReturnValue(false);
     }
 }

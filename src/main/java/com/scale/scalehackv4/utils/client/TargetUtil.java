@@ -25,12 +25,12 @@ import java.util.UUID;
 
 @RegisterListeners
 public class TargetUtil {
-    public static List<AbstractClientPlayerEntity> getPlayers() {
-        return C.w().getPlayers().stream().filter(TargetUtil::isValidTarget).toList();
+    public static List<AbstractClientPlayerEntity> getPlayers(boolean visual) {
+        return C.w().getPlayers().stream().filter(e -> isValidTarget(e, visual)).toList();
     }
 
     public static List<Entity> getTargets(double range) {
-        return C.w().getOtherEntities(C.p(), C.p().getBoundingBox().expand(range), TargetUtil::isValidTarget);
+        return C.w().getOtherEntities(C.p(), C.p().getBoundingBox().expand(range), e -> isValidTarget(e, false));
     }
 
     private static final HashMap<UUID, Integer> ENTITY_VALID_TICKS = new HashMap<>();
@@ -52,16 +52,16 @@ public class TargetUtil {
         return false;
     });
 
-    public static boolean isValidTarget(Entity target) {
+    public static boolean isValidTarget(Entity target, boolean visual) {
         if (target == C.p()) return true;
         // this is possible for some reason, crash occured with a random skyblock mod, idk why it fed this a null target, wtv.
         if (target == null) return false;
 
-        return !isBot(target) && !isTeam(target);
+        return !isBot(target) && (visual || !isTeam(target));
     }
 
     private static boolean isTeam(Entity target) {
-        if (!Targets.teams) return false;
+        if (!Targets.teams || C.p() == null) return false;
         if (!(target instanceof PlayerEntity player)) return false;
 
         return player.getTeamColorValue() == C.p().getTeamColorValue();

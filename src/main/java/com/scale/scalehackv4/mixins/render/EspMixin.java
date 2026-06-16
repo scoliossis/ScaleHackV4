@@ -20,7 +20,7 @@ public abstract class EspMixin extends Entity {
 
     @Inject(method = "isGlowing", at = @At("HEAD"), cancellable = true)
     private void isGlowing(CallbackInfoReturnable<Boolean> cir) {
-        if (ModuleUtil.isEnabled(EspModule.class) && EspModule.glow && TargetUtil.isValidTarget(this)) {
+        if (ModuleUtil.isEnabled(EspModule.class) && EspModule.glow && TargetUtil.isValidTarget(this, true)) {
             cir.setReturnValue(true);
         }
     }

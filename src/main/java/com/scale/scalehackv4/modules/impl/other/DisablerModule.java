@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.other;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.ChatEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
 import com.scale.scalehackv4.modules.Category;
@@ -34,6 +35,9 @@ public class DisablerModule extends Module {
     @RegisterSubModule(name = "Request Delay", min = 10, max = 200, parent = "Anti Rat", increment = 10)
     public static int requestDelay = 50;
 
+    @RegisterSubModule(name = "Verus")
+    public boolean verusDisablerGodBypahh20267ongRealest = true;
+
     private static long lastRequest = 0;
     private static int outgoingRequests = 0;
 
@@ -51,6 +55,11 @@ public class DisablerModule extends Module {
         });
 
         return false;
+    });
+
+    public Event onReceiveMessage = new ChatEvent.Received(this, params -> {
+        // no real server uses verus so larping a full disabler is the same as actually having one
+        return params.message.startsWith("Verus > ") || params.message.startsWith("[Verus] ");
     });
 
     private static String serverID = "";

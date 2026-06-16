@@ -6,10 +6,8 @@ import com.google.gson.JsonPrimitive;
 import net.minecraft.client.session.Session;
 
 import java.net.URI;
-import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 
 // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/alts/microsoft/MSAuth.java
 public class oAuthUtil {
@@ -41,26 +39,18 @@ public class oAuthUtil {
         return null;
     }
 
-    private static AccessRefreshToken refreshToken;
+    //private static final String DEFAULT_SCOPE = "service::user.auth.xboxlive.com::MBI_SSL";
+    // we only use the different redirect for the AuthServer because it is awaiting a response from localthost specifically
+    public static final String DEFAULT_REDIRECT = "https://login.live.com/oauth20_desktop.srf";
 
-    public static final String clientId = "00000000402b5328";
-    private static final String scope = "service::user.auth.xboxlive.com::MBI_SSL";
-    private static final String redirectUri = "https://login.live.com/oauth20_desktop.srf";
-
-    //public static final String clientId = "54fd49e4-2103-4044-9603-2b028c814ec3";
-    //private static final String scope = "XboxLive.signin XboxLive.offline_access";
-    //private static final String redirectUri = "http://localhost:59125/";
-
-    // refreshToken from authCode() or refreshToken()
-    private static AccessRefreshToken refreshToken(String refreshToken, String clientId) throws Exception {
+    private static AccessRefreshToken refreshToken(String key, String clientId, String scope, String redirect, boolean code) throws Exception {
         // shrug, works, previously this used EVIL http3 stuff
         String postContent =
-                "client_id=" + URLEncoder.encode(clientId, StandardCharsets.UTF_8) +
-                        "&refresh_token=" + URLEncoder.encode(refreshToken, StandardCharsets.UTF_8) +
-                        "&grant_type=refresh_token" +
-                        "&redirect_uri=" + URLEncoder.encode(redirectUri, StandardCharsets.UTF_8) +
-                        "&scope=" + URLEncoder.encode(scope, StandardCharsets.UTF_8);
-
+                "client_id=" + clientId +
+                        (code ? "&code=" : "&refresh_token=") + key +
+                        "&grant_type=" + (code ? "authorization_code" : "refresh_token") +
+                        "&redirect_uri=" + redirect +
+                        "&scope=" + scope;
 
         HttpRequest req = HttpRequest.newBuilder(URI.create("https://login.live.com/oauth20_token.srf"))
                 .setHeader("Content-Type", "application/x-www-form-urlencoded")
@@ -68,6 +58,10 @@ public class oAuthUtil {
                 .build();
 
         JsonObject res = NetworkUtil.getJSONObject(req);
+        if (res.has("error_description")) {
+            AltManagerUtil.setErrorMessage(res.get("error_description").getAsString());
+            return null;
+        }
         String accessToken = res.get("access_token").getAsString();
         String newRefreshToken = res.get("refresh_token").getAsString();
 
@@ -75,13 +69,13 @@ public class oAuthUtil {
         return new AccessRefreshToken(accessToken, newRefreshToken);
     }
 
-    // authToken is accessToken from authFlow() or refreshToken()
-    private static String authXBL(String authToken) throws Exception {
+    // "formal" seems to be random lwk, localts doesnt like the d=, but i do personally
+    private static String authXBL(String authToken, boolean formal) throws Exception {
         JsonObject payload = new JsonObject();
         JsonObject payloadProps = new JsonObject();
         payloadProps.addProperty("AuthMethod", "RPS");
         payloadProps.addProperty("SiteName", "user.auth.xboxlive.com");
-        payloadProps.addProperty("RpsTicket", authToken);
+        payloadProps.addProperty("RpsTicket", (formal ? "d=" : "") + authToken);
         payload.add("Properties", payloadProps);
         payload.addProperty("RelyingParty", "http://auth.xboxlive.com");
         payload.addProperty("TokenType", "JWT");
@@ -93,12 +87,19 @@ public class oAuthUtil {
                 .build();
 
         JsonObject res = NetworkUtil.getJSONObject(req);
+        // try again without the d=
+        if (res == null && formal) {
+            return authXBL(authToken, false);
+        }
         if (res.has("Token")) {
             AltManagerUtil.addProgressReport("Successfully authed xbl!");
             return NetworkUtil.getJSONObject(req).get("Token").getAsString();
         }
 
-        AltManagerUtil.setErrorMessage("Failed to auth xbl!");
+        if (res.has("error_description")) {
+            AltManagerUtil.setErrorMessage(res.get("error_description").getAsString());
+            return null;
+        }
         return null;
     }
 
@@ -121,6 +122,11 @@ public class oAuthUtil {
                 .build();
 
         JsonObject res = NetworkUtil.getJSONObject(req);
+        if (res.has("error_description")) {
+            AltManagerUtil.setErrorMessage(res.get("error_description").getAsString());
+            return null;
+        }
+
         String token = res.getAsJsonObject().get("Token").getAsString();
         String uhs = res
                 .getAsJsonObject()
@@ -137,23 +143,30 @@ public class oAuthUtil {
         return new XBLTokenUhs(token, uhs);
     }
 
-    public static Session authWithAccessRefreshToken(
-            AccessRefreshToken accessRefreshToken
-    ) throws Exception {
-        String XBLToken = authXBL(accessRefreshToken.accessToken);
+    public static Session authWithAccessRefreshToken(AccessRefreshToken accessRefreshToken) throws Exception {
+        String XBLToken = authXBL(accessRefreshToken.accessToken, true);
         XBLTokenUhs xblTokenUhs = authXSTS(XBLToken);
         String accessToken = getMinecraftAccessToken(xblTokenUhs.uhs, xblTokenUhs.XBLToken);
 
         return SessionUtil.queryPlayerProfile(accessToken);
     }
 
-    public static boolean authWithRefreshToken(String refreshToken, String clientId) {
+    public static boolean authWithRefreshToken(String key, String clientId, String scope, String redirect, boolean code) {
         try {
-            Session session = authWithAccessRefreshToken(refreshToken(refreshToken, clientId));
+            AccessRefreshToken accessRefreshToken = refreshToken(key, clientId, scope, redirect, code);
+            if (accessRefreshToken == null) return false;
+
+            Session session = authWithAccessRefreshToken(accessRefreshToken);
             if (session == null) return false;
 
-            SessionUtil.login(session);
-            return true;
+            if (SessionUtil.login(session)) {
+                AltManagerUtil.currentAlt.loginData.refreshToken = accessRefreshToken.refreshToken;
+                AltManagerUtil.currentAlt.loginData.clientId = clientId;
+                AltManagerUtil.currentAlt.loginData.scope = scope;
+
+                return true;
+            }
+            return false;
         } catch (Exception e) {
             e.printStackTrace();
             return false;
@@ -179,26 +192,6 @@ public class oAuthUtil {
         public XBLTokenUhs(String XBLToken, String uhs) {
             this.XBLToken = XBLToken;
             this.uhs = uhs;
-        }
-    }
-
-    public static class MSASession {
-
-        public final String uuid;
-        public final String username;
-        public final String refreshToken;
-        public final String accessToken;
-
-        public MSASession(
-                String uuid,
-                String username,
-                String refreshToken,
-                String accessToken
-        ) {
-            this.uuid = uuid;
-            this.username = username;
-            this.refreshToken = refreshToken;
-            this.accessToken = accessToken;
         }
     }
 }

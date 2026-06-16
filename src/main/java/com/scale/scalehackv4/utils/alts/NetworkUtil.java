@@ -20,7 +20,9 @@ public class NetworkUtil {
     }
 
     public static JsonObject getJSONObject(HttpRequest req) throws IOException, InterruptedException {
-        return getJSONObject(getServerResponse(req));
+        HttpResponse<String> response = getServerResponse(req);
+        if (response.body().isEmpty()) return null;
+        return getJSONObject(response);
     }
 
     public static JsonObject getJSONObject(HttpResponse<String> request) throws IOException {

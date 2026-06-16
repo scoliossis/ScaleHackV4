@@ -3,6 +3,7 @@ package com.scale.scalehackv4.utils;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.scale.scalehackv4.Main;
+import com.scale.scalehackv4.utils.client.BufferedImageTypeAdapter;
 import com.scale.scalehackv4.utils.client.ColourAdapter;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -12,6 +13,7 @@ import net.minecraft.client.world.ClientWorld;
 import org.reflections.Reflections;
 
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.net.http.HttpClient;
 import java.util.concurrent.ForkJoinPool;
 
@@ -22,6 +24,7 @@ public class C {
             .setPrettyPrinting()
             .enableComplexMapKeySerialization()
             .registerTypeAdapter(Color.class, new ColourAdapter())
+            .registerTypeAdapter(BufferedImage.class, new BufferedImageTypeAdapter())
             .create();
 
     public static final ForkJoinPool ASYNC = ForkJoinPool.commonPool();

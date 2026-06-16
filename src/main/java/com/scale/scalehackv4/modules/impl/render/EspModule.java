@@ -42,7 +42,7 @@ public class EspModule extends Module {
     public int nametagSize = 20;
 
     private final Event renderEsp = new RenderWorldEvent(this, params -> {
-        TargetUtil.getPlayers().forEach(player -> {
+        TargetUtil.getPlayers(true).forEach(player -> {
             if (player == C.p() && C.mc.options.getPerspective() == Perspective.FIRST_PERSON) return;
 
             float x = (float) (player.lastX + (player.getX() - player.lastX) * C.mc.getRenderTickCounter().getTickProgress(false));

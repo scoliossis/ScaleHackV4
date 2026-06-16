@@ -42,10 +42,12 @@ public class MouseUtil {
         return mousePos.x >= rect.x && mousePos.x <= rect.width && mousePos.y >= rect.y && mousePos.y <= rect.height;
     }
 
+    /// note to self: calling this one DOES NOT transform the mouse coordinates
     public static boolean isMouseInBounds(float x, float y, float width, float height) {
         return isMouseInBounds(x, y, x+width, y+height, C.mc.mouse);
     }
 
+    /// note to self: calling this one transforms the mouse coordinates
     public static boolean isMouseInBounds(float x, float y, float width, float height, DrawContext drawContext) {
         return isMouseInBounds(x, y, width, height, drawContext, true);
     }

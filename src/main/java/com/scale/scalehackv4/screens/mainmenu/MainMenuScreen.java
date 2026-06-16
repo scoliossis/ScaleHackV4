@@ -54,6 +54,8 @@ public class MainMenuScreen extends Screen {
         drawCopyright();
         drawWatermark();
         AltManager.render();
+
+        super.render(context, mouseX, mouseY, deltaTicks);
     }
 
     private void drawOptions() {

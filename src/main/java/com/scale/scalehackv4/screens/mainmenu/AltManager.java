@@ -2,81 +2,124 @@ package com.scale.scalehackv4.screens.mainmenu;
 
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.alts.AltManagerUtil;
+import com.scale.scalehackv4.utils.alts.AuthServer;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.Click;
 import net.minecraft.entity.player.PlayerModelPart;
+import net.minecraft.util.Util;
 import org.joml.Matrix3x2fStack;
 
 import java.awt.*;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Comparator;
 import java.util.List;
 
 // i think this is a big enough part of the main menu that it deserves its own class
 public class AltManager {
-    private static final int FONT_SIZE = 15;
+    private static final int ACCOUNTS_FONT_SIZE = 15;
     private static final int ALT_MANAGER_INDENT_X = 10;
     private static final int ALT_MANAGER_INDENT_Y = 10;
-    private static final int HEAD_INDENT = 4;
+    private static final int GAP_WIDTH = 4;
 
     private static boolean altsListOpen = false;
+
+    // yes i had to google the multiplication symbol, i sadly dont have it on my keyboard
+    private static final String REMOVE_ACCOUNT_INDICATOR = "×";
+
+    private static final int ADD_ACCOUNT_HEIGHT = 15;
+    private static final int ADD_ACCOUNT_MINIMUM_INDENT = 10;
+    private static final int ADD_ACCOUNT_FONT_SIZE = 10;
+    private static final String ADD_ACCOUNT_TEXT = "+ Add Account";
 
     protected static void render() {
         Matrix3x2fStack matrices = RenderUtil.getDrawContext().getMatrices();
         matrices.pushMatrix();
 
-        int fontHeight = FontUtil.getFontHeight(FONT_SIZE);
+        int fontHeight = FontUtil.getFontHeight(ACCOUNTS_FONT_SIZE);
         int HEAD_DIAMETER = getHeadDiameter();
 
         Rectangle bounds = getAltBounds();
 
         boolean shouldShowHat = C.mc.options.isPlayerModelPartEnabled(PlayerModelPart.HAT);
 
-        int headX = bounds.x + HEAD_INDENT;
-        int headY = ALT_MANAGER_INDENT_Y + HEAD_INDENT;
-        int textX = headX + HEAD_DIAMETER + HEAD_INDENT;
+        int headX = bounds.x + GAP_WIDTH;
+        int headY = ALT_MANAGER_INDENT_Y + GAP_WIDTH;
+        int textX = headX + HEAD_DIAMETER + GAP_WIDTH;
         int textY = ALT_MANAGER_INDENT_Y + (bounds.height/2) - (fontHeight/2);
 
+        Rectangle removeIndicatorBounds = getRemoveIndicatorBounds();
+
         for (AltManagerUtil.Alt account : getAltsList()) {
-            String accountName = account.name;
             // ive noticed i use 22,22,22 grey a lot, and have for a while, but im not sure where i got this specific number from
             Render2dUtil.drawRect(bounds.x, bounds.y, bounds.width, bounds.height, new Color(22, 22, 22, 100));
             Render2dUtil.drawSkinHead(account.skin, headX, headY, HEAD_DIAMETER, HEAD_DIAMETER, Color.WHITE, shouldShowHat);
 
-            int stringWidth = FontUtil.getStringWidth(accountName, FONT_SIZE);
-            int maxStringWidth = bounds.width - HEAD_INDENT*3 - HEAD_DIAMETER;
-
-            if (stringWidth > maxStringWidth) {
-                String etcString = "-";
-                int etcStringWidth = FontUtil.getStringWidth(etcString, FONT_SIZE);
-                int maxWidth = maxStringWidth - etcStringWidth;
-
-                while (FontUtil.getStringWidth(accountName, FONT_SIZE) > maxWidth) accountName = accountName.substring(0, accountName.length() - 1);
-                accountName += etcString;
+            FontUtil.drawString(account.name, textX, textY, ACCOUNTS_FONT_SIZE, Color.WHITE, false);
+            if (account != AltManagerUtil.currentAlt) {
+                Color removeColor = MouseUtil.isMouseInBounds(removeIndicatorBounds, false)
+                        ? Color.WHITE
+                        : new Color(150, 150, 150);
+                FontUtil.drawString(REMOVE_ACCOUNT_INDICATOR, removeIndicatorBounds.x, removeIndicatorBounds.y, ACCOUNTS_FONT_SIZE, removeColor, false);
             }
-            FontUtil.drawString(accountName, textX, textY, FONT_SIZE, Color.WHITE, false);
 
             matrices.translate(0, bounds.height);
         }
+
+        // drawing the add account button
+        Render2dUtil.drawRect(bounds.x, bounds.y, bounds.width, ADD_ACCOUNT_HEIGHT, new Color(22, 22, 22, 100));
+        // i think this text being centred is cuter
+        int addTextX = bounds.x + (bounds.width/2) - (FontUtil.getStringWidth(ADD_ACCOUNT_TEXT, ADD_ACCOUNT_FONT_SIZE)/2);
+        int addTextY = bounds.y + (ADD_ACCOUNT_HEIGHT/2) - (FontUtil.getFontHeight(ADD_ACCOUNT_FONT_SIZE)/2);
+        FontUtil.drawString(ADD_ACCOUNT_TEXT, addTextX, addTextY, ADD_ACCOUNT_FONT_SIZE, Color.WHITE, false);
 
         matrices.popMatrix();
     }
 
     private static int getHeadDiameter() {
-        return FontUtil.getFontHeight(FONT_SIZE) + HEAD_INDENT;
+        return FontUtil.getFontHeight(ACCOUNTS_FONT_SIZE) + GAP_WIDTH;
     }
 
     private static Rectangle getAltBounds() {
         int headDiameter = getHeadDiameter();
-        int width = FontUtil.getStringWidth(C.mc.getGameProfile().name(), FONT_SIZE) + (HEAD_INDENT*3) + headDiameter;
+
+        int longestNameWidth = 0;
+        for (AltManagerUtil.Alt alt : AltManagerUtil.ALTS) {
+            longestNameWidth = Math.max(longestNameWidth, FontUtil.getStringWidth(alt.name, ACCOUNTS_FONT_SIZE));
+        }
+
+        int width = Math.max(
+                // in case u have only 1/2 letter ign alts cause ur baller
+                (ADD_ACCOUNT_MINIMUM_INDENT*2) + FontUtil.getStringWidth(ADD_ACCOUNT_TEXT, ADD_ACCOUNT_FONT_SIZE),
+                // GAP_WIDTH * 5 because gap left and right of head, 2 gaps between text and remove indicator, and 1 gap right of remove indicator
+                longestNameWidth + (GAP_WIDTH * 5) + headDiameter + getRemoveIndicatorWidth()
+        );
 
         return new Rectangle(
                 C.res().getScaledWidth() - ALT_MANAGER_INDENT_X - width,
                 ALT_MANAGER_INDENT_Y,
                 width,
-                headDiameter + (HEAD_INDENT*2)
+                headDiameter + (GAP_WIDTH *2)
+        );
+    }
+
+    private static int getRemoveIndicatorWidth() {
+        return FontUtil.getStringWidth(REMOVE_ACCOUNT_INDICATOR, ACCOUNTS_FONT_SIZE);
+    }
+
+    private static Rectangle getRemoveIndicatorBounds() {
+        Rectangle bounds = getAltBounds();
+        int removeIndicatorWidth = getRemoveIndicatorWidth();
+        int fontHeight = FontUtil.getFontHeight(ACCOUNTS_FONT_SIZE);
+
+        return new Rectangle(
+                bounds.x + bounds.width - removeIndicatorWidth - GAP_WIDTH,
+                ALT_MANAGER_INDENT_Y + (bounds.height/2) - (fontHeight/2),
+                getRemoveIndicatorWidth(),
+                fontHeight
         );
     }
 
@@ -89,13 +132,18 @@ public class AltManager {
     protected static boolean handleClick(Click click) {
         if (click.button() != 0) return false;
 
-        Rectangle bounds = getAltBounds();
+        Rectangle accountBounds = getAltBounds();
+        Rectangle removeIndicatorBounds = getRemoveIndicatorBounds();
 
         List<AltManagerUtil.Alt> altsList = getAltsList();
         for (int i = 0; i < altsList.size(); i++) {
             AltManagerUtil.Alt alt = altsList.get(i);
-            if (MouseUtil.isMouseInBounds(bounds, false)) {
+
+            if (MouseUtil.isMouseInBounds(accountBounds, false)) {
                 if (i == 0) altsListOpen = !altsListOpen;
+                else if (MouseUtil.isMouseInBounds(removeIndicatorBounds, false)) {
+                    alt.delete();
+                }
                 else {
                     alt.login();
                     altsListOpen = false;
@@ -103,7 +151,19 @@ public class AltManager {
                 return true;
             }
 
-            bounds.y += bounds.height;
+            accountBounds.y += accountBounds.height;
+            removeIndicatorBounds.y += accountBounds.height;
+        }
+
+        if (MouseUtil.isMouseInBounds(accountBounds.x, accountBounds.y, accountBounds.width, ADD_ACCOUNT_HEIGHT, false)) {
+            try {
+                // minecraft doesnt let u set clipboard or open browser normally </3
+                C.mc.keyboard.setClipboard(AuthServer.URL);
+                Util.getOperatingSystem().open(new URI(AuthServer.URL));
+            } catch (URISyntaxException e) {
+                e.printStackTrace();
+                AltManagerUtil.setErrorMessage("Failed to open oAuth url");
+            }
         }
 
         altsListOpen = false;

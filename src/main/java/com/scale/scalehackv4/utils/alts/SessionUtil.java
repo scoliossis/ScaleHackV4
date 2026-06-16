@@ -3,10 +3,7 @@ package com.scale.scalehackv4.utils.alts;
 import com.google.gson.JsonObject;
 import com.scale.scalehackv4.mixins.client.altswitcher.OverrideSessionMixin;
 import com.scale.scalehackv4.utils.C;
-import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.session.Session;
-import net.minecraft.client.util.DefaultSkinHelper;
-import net.minecraft.util.Identifier;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -24,7 +21,6 @@ import java.util.UUID;
 public class SessionUtil {
     private static final String VALID_NAME_CHARACTERS_REGEX = "[a-zA-Z0-9]";
 
-    // todo: save alts
     public static boolean login(Session session) {
         if (session == null) {
             AltManagerUtil.setErrorMessage("Session is null!");
@@ -33,6 +29,11 @@ public class SessionUtil {
 
         AltManagerUtil.addProgressReport("Successfully logged into " + session.getUsername() + "!");
         ((OverrideSessionMixin)C.mc).setSession(session);
+        AltManagerUtil.currentAlt = AltManagerUtil.Alt.getCurrent();
+        AltManagerUtil.currentAlt.loginData.ssid = C.mc.getSession().getSessionId();
+        if (AltManagerUtil.ALTS.stream().noneMatch(a -> a.uuid.equals(AltManagerUtil.currentAlt.uuid))) {
+            AltManagerUtil.ALTS.add(AltManagerUtil.currentAlt);
+        }
 
         return true;
     }
@@ -229,20 +230,6 @@ public class SessionUtil {
             e.printStackTrace();
             // the api claims if you have a steve skin it returns an empty SKIN field, didn't test.
             return "https://s.namemc.com/i/12b92a9206470fe2.png";
-        }
-    }
-
-    public static Identifier getSkinIdentifier(UUID uuid) {
-        try {
-            Identifier name = Identifier.of("skincache/"+uuid.toString());
-
-            BufferedImage skinImage = ImageIO.read(new URL(getSkin(uuid.toString())));
-            RenderUtil.createTexture(name, skinImage);
-
-            return name;
-        } catch (Exception e) {
-            e.printStackTrace();
-            return DefaultSkinHelper.getTexture();
         }
     }
 }
