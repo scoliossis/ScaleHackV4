@@ -4,6 +4,9 @@ import net.minecraft.client.MinecraftClient;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.glfw.GLFWDropCallback;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 // currently only used for cookies, im sure ill have drag and drop for other types eventually.
 public class DroppedFileListener {
     // only has the arguement so i can pass it with DroppedFileListener::init
@@ -15,10 +18,8 @@ public class DroppedFileListener {
                 String filePath = GLFWDropCallback.getName(names, i);
                 System.out.println(filePath);
 
-                String cookies = CookieAltUtil.formatCookies(CookieAltUtil.getCookiesFromFile(filePath));
-                if (cookies.isEmpty()) continue;
-
-                CookieAltUtil.authenticate(cookies);
+                Path path = Paths.get(filePath);
+                AltManagerUtil.loginWithFile(path);
             }
         });
     }

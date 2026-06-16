@@ -39,7 +39,6 @@ public class oAuthUtil {
         return null;
     }
 
-    //private static final String DEFAULT_SCOPE = "service::user.auth.xboxlive.com::MBI_SSL";
     // we only use the different redirect for the AuthServer because it is awaiting a response from localthost specifically
     public static final String DEFAULT_REDIRECT = "https://login.live.com/oauth20_desktop.srf";
 

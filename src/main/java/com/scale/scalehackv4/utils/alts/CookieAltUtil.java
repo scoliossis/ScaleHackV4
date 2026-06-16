@@ -7,19 +7,16 @@ import com.google.gson.JsonObject;
 import net.minecraft.client.session.Session;
 
 import javax.annotation.Nullable;
-import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Base64;
-import java.util.List;
 
 // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/alts/microsoft/Cookies.java
 // stole urls from novoline
 public class CookieAltUtil {
     public static boolean authenticate(String cookie) {
+        if (cookie.isEmpty()) return false;
         AltManagerUtil.addProgressReport("Logging in with cookies");
 
         AltManagerUtil.addProgressReport("Getting xbox redirect.");
@@ -48,7 +45,10 @@ public class CookieAltUtil {
 
         if (ownsMinecraft(minecraftAccessToken)) {
             Session session = SessionUtil.queryPlayerProfile(minecraftAccessToken);
-            return SessionUtil.login(session);
+            if (!SessionUtil.login(session)) return false;
+
+            AltManagerUtil.currentAlt.loginData.cookie = cookie;
+            return true;
         }
         else AltManagerUtil.setErrorMessage("Cookie does NOT own minecraft!");
 
@@ -111,10 +111,8 @@ public class CookieAltUtil {
             if (res.statusCode() == 302 && location.contains("oauth20_authorize.srf"))
                 return NetworkUtil.fixURL(location);
         } catch (Exception e) {
-            e.printStackTrace();
+            AltManagerUtil.setErrorMessage("Invalid Cookie, cannot log in to xbox account: " + e.getMessage());
         }
-
-        AltManagerUtil.setErrorMessage("Redirect location not found");
         return null;
     }
 
@@ -138,31 +136,18 @@ public class CookieAltUtil {
         return null;
     }
 
-    public static String getCookiesFromFile(String path) {
-        try {
-            StringBuilder fileText = new StringBuilder();
-            List<String> fileLines = Files.readAllLines(Paths.get(path));
-
-            fileLines.stream().map(e -> e + ";\n").forEach(fileText::append);
-            return fileText.toString();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-        AltManagerUtil.setErrorMessage("Cannot read cookies from file!");
-        return "";
-    }
-
-    // hi this comment is here from v4, i have NO idea why this is here or how i came to write this, thanks past me for not leaving comments.
-    public static String formatCookies(String fileContent) {
+    // hi this comment is here from scalehack v4, i have NO idea why this is here or how i came to write this, thanks past me for not leaving comments.
+    public static String formatCookies(String fileLines) {
         StringBuilder cook = new StringBuilder();
-        for (String s : fileContent.split("\n")) {
+        for (String s : fileLines.split("\n")) {
             String[] strings = s.split("\t");
 
-            if (strings.length < 5) continue;
+            if (strings.length <= 6) continue;
 
-            cook.append(strings[5]).append("=").append(strings[6]);
+            cook.append(strings[5]).append("=").append(strings[6]).append(";");
         }
+
+        if (cook.length() < 2) return "";
         return cook.substring(0, cook.length() - 2);
     }
 }

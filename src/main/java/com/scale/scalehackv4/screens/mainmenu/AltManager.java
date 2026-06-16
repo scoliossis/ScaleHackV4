@@ -160,6 +160,7 @@ public class AltManager {
                 // minecraft doesnt let u set clipboard or open browser normally </3
                 C.mc.keyboard.setClipboard(AuthServer.URL);
                 Util.getOperatingSystem().open(new URI(AuthServer.URL));
+                return true;
             } catch (URISyntaxException e) {
                 e.printStackTrace();
                 AltManagerUtil.setErrorMessage("Failed to open oAuth url");

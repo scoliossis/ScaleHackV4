@@ -15,8 +15,10 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 public class AltManagerUtil {
     public static final ArrayList<Alt> ALTS = new ArrayList<>();
@@ -24,12 +26,45 @@ public class AltManagerUtil {
 
     public static Alt currentAlt;
 
+    @AllArgsConstructor
+    private enum oAuthIds {
+        LOCALTS("00000000402b5328", "service::user.auth.xboxlive.com::MBI_SSL");
+
+        private final String CLIENT_ID;
+        private final String SCOPE;
+    }
+
+    // todo: add more file types, idk
+    @AllArgsConstructor
+    private enum File_Types {
+        /* matches for
+        Thanks for choosing Localts!
+        AlahEater69:M.C525_BL2.0.U.MsaArtifacts.-CoqpLE42UWWrxY3v7ohpr... etc
+         */
+        LOCALTS_REFRESH(Pattern.compile("^Thanks for choosing Localts!\n\\w{3,16}:M\\.C\\d{3}_\\w{3}\\.0\\.U\\.MsaArtifacts\\.-[^\n]+$")) {
+            @Override
+            boolean attemptLogin(String fileText) {
+                return oAuthUtil.authWithRefreshToken(fileText.split("\n")[1], oAuthIds.LOCALTS.CLIENT_ID, oAuthIds.LOCALTS.SCOPE, oAuthUtil.DEFAULT_REDIRECT, true);
+            }
+        },
+        // today years old when i found out about Pattern.MULTILINE and CASE_INSENSITIVE etc.
+        // matches for https://everything.curl.dev/http/cookies/fileformat.html
+        COOKIE(Pattern.compile("^([^\\t]+)\\t(TRUE|FALSE)\\t([^\\t]*)\\t(TRUE|FALSE)\\t(\\d+)\\t([^\\t]+)\\t(.*)$", Pattern.MULTILINE)) {
+            @Override
+            boolean attemptLogin(String fileText) {
+                return CookieAltUtil.authenticate(CookieAltUtil.formatCookies(fileText));
+            }
+        };
+
+        private final Pattern REGEX;
+
+        abstract boolean attemptLogin(String fileText);
+    }
+
     public static void loadAlts() {
-        if (SessionUtil.queryPlayerProfile(C.mc.getSession().getAccessToken()) != null) {
-            Alt.getCurrent().save();
-        }
         currentAlt = Alt.getCurrent();
         ALTS.add(currentAlt);
+        if (SessionUtil.queryPlayerProfile(C.mc.getSession().getAccessToken()) != null) currentAlt.save();
 
         if (!ALTS_FOLDER.exists() && !ALTS_FOLDER.mkdirs()) return;
 
@@ -90,21 +125,28 @@ public class AltManagerUtil {
         }
 
         public void login() {
-            if (loginData.attemptLogin()) {
-                lastLogin = System.currentTimeMillis();
-                currentAlt = this;
-                this.loginData.ssid = C.mc.getSession().getAccessToken();
-                this.save();
-            }
+            if (loginData.attemptLogin()) this.save();
         }
 
+        /// dont call too often, because it requires a request to update skin,
         public void save() {
             if (!ALTS_FOLDER.exists() && !ALTS_FOLDER.mkdirs()) return;
 
             C.mc.execute(() -> {
                 try {
+                    currentAlt = this;
+                    this.lastLogin = System.currentTimeMillis();
+                    System.out.println("Saved alt " + this.name + " : " + this.lastLogin);
+                    this.loginData.ssid = C.mc.getSession().getAccessToken();
                     updateSkin();
                     Files.write(new File(ALTS_FOLDER, this.uuid.toString() + ".json").toPath(), this.toString().getBytes());
+
+                    // refresh alts that arent really real
+                    ALTS.removeIf(alt -> !alt.getFile().exists());
+
+                    // in case u resaving an alt
+                    AltManagerUtil.ALTS.removeIf(alt -> alt.uuid.equals(AltManagerUtil.currentAlt.uuid));
+                    AltManagerUtil.ALTS.add(AltManagerUtil.currentAlt);
                 } catch (IOException e) {
                     e.printStackTrace();
                     setErrorMessage("Failed to save alt: " + e.getMessage());
@@ -128,7 +170,6 @@ public class AltManagerUtil {
                 this.skin = getSkinIdentifier();
                 RenderUtil.createTexture(this.skin, this.skinImage);
             } catch (IOException e) {
-                e.printStackTrace();
                 System.err.println("Failed to update alt skin: " + e.getMessage());
             }
         }
@@ -160,7 +201,6 @@ public class AltManagerUtil {
         String ssid, cookie, refreshToken, clientId, scope;
 
         public boolean attemptLogin() {
-            System.out.println(clientId);
             if (ssid != null && SessionUtil.login(SessionUtil.queryPlayerProfile(ssid))) return true;
             if (refreshToken != null && clientId != null && oAuthUtil.authWithRefreshToken(refreshToken, clientId, scope, oAuthUtil.DEFAULT_REDIRECT, false)) return true;
             return cookie != null && CookieAltUtil.authenticate(cookie);
@@ -172,5 +212,22 @@ public class AltManagerUtil {
     }
     public static void setErrorMessage(String message) {
         System.out.println("its all gone wrong: " + message);
+    }
+
+    public static void loginWithFile(Path path) {
+        try {
+            // todo: unzip if its a zip, ik localts used to sell zipped cookies for wtv reason
+            String fileText = String.join("\n", Files.readAllLines(path));
+            if (fileText.isEmpty()) return;
+
+            for (File_Types type : File_Types.values()) {
+                if (type.REGEX.matcher(fileText).find()) {
+                    if (type.attemptLogin(fileText)) AltManagerUtil.currentAlt.save();
+                    return;
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

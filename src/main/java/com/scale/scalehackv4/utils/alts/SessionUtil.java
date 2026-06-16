@@ -31,10 +31,6 @@ public class SessionUtil {
         ((OverrideSessionMixin)C.mc).setSession(session);
         AltManagerUtil.currentAlt = AltManagerUtil.Alt.getCurrent();
         AltManagerUtil.currentAlt.loginData.ssid = C.mc.getSession().getSessionId();
-        if (AltManagerUtil.ALTS.stream().noneMatch(a -> a.uuid.equals(AltManagerUtil.currentAlt.uuid))) {
-            AltManagerUtil.ALTS.add(AltManagerUtil.currentAlt);
-        }
-
         return true;
     }
 
