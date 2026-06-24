@@ -6,9 +6,9 @@ import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
+import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.MathUtil;
-import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render3dUtil;
 import net.minecraft.client.option.Perspective;
@@ -42,7 +42,7 @@ public class EspModule extends Module {
     public int nametagSize = 20;
 
     private final Event renderEsp = new RenderWorldEvent(this, params -> {
-        TargetUtil.getPlayers(true).forEach(player -> {
+        Targets.getPlayers(true).forEach(player -> {
             if (player == C.p() && C.mc.options.getPerspective() == Perspective.FIRST_PERSON) return;
 
             float x = (float) (player.lastX + (player.getX() - player.lastX) * C.mc.getRenderTickCounter().getTickProgress(false));

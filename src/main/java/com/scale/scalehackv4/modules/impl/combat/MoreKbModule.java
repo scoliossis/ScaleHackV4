@@ -8,9 +8,9 @@ import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
+import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.InventoryUtil;
-import com.scale.scalehackv4.utils.client.TargetUtil;
 import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
@@ -97,7 +97,7 @@ public class MoreKbModule extends Module {
             Entity targetEntity = MoreKbModule.targetEntity;
             MoreKbModule.targetEntity = null;
 
-            Vec3d targetRotation = TargetUtil.getTargetRotationPoint(targetEntity, C.p().getAttackRange().maxRange());
+            Vec3d targetRotation = RotationUtil.getTargetRotationPoint(targetEntity, C.p().getAttackRange().maxRange(), true);
             if (targetRotation == null) return false;
 
             params.rotation = RotationUtil.getRotation(targetRotation);
@@ -124,7 +124,7 @@ public class MoreKbModule extends Module {
     private Entity getAttackingEntity() {
         return PlayerUtil.getThisTickAttackEntity(entity ->
                 (!kbWeaponOnly || InventoryUtil.getEnchantLevel(C.p().getMainHandStack(), Enchantments.KNOCKBACK) > 0)
-                && TargetUtil.isValidTarget(entity.getEntity(), false)
+                && Targets.isValidTarget(entity.getEntity(), false)
                 && !attackedEnemies.containsKey(entity.getEntity())
         );
     }

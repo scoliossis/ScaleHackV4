@@ -1,8 +1,8 @@
 package com.scale.scalehackv4.mixins.render;
 
+import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.modules.impl.render.EspModule;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
-import com.scale.scalehackv4.utils.client.TargetUtil;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.LivingEntity;
@@ -20,7 +20,7 @@ public abstract class EspMixin extends Entity {
 
     @Inject(method = "isGlowing", at = @At("HEAD"), cancellable = true)
     private void isGlowing(CallbackInfoReturnable<Boolean> cir) {
-        if (ModuleUtil.isEnabled(EspModule.class) && EspModule.glow && TargetUtil.isValidTarget(this, true)) {
+        if (ModuleUtil.isEnabled(EspModule.class) && EspModule.glow && Targets.isValidTarget(this, true)) {
             cir.setReturnValue(true);
         }
     }

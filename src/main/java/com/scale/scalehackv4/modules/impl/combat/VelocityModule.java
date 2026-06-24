@@ -192,6 +192,8 @@ public class VelocityModule extends Module {
 
     @Override
     public void onDisable() {
-
+        if (BlinkUtil.isBlinking(false, true, this.getClass())) {
+            BlinkUtil.popBlink(false, true, this.getClass());
+        }
     }
 }

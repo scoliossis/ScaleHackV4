@@ -8,6 +8,7 @@ import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
+import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.*;
 import com.scale.scalehackv4.utils.player.*;
@@ -37,6 +38,10 @@ public class KillAuraModule extends Module {
     public int auraFOV = 180;
     @RegisterSubModule(name = "Sticky Targets")
     public boolean stickyTargets = false;
+    @RegisterSubModule(name = "Only Necessary Rotations")
+    public boolean onlyNecessary = false;
+    @RegisterSubModule(name = "Random Rotation Point")
+    public boolean randomRotationPoint = false;
     @RegisterSubModule(name = "Target Selection")
     public TargetSelection targetSelection = TargetSelection.Switch;
 
@@ -80,16 +85,23 @@ public class KillAuraModule extends Module {
         public abstract void sort(List<Entity> targets);
     }
 
+    // todo: separate yaw and pitch, ig...
     @RegisterSubModule(name = "Rotation Mode")
     public RotationMode rotationMode = RotationMode.Lock;
+    @RegisterSubModule(name = "Easing Mode", parent = "Rotation Mode", modeParentString = "Eased")
+    public static EasingUtil.EasingFunctions easingMode = EasingUtil.EasingFunctions.Ease_In_Back;
+
+    @RegisterSubModule(name = "Easing Ticks", min = 2, max = 10, parent = "Rotation Mode", modeParentString = "Eased")
+    public static int easingCycle = 10;
+    @RegisterSubModule(name = "Min Rotation", min = 1, max = 90, parent = "Rotation Mode", modeParentString = "Limited")
+    public static int minRotation = 30;
+    @RegisterSubModule(name = "Max Rotation", min = 1, max = 90, parent = "Rotation Mode", modeParentString = "Limited")
+    public static int maxRotation = 60;
+    @RegisterSubModule(name = "Rotation Smoothing Factor", min = 2, max = 10, parent = "Rotation Mode", modeParentString = "Smooth", increment = 0.1)
+    public static float rotationSmoothing = 3;
 
     @RegisterSubModule(name = "Client Side Rotation")
     public static boolean clientSideRotation = false;
-
-    @RegisterSubModule(name = "Max Rotation", min = 1, max = 180, parent = "Rotation Mode", modeParentString = "Limited")
-    public static int maxRotation = 60;
-    @RegisterSubModule(name = "Rotation Smoothing Factor", min = 1, max = 10, parent = "Rotation Mode", modeParentString = "Smooth", increment = 0.1)
-    public static float rotationSmoothing = 3;
 
     public enum RotationMode {
         Lock {
@@ -108,13 +120,20 @@ public class KillAuraModule extends Module {
         Limited {
             @Override
             public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
-                params.rotation = RotationUtil.getLimitedRotation(getLastRotation(), rotationVector, maxRotation);
+                float maxTurnAmount = (float) (minRotation + (Math.random() * (maxRotation - minRotation)));
+                params.rotation = RotationUtil.getLimitedRotation(getLastRotation(), rotationVector, maxTurnAmount);
             }
         },
         Smooth {
             @Override
             public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
                 params.rotation = RotationUtil.getSmoothRotation(getLastRotation(), rotationVector, rotationSmoothing);
+            }
+        },
+        Eased {
+            @Override
+            public void rotate(Entity target, Vec3d rotationVector, RotationEvent.Params params) {
+                params.rotation = RotationUtil.getEasedRotation(startEasingRotation, rotationVector, easingMode, (double) easingTicks / easingCycle);
             }
         };
 
@@ -169,15 +188,22 @@ public class KillAuraModule extends Module {
     private static int switchOrdinal = 0;
     private Rotation targetRotation;
 
+    private static int easingTicks = 0;
+    private static Rotation startEasingRotation = null;
+
     private final Event handleRotations = new RotationEvent(this, params -> {
         targetRotation = null;
 
         // dont wanna override other rotations!
         if (Bus.isEventCancelled(RotationEvent.class) || !shouldAura()) {
+            easingTicks = 0;
             targetEntity = null;
             return false;
         }
-        if (noRotateJump && MovementUtil.willJump() || !getValidEntity(getTargets(), params)) return false;
+        if ((noRotateJump && MovementUtil.willJump()) || !getValidEntity(getTargets(), params)) {
+            easingTicks = 0;
+            return false;
+        }
 
         if (!willAttack(params.rotation)) return true;
 
@@ -215,7 +241,7 @@ public class KillAuraModule extends Module {
 
     private List<Entity> getTargets() {
         // get a list of all targets in rotation distance
-        List<Entity> targets = TargetUtil.getTargets(rotationRange);
+        List<Entity> targets = Targets.getTargets(rotationRange);
         targets.removeIf(entity -> getYawToTarget(entity) > auraFOV);
 
         // and targets within attack range
@@ -235,26 +261,37 @@ public class KillAuraModule extends Module {
     }
 
     private boolean getValidEntity(List<Entity> targets, RotationEvent.Params params) {
-        if (stickyTargets && targets.contains(targetEntity) && rotateToTarget(targetEntity, params)) return true;
+        if (easingTicks == 0) startEasingRotation = RotationEvent.getLastRotation();
+
+        if (stickyTargets && targets.contains(targetEntity) && rotateToTarget(targetEntity, params)) {
+            easingTicks = (easingTicks + 1) % (easingCycle+1);
+            return true;
+        }
+
+        Entity lastTarget = targetEntity;
 
         // loop entities until we find one that is hittable
         while (!targets.isEmpty()) {
             Entity target = targets.removeFirst();
 
-            if (rotateToTarget(target, params)) return true;
+            if (rotateToTarget(target, params)) {
+                if (lastTarget != targetEntity) easingTicks = 0;
+                else easingTicks = (easingTicks + 1) % (easingCycle+1);
+
+                return true;
+            }
         }
 
         targetEntity = null;
-
         return false;
     }
 
     private boolean rotateToTarget(Entity target, RotationEvent.Params params) {
-        Vec3d rotationVector = TargetUtil.getTargetRotationPoint(target, rotationRange);
+        Vec3d rotationVector = RotationUtil.getTargetRotationPoint(target, rotationRange, randomRotationPoint);
         if (rotationVector == null) return false;
 
         targetEntity = target;
-        if (isHoveringTargetEntity(getLastRotation()) && rotationMode != RotationMode.Snap) {
+        if (isHoveringTargetEntity(getLastRotation()) && onlyNecessary && rotationMode != RotationMode.Snap) {
             params.rotation = getLastRotation();
             return true;
         }

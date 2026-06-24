@@ -17,6 +17,7 @@ public class HandlePrePostHitMixin {
 
     @Inject(method = "doAttack", at = @At(value = "HEAD"))
     private void onAttackHead(CallbackInfoReturnable<Boolean> cir) {
+        PlayerUtil.lastSwingTick = WorldUtil.tick;
         attacked = false;
     }
 

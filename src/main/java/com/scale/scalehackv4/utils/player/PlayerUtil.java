@@ -22,6 +22,7 @@ import java.util.function.Predicate;
 public class PlayerUtil {
     public static ArrayList<Runnable> onAttack = new ArrayList<>();
     public static int lastAttackTick = 0;
+    public static int lastSwingTick = 0;
 
     private final Event clearQueuedAttack = new RotationEvent(null, params -> {
         onAttack.clear();

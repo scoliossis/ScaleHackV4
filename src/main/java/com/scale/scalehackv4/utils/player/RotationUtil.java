@@ -2,9 +2,15 @@ package com.scale.scalehackv4.utils.player;
 
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.EasingUtil;
 import com.scale.scalehackv4.utils.client.MathUtil;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+
+import java.util.ArrayList;
 
 public class RotationUtil {
     public static Rotation getRotation(Vec3d to) {
@@ -90,5 +96,80 @@ public class RotationUtil {
         float yawDelta = rotationDifference.yaw / smoothing;
 
         return applyGcd(currentRotation, new Rotation(yawDelta, pitchDelta).add(currentRotation));
+    }
+
+    public static Rotation getEasedRotation(Rotation currentRotation, Vec3d toVector, EasingUtil.EasingFunctions easingFunction, double easing) {
+        Rotation to = getRotation(currentRotation, toVector);
+
+        Rotation rotationDifference = to.subtract(currentRotation);
+
+        float pitchDelta = (float) (rotationDifference.pitch * easingFunction.ease(easing));
+        float yawDelta = (float) (rotationDifference.yaw * easingFunction.ease(easing));
+
+        return applyGcd(currentRotation, new Rotation(yawDelta, pitchDelta).add(currentRotation));
+    }
+
+    public static Vec3d getClosestPointToEntity(Entity target) {
+        return WorldUtil.getClosestPoint(target.getBoundingBox());
+    }
+
+    // from scalehackv3 https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/TargetUtil.java#L88
+    public static Vec3d getTargetRotationPoint(Entity entity, double range, boolean random) {
+        if (entity == null) return null;
+
+        double blockReach = Math.max(C.p().getBlockInteractionRange(), range);
+        Box targetBoundingBox = entity.getBoundingBox();
+
+        if (random) {
+            // if it cant find smth in 10, give up and kys
+            for (int i = 0; i < 10; i++) {
+                Vec3d randomPoint = new Vec3d(
+                        MathHelper.lerp(Math.random(), targetBoundingBox.minX, targetBoundingBox.maxX),
+                        MathHelper.lerp(Math.random(), targetBoundingBox.minY, targetBoundingBox.maxY),
+                        MathHelper.lerp(Math.random(), targetBoundingBox.minZ, targetBoundingBox.maxZ)
+                );
+                Rotation rotation = RotationUtil.getRotation(randomPoint);
+
+                if (WorldUtil.getMouseOver(rotation, blockReach, range) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity)
+                    return randomPoint;
+            }
+
+            return null;
+        }
+        Vec3d closestPoint = getClosestPointToEntity(entity).subtract(0, 0, 0);
+
+        Rotation bestRotation = RotationUtil.getRotation(closestPoint);
+        // check that looking at the closest point doesnt have a wall between us and the entity
+        if (WorldUtil.getMouseOver(bestRotation, blockReach, range) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity)
+            return closestPoint;
+
+
+        // awesome. there was no comments in this entire function
+        ArrayList<Vec3d> possibleRotations = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+
+            // add all possible corners, added using the order recommended for binary truth tables
+            possibleRotations.add(new Vec3d(
+                    i % 2 == 0 ? targetBoundingBox.minX : targetBoundingBox.maxX,
+                    i % 4 >= 2 ? targetBoundingBox.minY : targetBoundingBox.maxY,
+                    i % 8 >= 4 ? targetBoundingBox.minZ : targetBoundingBox.maxZ
+            ));
+        }
+
+        // add the top middle and bottom of the player centre aswell, probably doesnt help
+        possibleRotations.add(new Vec3d(entity.getX(), (targetBoundingBox.maxY + targetBoundingBox.minY) / 2, entity.getZ()));
+        possibleRotations.add(new Vec3d(entity.getX(), targetBoundingBox.minY, entity.getZ()));
+        possibleRotations.add(new Vec3d(entity.getX(), targetBoundingBox.maxY, entity.getZ()));
+        possibleRotations.add(closestPoint);
+
+        // check all possible rotations until we find
+        for (Vec3d possibleRotationVector : possibleRotations) {
+            Rotation possibleRotation = RotationUtil.getRotation(possibleRotationVector);
+            if (WorldUtil.getMouseOver(possibleRotation, blockReach, range) instanceof EntityHitResult entityHitResult && entityHitResult.getEntity() == entity) {
+                return possibleRotationVector;
+            }
+        }
+
+        return null;
     }
 }

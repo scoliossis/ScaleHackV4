@@ -44,7 +44,7 @@ public class AltManagerUtil {
         LOCALTS_REFRESH(Pattern.compile("^Thanks for choosing Localts!\n\\w{3,16}:M\\.C\\d{3}_\\w{3}\\.0\\.U\\.MsaArtifacts\\.-[^\n]+$")) {
             @Override
             boolean attemptLogin(String fileText) {
-                return oAuthUtil.authWithRefreshToken(fileText.split("\n")[1], oAuthIds.LOCALTS.CLIENT_ID, oAuthIds.LOCALTS.SCOPE, oAuthUtil.DEFAULT_REDIRECT, true);
+                return oAuthUtil.authWithRefreshToken(fileText.split("\n")[1].split(":")[1], oAuthIds.LOCALTS.CLIENT_ID, oAuthIds.LOCALTS.SCOPE, oAuthUtil.DEFAULT_REDIRECT, false);
             }
         },
         // today years old when i found out about Pattern.MULTILINE and CASE_INSENSITIVE etc.
