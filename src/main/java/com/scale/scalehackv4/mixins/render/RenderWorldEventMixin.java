@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public class RenderWorldEventMixin {
     @Inject(method = "draw", at = @At(value = "TAIL"))
     private void renderMain(MatrixStack matrices, VertexConsumerProvider vertexConsumers, CameraRenderState cameraRenderState, Matrix4f posMatrix, CallbackInfo ci) {
-        Render3dUtil.tickRender(matrices, vertexConsumers, cameraRenderState);
+        Render3dUtil.tickRender(matrices, vertexConsumers, cameraRenderState, posMatrix);
         Bus.post(RenderWorldEvent.class, new RenderWorldEvent.Params());
         Render3dUtil.finishTickRender();
     }

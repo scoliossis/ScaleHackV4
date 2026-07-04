@@ -13,6 +13,8 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -70,4 +72,29 @@ public class PlayerUtil {
         overriddenKeybinds.clear();
         return false;
     }, 1);
+
+    public static ArrayList<Vec3d> getEntityCorners(Entity entity) {
+        Box targetBoundingBox = entity.getBoundingBox();
+        return getCorners(
+                entity.getEntityPos(),
+                targetBoundingBox.getLengthX(),
+                targetBoundingBox.getLengthY(),
+                targetBoundingBox.getLengthZ()
+        );
+    }
+
+    public static ArrayList<Vec3d> getCorners(Vec3d pos, double width, double height, double depth) {
+        ArrayList<Vec3d> possibleRotations = new ArrayList<>();
+        for (int i = 0; i < 8; i++) {
+
+            // add all possible corners, added using the order recommended for binary truth tables by my cs teacher, shoutout
+            possibleRotations.add(new Vec3d(
+                    i % 2 == 0 ? pos.x : pos.x + width,
+                    i % 4 >= 2 ? pos.y : pos.y + height,
+                    i % 8 >= 4 ? pos.z : pos.z + depth
+            ));
+        }
+
+        return possibleRotations;
+    }
 }

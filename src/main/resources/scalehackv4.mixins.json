@@ -36,6 +36,8 @@
     "player.UpdateMouseEventMixin",
     "player.UseItemBridgeMixin",
     "player.BlockScanner.ChunkUnloadMixin",
+    "render.AllowScissorBlurMixin",
+    "render.HookProjectionMatrixMixin",
     "render.MainMenuMixin",
     "render.MouseDraggedEventMixin",
     "render.PartialTicksMixin",

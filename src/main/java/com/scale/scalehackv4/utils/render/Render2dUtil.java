@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.utils.render;
 
+import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.network.PlayerListEntry;
@@ -9,6 +10,7 @@ import net.minecraft.util.Identifier;
 import org.joml.Matrix3x2f;
 
 import java.awt.*;
+import java.util.ArrayList;
 
 public class Render2dUtil extends RenderUtil {
     public static Matrix3x2f getMatrices() {
@@ -160,5 +162,32 @@ public class Render2dUtil extends RenderUtil {
 
             return true;
         }, false);
+    }
+
+    public static ArrayList<Rectangle> blurStack = new ArrayList<>();
+
+    public static void drawBlur(int x, int y, int width, int height) {
+        x *= C.res().getScaleFactor();
+        y *= C.res().getScaleFactor();
+        width *= C.res().getScaleFactor();
+        height *= C.res().getScaleFactor();
+
+        for (int i = 0; i < 5; i++) blurStack.add(new Rectangle(x, y, width, height));
+        C.mc.gameRenderer.renderBlur();
+    }
+
+    public static void handleRenderPass(RenderPass renderPass, int firstVertex, int vertexCount, String id) {
+        boolean isBlur = id.contains("blur") && !id.endsWith("0") && !Render2dUtil.blurStack.isEmpty();
+
+        if (isBlur) {
+            // doesnt matter which way i pop, because all blurs are the same afaik
+            Rectangle blur = Render2dUtil.blurStack.removeLast();
+            renderPass.enableScissor(blur.x, blur.y, blur.width, blur.height);
+        }
+        renderPass.draw(firstVertex, vertexCount);
+
+        if (isBlur) {
+            renderPass.disableScissor();
+        }
     }
 }

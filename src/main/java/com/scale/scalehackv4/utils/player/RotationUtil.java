@@ -144,17 +144,7 @@ public class RotationUtil {
             return closestPoint;
 
 
-        // awesome. there was no comments in this entire function
-        ArrayList<Vec3d> possibleRotations = new ArrayList<>();
-        for (int i = 0; i < 8; i++) {
-
-            // add all possible corners, added using the order recommended for binary truth tables
-            possibleRotations.add(new Vec3d(
-                    i % 2 == 0 ? targetBoundingBox.minX : targetBoundingBox.maxX,
-                    i % 4 >= 2 ? targetBoundingBox.minY : targetBoundingBox.maxY,
-                    i % 8 >= 4 ? targetBoundingBox.minZ : targetBoundingBox.maxZ
-            ));
-        }
+        ArrayList<Vec3d> possibleRotations = PlayerUtil.getEntityCorners(entity);
 
         // add the top middle and bottom of the player centre aswell, probably doesnt help
         possibleRotations.add(new Vec3d(entity.getX(), (targetBoundingBox.maxY + targetBoundingBox.minY) / 2, entity.getZ()));

@@ -75,14 +75,20 @@ public class BlockESP extends Module {
                         false
                 );
 
-                Render3dUtil.getMatrices().translate(box.minX + 0.5, 1.25, box.minZ + 0.5);
-                Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, (float) -Math.toRadians(C.p().getYaw()), (float) Math.toRadians(C.p().getPitch())));
-                Sprite sprite = C.mc.getBlockRenderManager().getModel(C.w().getBlockState(blockPos.up())).particleSprite();
-                float u0 = sprite.getMinU(), u1 = sprite.getMaxU(), v0 = sprite.getMinV(), v1 = sprite.getMaxV();
+                // todo: lol.
+                BlockPos bestBlock = blockPos.up();
+                BlockState bestBlockState = C.w().getBlockState(bestBlock);
 
-                Render3dUtil.drawTexturedQuads(-0.25f, -0.25f, -0.25f, 0.5f, 0.5f, u0, v1, u1, v0, Color.WHITE, sprite.getAtlasId(), false);
+                if (bestBlockState.getBlock() != Blocks.AIR) {
+                    Render3dUtil.getMatrices().translate(box.minX + 0.5, 1.25, box.minZ + 0.5);
+                    Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, (float) -Math.toRadians(C.p().getYaw()), (float) Math.toRadians(C.p().getPitch())));
+                    Sprite sprite = C.mc.getBlockRenderManager().getModel(C.w().getBlockState(blockPos.up())).particleSprite();
+                    float u0 = sprite.getMinU(), u1 = sprite.getMaxU(), v0 = sprite.getMinV(), v1 = sprite.getMaxV();
 
-                sprite.close();
+                    Render3dUtil.drawTexturedQuads(-0.25f, -0.25f, -0.25f, 0.5f, 0.5f, u0, v1, u1, v0, Color.WHITE, sprite.getAtlasId(), false);
+
+                    sprite.close();
+                }
 
                 Render3dUtil.getMatrices().pop();
             };
