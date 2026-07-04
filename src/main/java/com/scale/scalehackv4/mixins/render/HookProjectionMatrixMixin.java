@@ -1,18 +1,27 @@
 package com.scale.scalehackv4.mixins.render;
 
 import com.scale.scalehackv4.utils.render.Render3dUtil;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.render.RenderTickCounter;
 import org.joml.Matrix4f;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-// not just calling "getBasicProjectionMatrix" myself, because WIzoom conflicts with it :pensive:
 @Mixin(GameRenderer.class)
-public class HookProjectionMatrixMixin {
-    @Inject(method = "getBasicProjectionMatrix", at = @At("RETURN"))
-    public void getBasicProjectionMatrix(float fovDegrees, CallbackInfoReturnable<Matrix4f> cir) {
-        Render3dUtil.setLastProjectionMatrix(new Matrix4f(cir.getReturnValue()));
+public abstract class HookProjectionMatrixMixin {
+    @Shadow public abstract Matrix4f getBasicProjectionMatrix(float fovDegrees);
+    @Shadow protected abstract float getFov(Camera camera, float tickProgress, boolean changingFov);
+    @Shadow @Final private Camera camera;
+
+    @Inject(method = "renderWorld", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/GameRenderer;getFov(Lnet/minecraft/client/render/Camera;FZ)F", ordinal = 0))
+    public void renderWorld(RenderTickCounter renderTickCounter, CallbackInfo ci) {
+        // i gotta call "getFOV" to get the fov with the dynamic fov changes and to not conflict with https://github.com/Wurst-Imperium/WI-Zoom/blob/1.21.11/src/main/java/net/wimods/zoom/mixin/GameRendererMixin.java
+        float fov = this.getFov(this.camera, renderTickCounter.getTickProgress(true), true);
+        Render3dUtil.setLastProjectionMatrix(this.getBasicProjectionMatrix(fov));
     }
 }
