@@ -4,6 +4,7 @@ import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
+import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.PacketUtil;
 import net.minecraft.network.packet.Packet;
@@ -27,6 +28,8 @@ public class BlinkUtil {
 
     private final Event onPacketReceived = new PacketEvent.Received(null, params -> {
         if (INCOMING_BLINK.isEmpty()) return false;
+
+        if (HideBlinkInboundModule.handleInboundPacket(params.packet)) return false;
 
         INCOMING_BLINK.getLast().packets().add(params.packet);
         return true;
@@ -81,12 +84,18 @@ public class BlinkUtil {
             break;
         }
 
-        if (received) for (BlinkedClass blinkedClass : INCOMING_BLINK) {
-            if (blinkedClass.clazz != clazz) continue;
+        if (received) {
+            for (BlinkedClass blinkedClass : INCOMING_BLINK) {
+                if (blinkedClass.clazz != clazz) continue;
 
-            INCOMING_BLINK.remove(blinkedClass);
-            handlePackets(blinkedClass.packets(), false);
-            break;
+                INCOMING_BLINK.remove(blinkedClass);
+                handlePackets(blinkedClass.packets(), false);
+                break;
+            }
+
+            if (!isBlinking(false, true)) {
+                HideBlinkInboundModule.onDisableBlinkInbound();
+            }
         }
     }
 
@@ -104,6 +113,9 @@ public class BlinkUtil {
     /// clears all the blinked packets and pretends they didnt happen
     public static void disableBlink(boolean sent, boolean received) {
         if (sent) OUTGOING_BLINK.clear();
-        if (received) INCOMING_BLINK.clear();
+        if (received) {
+            HideBlinkInboundModule.onDisableBlinkInbound();
+            INCOMING_BLINK.clear();
+        }
     }
 }

@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.screens.mainmenu;
 
-import com.scale.scalehackv4.modules.impl.client.hud.Watermark;
+import com.scale.scalehackv4.modules.impl.client.hud.WatermarkModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
@@ -84,7 +84,7 @@ public class MainMenuScreen extends Screen {
 
         matrixStack.pushMatrix();
         matrixStack.translate(10, 10);
-        Watermark.watermarkDraggable.render();
+        WatermarkModule.watermarkDraggable.render();
 
         matrixStack.popMatrix();
     }

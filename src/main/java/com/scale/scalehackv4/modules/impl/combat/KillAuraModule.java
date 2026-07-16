@@ -13,7 +13,6 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.*;
 import com.scale.scalehackv4.utils.player.*;
 import com.scale.scalehackv4.utils.render.MouseUtil;
-import com.scale.scalehackv4.utils.render.Render3dUtil;
 import lombok.AllArgsConstructor;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
@@ -216,12 +215,12 @@ public class KillAuraModule extends Module {
         return true;
     }, 2000);
 
-    private final Event sendMovementPacketEvent = new UpdateMouseEvent(this, params -> {
+    private final Event onUpdateMouseEvent = new UpdateMouseEvent(this, params -> {
         if (targetRotation == null || !clientSideRotation) return false;
 
         targetRotation = targetRotation.add(new Rotation(params.cursorDeltaY, params.cursorDeltaX));
 
-        float delta = Render3dUtil.getTickCounter().getTickProgress(true);
+        float delta = C.mc.getRenderTickCounter().getTickProgress(true);
         C.p().setYaw(MathHelper.lerp(delta, RotationEvent.clientRotation.yaw, targetRotation.yaw));
         C.p().setPitch(MathHelper.lerp(delta, RotationEvent.clientRotation.pitch, targetRotation.pitch));
 

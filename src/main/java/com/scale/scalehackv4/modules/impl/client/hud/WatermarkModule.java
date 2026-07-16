@@ -17,7 +17,7 @@ import java.awt.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-public class Watermark extends HudModule {
+public class WatermarkModule extends HudModule {
     @RegisterSubModule(name = "Watermark")
     public static boolean watermark = true;
     @RegisterSubModule(name = "Visible Options", parent = "Watermark")

@@ -4,7 +4,7 @@ import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.KeyEvent;
 import com.scale.scalehackv4.modules.SubModule;
-import com.scale.scalehackv4.modules.impl.client.Notifications;
+import com.scale.scalehackv4.modules.impl.client.options.NotificationsModule;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 
@@ -19,7 +19,7 @@ public class KeyboardUtil {
 
         for (SubModule subModule : bound) {
             boolean enabled = !(boolean) subModule.get();
-            Notifications.post(subModule, enabled);
+            NotificationsModule.post(subModule, enabled);
 
             subModule.set(enabled);
         }

@@ -1,12 +1,10 @@
-package com.scale.scalehackv4.modules.impl.client;
+package com.scale.scalehackv4.modules.impl.client.options;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
-import com.scale.scalehackv4.modules.Category;
-import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
+import com.scale.scalehackv4.modules.impl.client.OptionsModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.client.ModuleUtil;
@@ -14,30 +12,22 @@ import lombok.AllArgsConstructor;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.MathHelper;
 
-@RegisterModule(
-        name = "Fix Rotations",
-        category = Category.CLIENT,
-        enabledByDefault = true
-)
-// todo: ig add option to disable showing rotations, but blehhh
-//  pitch rotation isnt shown when freelook is enabled
-//  maybe allow no fix rotation on interact
-public class FixRotationsModule extends Module {
-    @RegisterSubModule(name = "Fix Movement")
-    public static boolean fixMovement = true;
+public class MovementFixModule extends OptionsModule {
     @RegisterSubModule(name = "Move Fix Mode", parent = "Fix Movement")
-    public MoveFixMode moveFixMode = MoveFixMode.Straight;
+    public static MoveFixMode moveFixMode = MoveFixMode.Straight;
     public enum MoveFixMode {
+        None,
         Vanilla,
         Smooth,
         Straight
     }
 
+
     private static float yawDeficit = 0;
 
     // goes first to allow the inputs to be modified later
-    private final Event handleRotations = new KeyboardInputEvent(this, params -> {
-        if (moveFixMode == MoveFixMode.Vanilla || !fixMovement) return false;
+    private final Event handleRotations = new KeyboardInputEvent(ModuleUtil.getModule(OptionsModule.class), params -> {
+        if (moveFixMode == MoveFixMode.Vanilla || moveFixMode == MoveFixMode.None) return false;
 
         MovementDirection currentDirection = MovementDirection.getCurrentDirection(params);
         // make sure ur moving
@@ -100,26 +90,16 @@ public class FixRotationsModule extends Module {
     }
 
     public static boolean shouldFixMovement() {
-        return fixMovement && ModuleUtil.isEnabled(FixRotationsModule.class);
+        return moveFixMode != MoveFixMode.None && ModuleUtil.isEnabled(OptionsModule.class);
     }
 
     private static boolean shouldShowRotation(LivingEntity entity) {
-        return ModuleUtil.isEnabled(FixRotationsModule.class) && RotationEvent.clientRotation != null && entity == C.p();
+        return ModuleUtil.isEnabled(OptionsModule.class) && RotationEvent.clientRotation != null && entity == C.p();
     }
 
     public static float getPitch(LivingEntity entity, float tickProgress) {
         return shouldShowRotation(entity)
                 ? MathHelper.lerpAngleDegrees(tickProgress, RotationEvent.lastPitch, RotationEvent.currentPitch)
                 : entity.getPitch(tickProgress);
-    }
-
-    @Override
-    public void onEnable() {
-        yawDeficit = 0;
-    }
-
-    @Override
-    public void onDisable() {
-
     }
 }

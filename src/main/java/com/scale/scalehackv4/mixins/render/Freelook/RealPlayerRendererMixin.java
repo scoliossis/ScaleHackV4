@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.mixins.render.Freelook;
 
+import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -55,8 +56,10 @@ public abstract class RealPlayerRendererMixin {
     private EntityRenderState fillEntityRenderStates(WorldRenderer instance, Entity entity, float tickProgress) {
         EntityRenderState entityRenderState = this.getAndUpdateRenderState(entity, tickProgress);
 
-        if (entityRenderState.entityType != EntityType.PLAYER || ((PlayerEntityRenderState)entityRenderState).id != C.p().getId())
+        if (entityRenderState.entityType != EntityType.PLAYER || ((PlayerEntityRenderState)entityRenderState).id != C.p().getId()) {
+            HideBlinkInboundModule.handlePlayerRenderPosition(entityRenderState, tickProgress);
             return entityRenderState;
+        }
 
         if (Freelook.realPos != null) {
             Vec3d lerpedPos = MathHelper.lerp(tickProgress, Freelook.lastRealPos == null ? Freelook.realPos : Freelook.lastRealPos, Freelook.realPos);

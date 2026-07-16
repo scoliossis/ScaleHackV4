@@ -2,17 +2,50 @@ package com.scale.scalehackv4.utils.render;
 
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.RegisterListeners;
+import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
+import com.scale.scalehackv4.modules.impl.client.OptionsModule;
 import com.scale.scalehackv4.utils.C;
+import lombok.Setter;
 import net.minecraft.client.network.PlayerListEntry;
+import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix3x2f;
+import org.joml.Matrix4f;
+import org.joml.Vector2i;
+import org.joml.Vector3f;
 
 import java.awt.*;
 import java.util.ArrayList;
 
+@RegisterListeners
 public class Render2dUtil extends RenderUtil {
+    @Setter
+    private static Matrix4f lastProjectionMatrix = new Matrix4f();
+    protected static Matrix4f lastPosMatrix = new Matrix4f();
+    protected static Vec3d cameraPos = new Vec3d(0, 0, 0);
+
+    // this was relatively simple, the tricky part was figuring out that you need "C.mc.gameRenderer.getBasicProjectionMatrix(C.mc.options.getFov().getValue())"
+    // i hate you mojang
+    public static Vector2i projectPoint(Vec3d pos) {
+        int[] viewport = new int[]{0, 0, C.res().getScaledWidth(), C.res().getScaledHeight()};
+        Vector3f relativePos = pos.subtract(cameraPos).toVector3f();
+        // order actually matters for the multiplication!
+        Vector3f screenPos = new Matrix4f(lastProjectionMatrix)
+                .mul(lastPosMatrix)
+                .project(relativePos, viewport, new Vector3f());
+
+        if (screenPos.z < 0 || screenPos.z > 1
+                || screenPos.x < 0 || screenPos.x > C.res().getScaledWidth()
+                || screenPos.y < 0 || viewport[3] - (int) screenPos.y > C.res().getScaledHeight()) return null;
+
+        return new Vector2i((int) screenPos.x, viewport[3] - (int) screenPos.y);
+    }
+
     public static Matrix3x2f getMatrices() {
         return new Matrix3x2f(drawContext.getMatrices());
     }
@@ -166,6 +199,8 @@ public class Render2dUtil extends RenderUtil {
 
     public static ArrayList<Rectangle> blurStack = new ArrayList<>();
 
+    private static int blurOverrideLastTick = -1;
+
     public static void drawBlur(int x, int y, int width, int height) {
         x *= C.res().getScaleFactor();
         y *= C.res().getScaleFactor();
@@ -174,7 +209,21 @@ public class Render2dUtil extends RenderUtil {
 
         for (int i = 0; i < 5; i++) blurStack.add(new Rectangle(x, y, width, height));
         C.mc.gameRenderer.renderBlur();
+
+        SimpleOption<Integer> blurOption = C.mc.options.getMenuBackgroundBlurriness();
+        blurOverrideLastTick = blurOption.getValue();
+        blurOption.setValue(OptionsModule.blurRadius);
     }
+
+    private final static Event handleRenderTickHead = new RenderTickEvent(null, params -> {
+        SimpleOption<Integer> blurOption = C.mc.options.getMenuBackgroundBlurriness();
+        if (blurOverrideLastTick != -1) {
+            blurOption.setValue(blurOverrideLastTick);
+            blurOverrideLastTick = -1;
+        }
+
+        return false;
+    }, 0);
 
     public static void handleRenderPass(RenderPass renderPass, int firstVertex, int vertexCount, String id) {
         boolean isBlur = id.contains("blur") && !id.endsWith("0") && !Render2dUtil.blurStack.isEmpty();

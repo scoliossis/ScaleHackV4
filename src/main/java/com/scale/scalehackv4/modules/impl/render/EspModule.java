@@ -12,9 +12,7 @@ import com.scale.scalehackv4.utils.client.EasingUtil;
 import com.scale.scalehackv4.utils.client.MathUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
-import com.scale.scalehackv4.utils.render.Render3dUtil;
 import net.minecraft.client.option.Perspective;
-import net.minecraft.client.option.SimpleOption;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
@@ -40,23 +38,12 @@ public class EspModule extends Module {
     @RegisterSubModule(name = "Height", parent = "Square", min = 1.5, max = 3, increment = 0.1)
     public float squareHeight = 2;
 
-    @RegisterSubModule(name = "Blur Radius", parent = "Square", max = 10)
-    public int blurRadius = 3;
-
     @RegisterSubModule(name = "Nametags")
     public static boolean nametags = true;
     @RegisterSubModule(name = "Nametag Size", min = 10, max = 50, parent = "Nametags")
     public int nametagSize = 20;
 
-    private int blurOverrideLastTick = -1;
-
     private final Event renderEsp2d = new RenderTickEvent(this, params -> {
-        SimpleOption<Integer> blurOption = C.mc.options.getMenuBackgroundBlurriness();
-        if (blurOverrideLastTick != -1) {
-            blurOption.setValue(blurOverrideLastTick);
-            blurOverrideLastTick = -1;
-        }
-
         Targets.getPlayers(true).forEach(player -> {
             if (player == C.p() && C.mc.options.getPerspective() == Perspective.FIRST_PERSON) return;
 
@@ -81,10 +68,10 @@ public class EspModule extends Module {
                 .rotateX((float) Math.toRadians(-C.p().getPitch(partialTicks)))
                 .rotateY((float) Math.toRadians(-C.p().getYaw(partialTicks)));
 
-        Vector2i p1 = Render3dUtil.projectPoint(center.subtract(playerWidth).subtract(playerHeight));
-        Vector2i p2 = Render3dUtil.projectPoint(center.subtract(playerWidth).add(playerHeight));
-        Vector2i p3 = Render3dUtil.projectPoint(center.add(playerWidth).subtract(playerHeight));
-        Vector2i p4 = Render3dUtil.projectPoint(center.add(playerWidth).add(playerHeight));
+        Vector2i p1 = Render2dUtil.projectPoint(center.subtract(playerWidth).subtract(playerHeight));
+        Vector2i p2 = Render2dUtil.projectPoint(center.subtract(playerWidth).add(playerHeight));
+        Vector2i p3 = Render2dUtil.projectPoint(center.add(playerWidth).subtract(playerHeight));
+        Vector2i p4 = Render2dUtil.projectPoint(center.add(playerWidth).add(playerHeight));
 
         if (p1 == null || p2 == null || p3 == null || p4 == null) return;
 
@@ -99,15 +86,10 @@ public class EspModule extends Module {
         params.drawContext.disableScissor();
 
         Render2dUtil.drawBlur(x, C.res().getScaledHeight() - y - height, width, height);
-        if (blurOverrideLastTick == -1 && C.mc.currentScreen == null) {
-            SimpleOption<Integer> blurOption = C.mc.options.getMenuBackgroundBlurriness();
-            blurOverrideLastTick = blurOption.getValue();
-            blurOption.setValue(blurRadius);
-        }
     }
 
     private void drawNameTag(LivingEntity player, Vec3d pos, RenderTickEvent.Params params) {
-        Vector2i playerHeadPos2d = Render3dUtil.projectPoint(pos.add(0, player.getHeight(), 0));
+        Vector2i playerHeadPos2d = Render2dUtil.projectPoint(pos.add(0, player.getHeight(), 0));
         if (playerHeadPos2d == null) return;
 
         MutableText playerName = (MutableText) player.getName();

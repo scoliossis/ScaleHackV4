@@ -1,20 +1,17 @@
-package com.scale.scalehackv4.modules.impl.client;
+package com.scale.scalehackv4.modules.impl.client.options;
 
-import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
-import com.scale.scalehackv4.modules.RegisterModule;
+import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.SubModule;
 import com.scale.scalehackv4.utils.client.ChatUtil;
-import com.scale.scalehackv4.utils.client.ModuleUtil;
 
-@RegisterModule(
-        name = "Notifications",
-        category = Category.CLIENT,
-        enabledByDefault = true
-)
-public class Notifications extends Module {
+public class NotificationsModule {
+    // todo: make modes
+    @RegisterSubModule(name = "Notifications")
+    public static boolean notifications = true;
+
     public static void post(SubModule subModule, boolean enabled) {
-        if (!ModuleUtil.isEnabled(Notifications.class)) return;
+        if (!notifications) return;
 
         String moduleName = subModule.getAnnotation().name();
         moduleName = moduleName.equals(Module.ENABLED_STRING)
@@ -27,15 +24,5 @@ public class Notifications extends Module {
         else {
             ChatUtil.prefixMessage("&cDisabled &f" + moduleName);
         }
-    }
-
-    @Override
-    public void onEnable() {
-
-    }
-
-    @Override
-    public void onDisable() {
-
     }
 }

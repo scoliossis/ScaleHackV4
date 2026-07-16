@@ -1,6 +1,6 @@
 package com.scale.scalehackv4.mixins.render;
 
-import com.scale.scalehackv4.utils.render.Render3dUtil;
+import com.scale.scalehackv4.utils.render.Render2dUtil;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -22,6 +22,6 @@ public abstract class HookProjectionMatrixMixin {
     public void renderWorld(RenderTickCounter renderTickCounter, CallbackInfo ci) {
         // i gotta call "getFOV" to get the fov with the dynamic fov changes and to not conflict with https://github.com/Wurst-Imperium/WI-Zoom/blob/1.21.11/src/main/java/net/wimods/zoom/mixin/GameRendererMixin.java
         float fov = this.getFov(this.camera, renderTickCounter.getTickProgress(true), true);
-        Render3dUtil.setLastProjectionMatrix(this.getBasicProjectionMatrix(fov));
+        Render2dUtil.setLastProjectionMatrix(this.getBasicProjectionMatrix(fov));
     }
 }

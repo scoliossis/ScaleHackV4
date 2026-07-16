@@ -3,9 +3,7 @@ package com.scale.scalehackv4.utils.render;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
-import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import lombok.Getter;
-import lombok.Setter;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.state.CameraRenderState;
 import net.minecraft.client.util.BufferAllocator;
@@ -13,7 +11,6 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
-import org.joml.Vector2i;
 import org.joml.Vector3f;
 
 import java.awt.*;
@@ -25,43 +22,22 @@ public class Render3dUtil extends RenderUtil {
     @Getter private static VertexConsumerProvider.Immediate vertexConsumers = VertexConsumerProvider.immediate(BufferAllocator.fixedSized(0));
     @Getter private static VertexConsumerProvider vertexConsumerProvider = VertexConsumerProvider.immediate(BufferAllocator.fixedSized(0));
 
-    @Setter @Getter private static RenderTickCounter tickCounter = new RenderTickCounter.Dynamic(0,0, FloatUnaryOperator.negation());
-
     private static final HashMap<PipelineIdentifier, RenderLayer> LAYERS = new HashMap<>();
 
-    @Setter private static Matrix4f lastProjectionMatrix = new Matrix4f();
-    private static Matrix4f lastPosMatrix = new Matrix4f();
-    private static Vec3d cameraPos = new Vec3d(0, 0, 0);
 
-    // this was relatively simple, the tricky part was figuring out that you need "C.mc.gameRenderer.getBasicProjectionMatrix(C.mc.options.getFov().getValue())"
-    // i hate you mojang
-    public static Vector2i projectPoint(Vec3d pos) {
-        int[] viewport = new int[]{0, 0, C.res().getScaledWidth(), C.res().getScaledHeight()};
-        Vector3f relativePos = pos.subtract(cameraPos).toVector3f();
-        // order actually matters for the multiplication!
-        Vector3f screenPos = new Matrix4f(lastProjectionMatrix)
-                .mul(lastPosMatrix)
-                .project(relativePos, viewport, new Vector3f());
-
-        if (screenPos.z < 0 || screenPos.z > 1
-                || screenPos.x < 0 || screenPos.x > C.res().getScaledWidth()
-                || screenPos.y < 0 || viewport[3] - (int) screenPos.y > C.res().getScaledHeight()) return null;
-
-        return new Vector2i((int) screenPos.x, viewport[3] - (int) screenPos.y);
-    }
 
     public static void tickRender(MatrixStack matrices, VertexConsumerProvider vertexConsumerProvider, CameraRenderState camera, Matrix4f posMatrix) {
         matrices.push();
 
         Render3dUtil.matrices = matrices;
-        lastPosMatrix = new Matrix4f(posMatrix);
+        Render2dUtil.lastPosMatrix = new Matrix4f(posMatrix);
 
         if (vertexConsumerProvider != null) {
             Render3dUtil.vertexConsumerProvider = vertexConsumerProvider;
             vertexConsumers = (VertexConsumerProvider.Immediate) vertexConsumerProvider;
         }
         if (camera != null) {
-            cameraPos = camera.pos;
+            Render2dUtil.cameraPos = camera.pos;
             matrices.translate(-camera.pos.getX(), -camera.pos.getY(), -camera.pos.getZ());
         }
     }
@@ -74,7 +50,7 @@ public class Render3dUtil extends RenderUtil {
         return matrices.peek().copy();
     }
 
-    protected static RenderLayer getRenderLayer(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, boolean cull) {
+    public static RenderLayer getRenderLayer(VertexFormat vertexFormat, VertexFormat.DrawMode drawMode, boolean cull) {
         return getRenderLayer(vertexFormat, drawMode, cull, null);
     }
 
@@ -190,7 +166,7 @@ public class Render3dUtil extends RenderUtil {
     }
 
     public static double lerp(double prev, double current) {
-        return prev + (current - prev) * tickCounter.getTickProgress(true);
+        return prev + (current - prev) * C.mc.getRenderTickCounter().getTickProgress(true);
     }
 
     public static Vec3d lerpPos(Vec3d prevPos, Vec3d pos) {

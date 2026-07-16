@@ -40,7 +40,6 @@
     "render.HookProjectionMatrixMixin",
     "render.MainMenuMixin",
     "render.MouseDraggedEventMixin",
-    "render.PartialTicksMixin",
     "render.RenderScoreboardEventMixin",
     "render.RenderTickEventMixin",
     "render.Freelook.FakePlayerSetterMixin",
@@ -53,6 +52,7 @@
     "render.NoRender.SkipLoadingScreenMixin"
   ],
   "mixins": [
+    "client.EntityS2CPacketBridgeMixin",
     "client.PacketEventMixin",
     "client.TabCompleteMixin",
     "client.fixrotation.MovementFixMixin",

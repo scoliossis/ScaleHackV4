@@ -35,8 +35,8 @@ public class KeepSprintModule extends SpeedModule {
     }
 
     private final Event onRotationEvent = new RotationEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
-        // hypixel keepsprint only works at 10 cps :pensive:
-        Predicate<Entity> attackedLastTick = e -> WorldUtil.tick - PlayerUtil.lastAttackTick == 1;
+        // hypixel keepsprint only works at 7 cps :pensive:
+        Predicate<Entity> attackedLastTick = e -> WorldUtil.tick - PlayerUtil.lastAttackTick <= 1;
         if (lastAttackKeepsprinted && PlayerUtil.getThisTickAttackEntity(attackedLastTick) != null)
             PlayerUtil.unsetAttack();
 
