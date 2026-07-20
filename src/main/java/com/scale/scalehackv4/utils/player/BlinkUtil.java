@@ -33,7 +33,8 @@ public class BlinkUtil {
                 HideBlinkInboundModule.hideBlinkInbound
                 && HideBlinkInboundModule.VISUAL_INBOUND_PACKETS.contains(params.packet.getClass());
 
-        if (C.w() == null || !isBlinking(false, true) || visualPacket) return false;
+        if (C.w() == null || !isBlinking(false, true) || visualPacket)
+            return false;
 
         lastBlinkReceivedTick = WorldUtil.tick;
         INCOMING_BLINK.getLast().packets().add(params.packet);
@@ -59,7 +60,7 @@ public class BlinkUtil {
     }
 
     public static boolean isBlinking(boolean sent, boolean received) {
-        return (sent && !OUTGOING_BLINK.isEmpty()) || (received && !INCOMING_BLINK.isEmpty());
+        return !shouldAllowPackets && ((sent && !OUTGOING_BLINK.isEmpty()) || (received && !INCOMING_BLINK.isEmpty()));
     }
 
     public static void pushBlink(boolean sent, boolean received, Class<?> clazz) {
@@ -80,27 +81,39 @@ public class BlinkUtil {
         }
     }
 
-    public static void popBlink(boolean sent, boolean received, Class<?> clazz) {
-        if (sent) for (BlinkedClass blinkedClass : OUTGOING_BLINK) {
-            if (blinkedClass.clazz != clazz) continue;
+    private static boolean shouldAllowPackets = false;
 
-            OUTGOING_BLINK.remove(blinkedClass);
-            handlePackets(blinkedClass.packets(), true);
-            break;
+    public static void popBlink(boolean sent, boolean received, Class<?> clazz) {
+        if (sent) {
+            for (int i = 0; i < OUTGOING_BLINK.size(); i++) {
+                BlinkedClass blinkedClass = OUTGOING_BLINK.get(i);
+                if (blinkedClass.clazz != clazz) continue;
+
+                if (i == 0) handlePackets(blinkedClass.packets(), true);
+                else OUTGOING_BLINK.get(i - 1).packets().addAll(blinkedClass.packets());
+
+                OUTGOING_BLINK.remove(i);
+                break;
+            }
         }
 
         if (received) {
-            for (BlinkedClass blinkedClass : INCOMING_BLINK) {
+            for (int i = 0; i < INCOMING_BLINK.size(); i++) {
+                BlinkedClass blinkedClass = INCOMING_BLINK.get(i);
                 if (blinkedClass.clazz != clazz) continue;
 
-                INCOMING_BLINK.remove(blinkedClass);
-                handlePackets(blinkedClass.packets(), false);
+                if (i == 0) handlePackets(blinkedClass.packets(), false);
+                else INCOMING_BLINK.get(i - 1).packets().addAll(blinkedClass.packets());
+
+                INCOMING_BLINK.remove(i);
                 break;
             }
         }
     }
 
     private static void handlePackets(ArrayList<Packet<?>> packets, boolean sent) {
+        // allow unblinked packets to be sent/received
+        shouldAllowPackets = true;
         for (Packet<?> packet : packets.toArray(Packet[]::new)) {
             try {
                 if (sent) PacketUtil.sendPacket(packet);
@@ -109,6 +122,8 @@ public class BlinkUtil {
                 e.printStackTrace();
             }
         }
+        // all packets that we want to unblink have been handled, go back to regularly scheduled programing.
+        shouldAllowPackets = false;
     }
 
     /// clears all the blinked packets and pretends they didnt happen

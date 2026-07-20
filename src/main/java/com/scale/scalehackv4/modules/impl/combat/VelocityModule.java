@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.modules.impl.combat;
 
+import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
@@ -62,7 +63,7 @@ public class VelocityModule extends Module {
 
     public Packet<?> lastPacket = null;
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
-        if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet)) return false;
+        if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet) || Bus.isEventCancelled(PacketEvent.Received.class)) return false;
         boolean isExplosion = params.packet instanceof ExplosionS2CPacket;
         boolean isVelocity = !isExplosion
                 && params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket
