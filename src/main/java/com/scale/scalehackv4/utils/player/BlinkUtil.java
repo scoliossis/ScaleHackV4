@@ -7,6 +7,7 @@ import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.PacketUtil;
+import lombok.Getter;
 import net.minecraft.network.packet.Packet;
 
 import java.util.ArrayList;
@@ -16,21 +17,25 @@ import java.util.ArrayList;
 public class BlinkUtil {
     private static final ArrayList<BlinkedClass> OUTGOING_BLINK = new ArrayList<>();
     private static final ArrayList<BlinkedClass> INCOMING_BLINK = new ArrayList<>();
+    @Getter private static int lastBlinkReceivedTick = -1;
 
     private record BlinkedClass(Class<?> clazz, ArrayList<Packet<?>> packets) {}
 
     private final Event onPacketSent = new PacketEvent.Sent(null, params -> {
-        if (OUTGOING_BLINK.isEmpty()) return false;
+        if (!isBlinking(true, false)) return false;
 
         OUTGOING_BLINK.getLast().packets().add(params.packet);
         return true;
     }, 0);
 
     private final Event onPacketReceived = new PacketEvent.Received(null, params -> {
-        if (INCOMING_BLINK.isEmpty()) return false;
+        boolean visualPacket =
+                HideBlinkInboundModule.hideBlinkInbound
+                && HideBlinkInboundModule.VISUAL_INBOUND_PACKETS.contains(params.packet.getClass());
 
-        if (HideBlinkInboundModule.handleInboundPacket(params.packet)) return false;
+        if (C.w() == null || !isBlinking(false, true) || visualPacket) return false;
 
+        lastBlinkReceivedTick = WorldUtil.tick;
         INCOMING_BLINK.getLast().packets().add(params.packet);
         return true;
     }, 0);
@@ -44,10 +49,10 @@ public class BlinkUtil {
     });
 
     public static boolean isBlinking(boolean sent, boolean received, Class<?> clazz) {
-        for (BlinkedClass blinkedClass : OUTGOING_BLINK) {
+        if (sent) for (BlinkedClass blinkedClass : OUTGOING_BLINK) {
             if (blinkedClass.clazz == clazz) return true;
         }
-        for (BlinkedClass blinkedClass : INCOMING_BLINK) {
+        if (received) for (BlinkedClass blinkedClass : INCOMING_BLINK) {
             if (blinkedClass.clazz == clazz) return true;
         }
         return false;
@@ -92,10 +97,6 @@ public class BlinkUtil {
                 handlePackets(blinkedClass.packets(), false);
                 break;
             }
-
-            if (!isBlinking(false, true)) {
-                HideBlinkInboundModule.onDisableBlinkInbound();
-            }
         }
     }
 
@@ -113,9 +114,6 @@ public class BlinkUtil {
     /// clears all the blinked packets and pretends they didnt happen
     public static void disableBlink(boolean sent, boolean received) {
         if (sent) OUTGOING_BLINK.clear();
-        if (received) {
-            HideBlinkInboundModule.onDisableBlinkInbound();
-            INCOMING_BLINK.clear();
-        }
+        if (received) INCOMING_BLINK.clear();
     }
 }

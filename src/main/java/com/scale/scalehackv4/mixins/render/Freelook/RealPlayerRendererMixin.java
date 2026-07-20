@@ -57,7 +57,7 @@ public abstract class RealPlayerRendererMixin {
         EntityRenderState entityRenderState = this.getAndUpdateRenderState(entity, tickProgress);
 
         if (entityRenderState.entityType != EntityType.PLAYER || ((PlayerEntityRenderState)entityRenderState).id != C.p().getId()) {
-            HideBlinkInboundModule.handlePlayerRenderPosition(entityRenderState, tickProgress);
+            HideBlinkInboundModule.handlePlayerRenderPosition(entityRenderState);
             return entityRenderState;
         }
 

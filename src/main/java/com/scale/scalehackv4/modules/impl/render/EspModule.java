@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.EasingUtil;
 import com.scale.scalehackv4.utils.client.MathUtil;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import net.minecraft.client.option.Perspective;
@@ -48,7 +49,7 @@ public class EspModule extends Module {
             if (player == C.p() && C.mc.options.getPerspective() == Perspective.FIRST_PERSON) return;
 
             float partialTicks = C.mc.getRenderTickCounter().getTickProgress(false);
-            Vec3d playerPos = player.getLerpedPos(partialTicks);
+            Vec3d playerPos = PlayerUtil.getPlayerRenderPos(player);
 
             if (square) drawSquareESP(playerPos, partialTicks, params);
             if (nametags) drawNameTag(player, playerPos, params);

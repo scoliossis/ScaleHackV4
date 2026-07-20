@@ -7,6 +7,7 @@ import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
+import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
 import com.scale.scalehackv4.utils.C;
 import lombok.Getter;
 import net.minecraft.client.option.KeyBinding;
@@ -61,6 +62,15 @@ public class PlayerUtil {
         PlayerUtil.onAttack.clear();
     }
 
+    public static HashMap<Integer, ArrayList<Runnable>> queuedTasks = new HashMap<>();
+
+    public static void queueTask(Runnable task, int delay) {
+        int tick = WorldUtil.tick + delay;
+        ArrayList<Runnable> tasks = queuedTasks.getOrDefault(tick, new ArrayList<>());
+        tasks.add(task);
+        queuedTasks.put(tick, tasks);
+    }
+
     @Getter
     private static final HashMap<Integer, Boolean> overriddenKeybinds = new HashMap<>();
 
@@ -69,9 +79,17 @@ public class PlayerUtil {
     }
 
     private final Event onClientTick = new ClientTickEvent(null, params -> {
+        ArrayList<Runnable> tasks = queuedTasks.getOrDefault(WorldUtil.tick, new ArrayList<>());
+        for (Runnable task : tasks) task.run();
+        queuedTasks.remove(WorldUtil.tick);
+
         overriddenKeybinds.clear();
         return false;
     }, 1);
+
+    public static Vec3d getPlayerRenderPos(Entity entity) {
+        return HideBlinkInboundModule.getPlayerRenderPos(entity);
+    }
 
     public static ArrayList<Vec3d> getEntityCorners(Entity entity) {
         Box targetBoundingBox = entity.getBoundingBox();

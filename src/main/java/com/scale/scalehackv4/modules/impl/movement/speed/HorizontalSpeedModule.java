@@ -2,7 +2,6 @@ package com.scale.scalehackv4.modules.impl.movement.speed;
 
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.impl.movement.SpeedModule;
 import com.scale.scalehackv4.screens.clickgui.ClickGuiScreen;
@@ -24,16 +23,12 @@ public class HorizontalSpeedModule extends SpeedModule {
     public enum SpeedModifier {
         None {
             @Override public void handleKeyboardInput(KeyboardInputEvent.Params params) {}
-            @Override public void handlePlayerUpdate(PlayerUpdateEvent.Params params) {}
         },
         Vanilla {
-            @Override public void handleKeyboardInput(KeyboardInputEvent.Params params) {}
-
-            @Override
-            public void handlePlayerUpdate(PlayerUpdateEvent.Params params) {
+            @Override public void handleKeyboardInput(KeyboardInputEvent.Params params) {
                 double yaw = Math.toRadians(C.p().getYaw());
-                double forward = (C.mc.options.forwardKey.isPressed() ? horizontalSpeed : 0) + (C.mc.options.backKey.isPressed() ? -horizontalSpeed : 0);
-                double sideways = (C.mc.options.leftKey.isPressed() ? horizontalSpeed : 0) + (C.mc.options.rightKey.isPressed() ? -horizontalSpeed : 0);
+                double forward = (params.forwardKey ? horizontalSpeed : 0) + (params.backKey ? -horizontalSpeed : 0);
+                double sideways = (params.leftKey ? horizontalSpeed : 0) + (params.rightKey ? -horizontalSpeed : 0);
 
                 C.p().setVelocity(new Vec3d(
                         (Math.sin(-yaw) * forward + Math.cos(-yaw) * sideways),
@@ -57,22 +52,13 @@ public class HorizontalSpeedModule extends SpeedModule {
                 if (WorldUtil.airTicks == 1) params.jumpKey = false;
                 if ((WorldUtil.airTicks == 2 || C.p().isOnGround()) && params.forwardKey) params.jumpKey = true;
             }
-
-            @Override public void handlePlayerUpdate(PlayerUpdateEvent.Params params) {}
         };
 
         public abstract void handleKeyboardInput(KeyboardInputEvent.Params params);
-        public abstract void handlePlayerUpdate(PlayerUpdateEvent.Params params);
     }
 
-    private final Event overrideSprinting = new KeyboardInputEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
+    private final Event handleKeyboardInputEvent = new KeyboardInputEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
         speedModifier.handleKeyboardInput(params);
-
-        return false;
-    });
-
-    private final Event playerUpdateEvent = new PlayerUpdateEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
-        speedModifier.handlePlayerUpdate(params);
 
         return false;
     });

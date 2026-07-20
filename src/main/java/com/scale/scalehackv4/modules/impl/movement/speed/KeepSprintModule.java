@@ -65,7 +65,7 @@ public class KeepSprintModule extends SpeedModule {
                             true
                     )));
 
-                    // ambient only swings once extra, but i find swinging more gives better hit reg, shrug.
+                    // ambient swings an extra time for better hitreg
                     C.p().swingHand(Hand.MAIN_HAND);
                 }
         );

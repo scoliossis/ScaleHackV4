@@ -48,7 +48,8 @@ public class InventoryUtil {
                 || (itemStack.getItem() == Items.TRIDENT && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Trident))
                 || (itemStack.getItem() == Items.MACE && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Mace))
                 || (itemStack.isIn(ItemTags.SPEARS) && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Spear))
-                || (itemStack.isEmpty() && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Fist));
+                || (itemStack.isEmpty() && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Fist))
+                || (!itemStack.isEmpty() && MultiSelectUtil.isEnabled(Targets.Valid_Weapons.Non_Fist));
     }
 
     public static boolean isItemValidBlock(Item item) {

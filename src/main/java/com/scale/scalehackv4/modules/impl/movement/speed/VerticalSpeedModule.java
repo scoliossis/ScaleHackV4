@@ -1,7 +1,7 @@
 package com.scale.scalehackv4.modules.impl.movement.speed;
 
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
+import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.impl.movement.SpeedModule;
 import com.scale.scalehackv4.utils.C;
@@ -15,24 +15,24 @@ public class VerticalSpeedModule extends SpeedModule {
 
     public enum VerticalSpeedModifier {
         None {
-            @Override public void handlePlayerUpdate(PlayerUpdateEvent.Params params) {}
+            @Override public void handleKeyboardInput(KeyboardInputEvent.Params params) {}
         },
         Fly {
             @Override
-            public void handlePlayerUpdate(PlayerUpdateEvent.Params params) {
+            public void handleKeyboardInput(KeyboardInputEvent.Params params) {
                 C.p().setVelocity(
                         C.p().getVelocity().x,
-                        verticalSpeed * (C.mc.options.jumpKey.isPressed() ? 1 : 0) + verticalSpeed * (C.mc.options.sneakKey.isPressed() ? -1 : 0),
+                        verticalSpeed * (params.jumpKey ? 1 : 0) + verticalSpeed * (params.sneakKey ? -1 : 0),
                         C.p().getVelocity().z
                 );
             }
         };
 
-        public abstract void handlePlayerUpdate(PlayerUpdateEvent.Params params);
+        public abstract void handleKeyboardInput(KeyboardInputEvent.Params params);
     }
 
-    private final Event playerUpdateEvent = new PlayerUpdateEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
-        verticalSpeedModifier.handlePlayerUpdate(params);
+    private final Event handleKeyboardInputEvent = new KeyboardInputEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
+        verticalSpeedModifier.handleKeyboardInput(params);
 
         return false;
     });

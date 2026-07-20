@@ -41,24 +41,32 @@ public class AltManagerUtil {
         Thanks for choosing Localts!
         AlahEater69:M.C525_BL2.0.U.MsaArtifacts.-CoqpLE42UWWrxY3v7ohpr... etc
          */
-        LOCALTS_REFRESH(Pattern.compile("^Thanks for choosing Localts!\n\\w{3,16}:M\\.C\\d{3}_\\w{3}\\.0\\.U\\.MsaArtifacts\\.-[^\n]+$")) {
+        LOCALTS_REFRESH(Pattern.compile("^Thanks for choosing Localts!\\n(?:\\w{3,16}:M\\.C\\d{3}_\\w{3}\\.0\\.U\\.MsaArtifacts\\.-[^\\n]+\\n?)+$")) {
             @Override
-            boolean attemptLogin(String fileText) {
-                return oAuthUtil.authWithRefreshToken(fileText.split("\n")[1].split(":")[1], oAuthIds.LOCALTS.CLIENT_ID, oAuthIds.LOCALTS.SCOPE, oAuthUtil.DEFAULT_REDIRECT, false);
+            void attemptLogin(String fileText) {
+                String[] split = fileText.split("\n");
+                for (int i = 1; i < split.length; i++) {
+                    String name = split[i].split(":")[0];
+                    String refreshToken = split[i].split(":")[1];
+                    if (ALTS.stream().anyMatch(alt -> alt.name.equals(name) || alt.loginData.refreshToken.equals(refreshToken))) continue;
+
+                    boolean successful = oAuthUtil.authWithRefreshToken(refreshToken, oAuthIds.LOCALTS.CLIENT_ID, oAuthIds.LOCALTS.SCOPE, oAuthUtil.DEFAULT_REDIRECT, false);
+                    if (successful) AltManagerUtil.currentAlt.save();
+                }
             }
         },
         // today years old when i found out about Pattern.MULTILINE and CASE_INSENSITIVE etc.
         // matches for https://everything.curl.dev/http/cookies/fileformat.html
         COOKIE(Pattern.compile("^([^\\t]+)\\t(TRUE|FALSE)\\t([^\\t]*)\\t(TRUE|FALSE)\\t(\\d+)\\t([^\\t]+)\\t(.*)$", Pattern.MULTILINE)) {
             @Override
-            boolean attemptLogin(String fileText) {
-                return CookieAltUtil.authenticate(CookieAltUtil.formatCookies(fileText));
+            void attemptLogin(String fileText) {
+                CookieAltUtil.authenticate(CookieAltUtil.formatCookies(fileText));
             }
         };
 
         private final Pattern REGEX;
 
-        abstract boolean attemptLogin(String fileText);
+        abstract void attemptLogin(String fileText);
     }
 
     public static void loadAlts() {
@@ -222,7 +230,7 @@ public class AltManagerUtil {
 
             for (File_Types type : File_Types.values()) {
                 if (type.REGEX.matcher(fileText).find()) {
-                    if (type.attemptLogin(fileText)) AltManagerUtil.currentAlt.save();
+                    type.attemptLogin(fileText);
                     return;
                 }
             }

@@ -28,18 +28,18 @@ public class Hilarity extends Module {
             "&c[OWNER] hypixel", // recognisable names im sure
             "&c[OWNER] Rezzus", // recognisable names im sure
 
-            "&c[&6ዞ]] Jayavarmen", // only admins i know
-            "&c[&6ዞ] Minikloon", // only admins i know
-            "&c[&6ዞ] Plancke", // only admins i know
-            "&c[&6ዞ] dctr", // only admins i know
+            "&c[&6ዞ&c] Jayavarmen", // only admins i know
+            "&c[&6ዞ&c] Minikloon", // only admins i know
+            "&c[&6ዞ&c] Plancke", // only admins i know
+            "&c[&6ዞ&c] dctr", // only admins i know
 
-            "&c[&6ዞ] LegitPhase", // thats my goat
-            "&c[&6ዞ] Scale", // mushroom gng 4eva
-            "&c[&6ዞ] Swig", // mushroom gng 4eva
-            "&c[&6ዞ] 112batman", // mushroom gng 4eva
-            "&c[&6ዞ] Sunderw3k", // mushroom gng 4eva
-            "&c[&6ዞ] Sideload", // mushroom gng 4eva
-            "&c[&6ዞ] Mushroom", // mushroom gng 4eva
+            "&c[&6ዞ&c] LegitPhase", // thats my goat
+            "&c[&6ዞ&c] Scale", // mushroom gng 4eva
+            "&c[&6ዞ&c] Swig", // mushroom gng 4eva
+            "&c[&6ዞ&c] 112batman", // mushroom gng 4eva
+            "&c[&6ዞ&c] Sunderw3k", // mushroom gng 4eva
+            "&c[&6ዞ&c] Sideload", // mushroom gng 4eva
+            "&c[&6ዞ&c] Mushroom", // mushroom gng 4eva
 
             "&c[MINISTER] 2nfg", // free my goat
 

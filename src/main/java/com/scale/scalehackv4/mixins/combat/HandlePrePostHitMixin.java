@@ -37,5 +37,4 @@ public class HandlePrePostHitMixin {
 
         KeepSprintModule.keepSprint.postAttack.run();
     }
-
 }

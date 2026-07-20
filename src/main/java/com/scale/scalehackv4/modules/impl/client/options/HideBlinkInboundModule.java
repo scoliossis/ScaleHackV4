@@ -1,13 +1,17 @@
 package com.scale.scalehackv4.modules.impl.client.options;
 
 import com.scale.scalehackv4.bridge.EntityS2CPacketBridge;
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.impl.client.OptionsModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.player.BlinkUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.math.MathHelper;
@@ -58,48 +62,61 @@ public class HideBlinkInboundModule extends OptionsModule {
             }
     ));
 
+    private final Event trackPlayerPositions = new PacketEvent.Received(null, params -> {
+        if (C.w() == null) return false;
+
+        POSITION_PACKET_HANDLERS.getOrDefault(params.packet.getClass(), p -> false).test(params.packet);
+
+        return false;
+    }, 0);
+
+
     private static final HashMap<Integer, Integer> LAST_PLAYER_TICK = new HashMap<>();
 
     private static final HashMap<Integer, Vec3d> LAST_PLAYER_POS = new HashMap<>();
     private static final HashMap<Integer, Vec3d> REAL_PLAYER_POS = new HashMap<>();
 
-    public static boolean handleInboundPacket(Packet<?> packet) {
-        if (!HideBlinkInboundModule.hideBlinkInbound) return false;
-
-        Class<?> packetClass = packet.getClass();
-
-        if (HideBlinkInboundModule.VISUAL_INBOUND_PACKETS.contains(packetClass)) return true;
-
-        POSITION_PACKET_HANDLERS.getOrDefault(packetClass, p -> false).test(packet);
-
-        return false;
-    }
-
-    public static void handlePlayerRenderPosition(EntityRenderState entityRenderState, float tickProgress) {
-        if (!(entityRenderState instanceof PlayerEntityRenderState playerEntityRenderState)) return;
+    public static void handlePlayerRenderPosition(EntityRenderState entityRenderState) {
+        if (!shouldOverridePlayerRenderPositions()
+                || !(entityRenderState instanceof PlayerEntityRenderState playerEntityRenderState)) return;
 
         int playerID = playerEntityRenderState.id;
         Vec3d realPos = REAL_PLAYER_POS.get(playerID);
-        if (realPos != null) {
-            Vec3d lastPos = LAST_PLAYER_POS.getOrDefault(playerID, realPos);
-            int lastTick = LAST_PLAYER_TICK.getOrDefault(playerID, 0);
+        if (realPos == null) return;
 
-            // dividing by 3 comes from net.minecraft.entity.PositionInterpolator.PositionInterpolator(net.minecraft.entity.Entity)
-            float lerp = Math.min(1, (WorldUtil.tick - lastTick + tickProgress) / 3f);
+        Entity player = C.w().getEntityById(playerID);
+        if (player == null) return;
 
-            Vec3d lerpedPos = MathHelper.lerp(
-                    lerp,
-                    lastPos,
-                    realPos
-            );
+        Vec3d renderPos = getPlayerRenderPos(player);
+        playerEntityRenderState.x = renderPos.x; playerEntityRenderState.y = renderPos.y; playerEntityRenderState.z = renderPos.z;
+    }
 
-            playerEntityRenderState.x = lerpedPos.x;
-            playerEntityRenderState.y = lerpedPos.y;
-            playerEntityRenderState.z = lerpedPos.z;
+    private static boolean shouldOverridePlayerRenderPositions() {
+        return hideBlinkInbound &&  WorldUtil.tick - 10 <= BlinkUtil.getLastBlinkReceivedTick();
+    }
 
-            playerEntityRenderState.bodyYaw = MathHelper.wrapDegrees(playerEntityRenderState.bodyYaw + playerEntityRenderState.relativeHeadYaw);
-            playerEntityRenderState.relativeHeadYaw = 0;
-        }
+    public static Vec3d getPlayerRenderPos(Entity entity) {
+        float tickProgress = C.mc.getRenderTickCounter().getTickProgress(true);
+        if (C.w() == null
+                || !shouldOverridePlayerRenderPositions()
+                || !(entity instanceof PlayerEntity player)
+        ) return entity.getLerpedPos(tickProgress);
+
+        int playerId = player.getId();
+        Vec3d realPos = REAL_PLAYER_POS.get(player.getId());
+        if (realPos == null) return player.getLerpedPos(tickProgress);
+
+        Vec3d lastPos = LAST_PLAYER_POS.getOrDefault(playerId, realPos);
+        int lastTick = LAST_PLAYER_TICK.getOrDefault(playerId, 0);
+
+        // dividing by 3 comes from net.minecraft.entity.PositionInterpolator.PositionInterpolator(net.minecraft.entity.Entity)
+        float lerp = Math.min(1, (WorldUtil.tick - lastTick + tickProgress) / 3f);
+
+        return MathHelper.lerp(
+                lerp,
+                lastPos,
+                realPos
+        );
     }
 
     private static void handleMovePacket(EntityS2CPacket movePacket) {
@@ -115,27 +132,11 @@ public class HideBlinkInboundModule extends OptionsModule {
 
     private static void updatePlayerPos(Entity entity, int id, Vec3d newPos) {
         Vec3d lastPos = REAL_PLAYER_POS.getOrDefault(id, entity.getTrackedPosition().getPos());
-
         LAST_PLAYER_POS.put(id, lastPos);
-        REAL_PLAYER_POS.put(id, newPos);
-
         LAST_PLAYER_TICK.put(id, WorldUtil.tick);
-    }
 
-    public static void onDisableBlinkInbound() {
-        if (C.w() == null) return;
-
-        for (Entity entity : C.w().getEntities()) {
-            Vec3d realPos = HideBlinkInboundModule.REAL_PLAYER_POS.get(entity.getId());
-            if (realPos == null) continue;
-
-            entity.updateTrackedPosition(realPos);
-        }
-
-
-        HideBlinkInboundModule.REAL_PLAYER_POS.clear();
-        HideBlinkInboundModule.LAST_PLAYER_POS.clear();
-        HideBlinkInboundModule.LAST_PLAYER_TICK.clear();
+        if (BlinkUtil.isBlinking(false, true)) REAL_PLAYER_POS.put(id, newPos);
+        else REAL_PLAYER_POS.put(id, entity.getTrackedPosition().getPos());
     }
 
     // used by net.minecraft.client.network.ClientPlayNetworkHandler.onEntity(EntityS2CPacket)

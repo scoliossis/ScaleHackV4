@@ -53,10 +53,11 @@ public class Targets extends Module {
         Sword {@Override public boolean enabledByDefault() {return true;}},
         Knockback {@Override public boolean enabledByDefault() {return true;}},
         Axe,
-        Fist,
         Spear,
         Trident,
-        Mace;
+        Mace,
+        Fist,
+        Non_Fist
     }
 
     public static List<AbstractClientPlayerEntity> getPlayers(boolean visual) {

@@ -3,6 +3,7 @@ package com.scale.scalehackv4.modules.impl.render;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
+import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
@@ -84,6 +85,12 @@ public class Freelook extends Module {
 
         return false;
     });
+
+    private final Event onKeyboardInput = new KeyboardInputEvent(this,params -> {
+        if (isPositionLocked()) params.reset();
+
+        return false;
+    }, 1);
 
     @Override
     public void onEnable() {
