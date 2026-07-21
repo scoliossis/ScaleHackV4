@@ -48,7 +48,7 @@ public class AltManagerUtil {
                 for (int i = 1; i < split.length; i++) {
                     String name = split[i].split(":")[0];
                     String refreshToken = split[i].split(":")[1];
-                    if (ALTS.stream().anyMatch(alt -> alt.name.equals(name) || alt.loginData.refreshToken.equals(refreshToken))) continue;
+                    if (ALTS.stream().anyMatch(alt -> name.equals(alt.name) || refreshToken.equals(alt.loginData.refreshToken))) continue;
 
                     boolean successful = oAuthUtil.authWithRefreshToken(refreshToken, oAuthIds.LOCALTS.CLIENT_ID, oAuthIds.LOCALTS.SCOPE, oAuthUtil.DEFAULT_REDIRECT, false);
                     if (successful) AltManagerUtil.currentAlt.save();

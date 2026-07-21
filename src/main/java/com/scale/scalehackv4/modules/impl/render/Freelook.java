@@ -100,8 +100,8 @@ public class Freelook extends Module {
 
     @Override
     public void onDisable() {
-        onSetPositionLock(lockPosition);
-        onSetRotationLock(lockRotation);
+        onSetPositionLock(false);
+        onSetRotationLock(false);
     }
 
     private Perspective perspective = Perspective.FIRST_PERSON;

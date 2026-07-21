@@ -74,8 +74,7 @@ public class SubModule {
             if (field.getDeclaringClass() == Module.class) {
                 parentModule.setEnabled((Boolean) value);
             }
-
-            field.set(parentModule, value);
+            else field.set(parentModule, value);
             ModuleUtil.saveConfig(Main.BASE_CONFIG);
         } catch (IllegalAccessException e) {
             e.printStackTrace();

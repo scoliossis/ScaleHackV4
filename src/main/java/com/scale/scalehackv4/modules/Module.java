@@ -5,6 +5,7 @@ import com.scale.scalehackv4.utils.client.ModuleUtil;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 
 public abstract class Module {
@@ -23,17 +24,23 @@ public abstract class Module {
 
     @RegisterSubModule(name = ENABLED_STRING, hasKeybind = true)
     @Getter public boolean enabled = false;
+    @Setter private Field enabledField;
 
     public void setEnabled(boolean enabled) {
         if (enabled != this.enabled) {
-            this.enabled = enabled;
-            ModuleUtil.saveConfig(Main.BASE_CONFIG);
+            try {
+                enabledField.set(this, enabled);
+                this.enabled = enabled;
+                ModuleUtil.saveConfig(Main.BASE_CONFIG);
 
-            if (enabled) {
-                onEnable();
-            }
-            else {
-                onDisable();
+                if (enabled) {
+                    onEnable();
+                }
+                else {
+                    onDisable();
+                }
+            } catch (IllegalAccessException e) {
+                e.printStackTrace();
             }
         }
     }

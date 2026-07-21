@@ -32,8 +32,8 @@ public class EspModule extends Module {
     @RegisterSubModule(name = "Glow")
     public static boolean glow = false;
 
-    @RegisterSubModule(name = "Square")
-    public boolean square = true;
+    @RegisterSubModule(name = "Blur")
+    public boolean blurESP = false;
     @RegisterSubModule(name = "Width", parent = "Square", min = 0.5, max = 3, increment = 0.1)
     public float squareWidth = 1;
     @RegisterSubModule(name = "Height", parent = "Square", min = 1.5, max = 3, increment = 0.1)
@@ -51,7 +51,7 @@ public class EspModule extends Module {
             float partialTicks = C.mc.getRenderTickCounter().getTickProgress(false);
             Vec3d playerPos = PlayerUtil.getPlayerRenderPos(player);
 
-            if (square) drawSquareESP(playerPos, partialTicks, params);
+            if (blurESP) drawSquareESP(playerPos, partialTicks, params);
             if (nametags) drawNameTag(player, playerPos, params);
         });
 

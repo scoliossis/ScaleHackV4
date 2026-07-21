@@ -46,12 +46,14 @@ public class ModuleUtil {
                 else {
                     m = moduleClazz.getDeclaredConstructor().newInstance();
 
+                    // dumb blehhh, but it isnt broken yet, so i wont fix it.
+                    SubModule enabled = new SubModule(m, moduleClazz.getField("enabled"));
+                    m.setEnabledField(enabled.getField());
+                    m.getChildren().add(enabled);
+
                     m.setAnnotation(annotation);
                     m.setEnabled(annotation.enabledByDefault());
 
-                    // dumb blehhh, but it isnt broken yet, so i wont fix it.
-                    SubModule enabled = new SubModule(m, moduleClazz.getField("enabled"));
-                    m.getChildren().add(enabled);
                     enabled.setKeybind(annotation.defaultKeybind());
                 }
 
