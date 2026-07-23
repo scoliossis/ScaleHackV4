@@ -133,6 +133,7 @@ public class ModuleRenderer {
         RenderUtil.getDrawContext().disableScissor();
     }
 
+    // todo: this code is all horribly named and i hate the code and i dont know why it works.
     private static void handleScrollBar(int moduleHeight, int subModulesHeight, Module module) {
         if (moduleHeight >= subModulesHeight) {
             // just in case! im sure its possible to have this return with a large number.
@@ -141,8 +142,8 @@ public class ModuleRenderer {
         }
 
         float possibleScrollRatio = (float) moduleHeight / subModulesHeight;
-
-        if (MouseUtil.isMouseInBounds(0, 0, module.width, moduleHeight, RenderUtil.getDrawContext())) {
+        boolean moduleHovered = MouseUtil.isMouseInBounds(0, 0, module.width, moduleHeight, RenderUtil.getDrawContext());
+        if (moduleHovered && SubModuleRenderer.activeSubModule == null) {
             module.scrolledAmount -= ClickGuiScreen.lastMouseScroll * possibleScrollRatio * 0.1;
         }
 

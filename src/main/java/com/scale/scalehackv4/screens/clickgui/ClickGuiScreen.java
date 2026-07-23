@@ -86,7 +86,6 @@ public class ClickGuiScreen extends Screen {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
         lastMouseScroll = verticalAmount;
-        SubModuleRenderer.activeSubModule = null;
         return true;
     }
 

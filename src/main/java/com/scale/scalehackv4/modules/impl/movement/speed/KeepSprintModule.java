@@ -20,8 +20,13 @@ import net.minecraft.util.PlayerInput;
 import java.util.function.Predicate;
 
 public class KeepSprintModule extends SpeedModule {
-    @RegisterSubModule(name = "Keep Sprint", parent = "Modify Speed")
+    @RegisterSubModule(name = "Keep Sprint")
     public static KeepSprint keepSprint = KeepSprint.None;
+
+    @RegisterSubModule(name = "Reduce Ticks", parent = "Keep Sprint", NOTmodeParentString = "None", min = 0, max = 10)
+    public static int reduceTicks = 5;
+    @RegisterSubModule(name = "Click Delay", parent = "Keep Sprint", NOTmodeParentString = "None", min = 0, max = 5)
+    public static int clickDelay = 0;
 
     public static boolean lastAttackKeepsprinted = false;
 
@@ -29,15 +34,14 @@ public class KeepSprintModule extends SpeedModule {
         return ModuleUtil.isEnabled(SpeedModule.class)
                 && keepSprint != KeepSprint.None
                 && !C.p().horizontalCollision
-                && C.p().forwardSpeed > 0
+                && C.p().forwardSpeed > 0.05
                 && C.p().isSprinting()
-                && C.p().hurtTime < 5;
+                && C.p().hurtTime <= 10 - reduceTicks;
     }
 
     private final Event onRotationEvent = new RotationEvent(ModuleUtil.getModule(SpeedModule.class), params -> {
-        // hypixel keepsprint only works at 7 cps :pensive:
-        Predicate<Entity> attackedLastTick = e -> WorldUtil.tick - PlayerUtil.lastAttackTick <= 1;
-        if (lastAttackKeepsprinted && PlayerUtil.getThisTickAttackEntity(attackedLastTick) != null)
+        Predicate<Entity> attackedLastTick = e -> WorldUtil.tick - PlayerUtil.lastAttackTick <= clickDelay;
+        if (lastAttackKeepsprinted && WorldUtil.tick - PlayerUtil.lastAttackTick <= clickDelay)
             PlayerUtil.unsetAttack();
 
         return false;

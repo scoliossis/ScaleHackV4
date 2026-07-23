@@ -9,6 +9,8 @@ public @interface RegisterSubModule {
     String name();
     String parent() default "";
     String[] modeParentString() default "";
+    // stupid ass name, i lwk give up on making ts code good.
+    String[] NOTmodeParentString() default "";
     boolean hasKeybind() default false;
 
     double min() default 0;

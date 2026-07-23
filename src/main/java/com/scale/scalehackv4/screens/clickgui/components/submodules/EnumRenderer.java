@@ -20,11 +20,14 @@ import java.awt.*;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
+// todo: SHOOT ME I HATE THIS CODE HOW IS THIS ONLY LIKE A YEAR OLD.
 public class EnumRenderer extends SubModuleRenderer {
     private static final int ENUM_GAP = 3;
 
     private static final int ENUM_Y = 8;
     private static final int ENUM_HEIGHT = 12;
+
+    private static final int MAX_ENUM_VALUES = 6;
 
     @Override
     public void render(SubModule subModule, Matrix3x2fStack matrices) {
@@ -72,15 +75,42 @@ public class EnumRenderer extends SubModuleRenderer {
 
         drawContext.disableScissor();
 
-        for (Enum<?> value : moduleValue.getDeclaringClass().getEnumConstants()) {
+        // we dont wanna show like 37898956798 enum options!
+        drawContext.enableScissor(0, ENUM_Y, rectWidth, ENUM_Y + ENUM_HEIGHT * MAX_ENUM_VALUES);
+
+        Enum<?>[] values = moduleValue.getDeclaringClass().getEnumConstants();
+
+        matrices.pushMatrix();
+        matrices.translate(0, (float) -subModule.scrolledAmount * ENUM_HEIGHT * values.length);
+
+        boolean canScroll = values.length > MAX_ENUM_VALUES;
+        double possibleScrollRatio = canScroll ? 1 - ((1d / values.length) / (1d / (values.length - MAX_ENUM_VALUES))) : 0;
+
+        for (Enum<?> value : values) {
             boolean hovered = MouseUtil.isMouseInBounds(0, ENUM_Y, rectWidth, ENUM_HEIGHT, false);
             boolean selected = moduleValue instanceof MultiSelectEnum ? MultiSelectUtil.isEnabled(value) : moduleValue == value;
+
+            if (canScroll) {
+                // if you are hovering an enum module, we should be good to try scrolling
+                if (hovered) {
+                    subModule.scrolledAmount -= ClickGuiScreen.lastMouseScroll * possibleScrollRatio * 0.2;
+                }
+                subModule.scrolledAmount = Math.clamp(subModule.scrolledAmount, 0, 1 - possibleScrollRatio);
+            }
 
             Render2dUtil.drawRect(0, ENUM_Y, rectWidth, ENUM_HEIGHT, hovered ? new Color(20,20,20) : new Color(40,40,40), true);
             FontUtil.drawString(fixValueName(value.name()),  3,  ENUM_Y+textY, ClickGuiScreen.FONT_SIZE, selected ? ClickGuiModule.guiColour : Color.WHITE, false, true);
             matrices.translate(0, ENUM_HEIGHT);
         }
+        matrices.popMatrix();
+        if (canScroll) {
+            int scrollBarY = ENUM_Y + (int) (subModule.scrolledAmount * (ENUM_HEIGHT * MAX_ENUM_VALUES - 1));
+            int scrollBarHeight = (int) (ENUM_HEIGHT * MAX_ENUM_VALUES * possibleScrollRatio);
+            Render2dUtil.drawRect(rectWidth-4, ENUM_Y, 4, ENUM_HEIGHT * MAX_ENUM_VALUES, new Color(60, 60, 60), true);
+            Render2dUtil.drawRect(rectWidth - 3, scrollBarY+1, 2, scrollBarHeight, new Color(130, 130, 130), true);
+        }
 
+        drawContext.disableScissor();
         drawContext.scissorStack.push(scissor);
         matrices.popMatrix();
     }

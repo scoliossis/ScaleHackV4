@@ -24,6 +24,8 @@ public class SubModule {
 
     @Getter private int keybind = -1;
 
+    public double scrolledAmount = 0;
+
     public void setKeybind(int keybind) {
         ModuleUtil.KEYBINDS.computeIfAbsent(this.getKeybind(), e -> new ArrayList<>()).remove(this);
         ModuleUtil.KEYBINDS.computeIfAbsent(keybind, e -> new ArrayList<>()).add(this);
@@ -104,7 +106,10 @@ public class SubModule {
                 for (String parentMode : this.annotation.modeParentString()) {
                     if (parentEnumValue.equalsIgnoreCase(parentMode)) return true;
                 }
-                return false;
+                for (String parentMode : this.annotation.NOTmodeParentString()) {
+                    if (parentEnumValue.equalsIgnoreCase(parentMode)) return false;
+                }
+                return !"".equals(this.annotation.NOTmodeParentString()[0]);
             }
             else {
                 System.err.println("the parent is evil " + this.parent.annotation.name() + " " + this.annotation.name());

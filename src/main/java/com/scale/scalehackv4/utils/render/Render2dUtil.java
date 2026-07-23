@@ -78,6 +78,10 @@ public class Render2dUtil extends RenderUtil {
         drawGradient(x, y, width, height, colour1, colour2, colour2, colour1);
     }
 
+    public static void drawGradientDown(int x, int y, int width, int height, Color colour1, Color colour2, boolean queue) {
+        drawGradient(x, y, width, height, colour1, colour2, colour2, colour1, queue);
+    }
+
     public static void drawGradient(int x, int y, int width, int height, Color tl, Color bl, Color br, Color tr) {
         drawGradient(x, y, width, height, tl, bl, br, tr, false);
     }

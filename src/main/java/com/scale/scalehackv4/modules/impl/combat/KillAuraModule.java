@@ -35,8 +35,6 @@ public class KillAuraModule extends Module {
     public float rotationRange = 5;
     @RegisterSubModule(name = "Aura FOV", min = 1, max = 180)
     public int auraFOV = 180;
-    @RegisterSubModule(name = "Sticky Targets")
-    public boolean stickyTargets = false;
     @RegisterSubModule(name = "Only Necessary Rotations")
     public boolean onlyNecessary = false;
     @RegisterSubModule(name = "Random Rotation Point")
@@ -83,6 +81,9 @@ public class KillAuraModule extends Module {
 
         public abstract void sort(List<Entity> targets);
     }
+
+    @RegisterSubModule(name = "Sticky Targets", parent = "Target Selection", NOTmodeParentString = "Switch")
+    public boolean stickyTargets = false;
 
     // todo: separate yaw and pitch, ig...
     @RegisterSubModule(name = "Rotation Mode")
@@ -262,7 +263,7 @@ public class KillAuraModule extends Module {
     private boolean getValidEntity(List<Entity> targets, RotationEvent.Params params) {
         if (easingTicks == 0) startEasingRotation = RotationEvent.getLastRotation();
 
-        if (stickyTargets && targets.contains(targetEntity) && rotateToTarget(targetEntity, params)) {
+        if (stickyTargets && targetSelection != TargetSelection.Switch && targets.contains(targetEntity) && rotateToTarget(targetEntity, params)) {
             easingTicks = (easingTicks + 1) % (easingCycle+1);
             return true;
         }
