@@ -81,7 +81,7 @@ public class EnumRenderer extends SubModuleRenderer {
         Enum<?>[] values = moduleValue.getDeclaringClass().getEnumConstants();
 
         matrices.pushMatrix();
-        matrices.translate(0, (float) -subModule.scrolledAmount * ENUM_HEIGHT * values.length);
+        matrices.translate(0, getScrollOffset(subModule));
 
         boolean canScroll = values.length > MAX_ENUM_VALUES;
         double possibleScrollRatio = canScroll ? 1 - ((1d / values.length) / (1d / (values.length - MAX_ENUM_VALUES))) : 0;
@@ -104,8 +104,8 @@ public class EnumRenderer extends SubModuleRenderer {
         }
         matrices.popMatrix();
         if (canScroll) {
-            int scrollBarY = ENUM_Y + (int) (subModule.scrolledAmount * (ENUM_HEIGHT * MAX_ENUM_VALUES - 1));
-            int scrollBarHeight = (int) (ENUM_HEIGHT * MAX_ENUM_VALUES * possibleScrollRatio);
+            int scrollBarY = ENUM_Y + (int) (subModule.scrolledAmount * (ENUM_HEIGHT * (MAX_ENUM_VALUES - 1)));
+            int scrollBarHeight = (int) (ENUM_HEIGHT * MAX_ENUM_VALUES * possibleScrollRatio) + 1;
             Render2dUtil.drawRect(rectWidth-4, ENUM_Y, 4, ENUM_HEIGHT * MAX_ENUM_VALUES, new Color(60, 60, 60), true);
             Render2dUtil.drawRect(rectWidth - 3, scrollBarY+1, 2, scrollBarHeight, new Color(130, 130, 130), true);
         }
@@ -113,6 +113,11 @@ public class EnumRenderer extends SubModuleRenderer {
         drawContext.disableScissor();
         drawContext.scissorStack.push(scissor);
         matrices.popMatrix();
+    }
+
+    private int getScrollOffset(SubModule subModule) {
+        int values = ((Enum<?>) subModule.get()).getDeclaringClass().getEnumConstants().length;
+        return (int) ((float) -subModule.scrolledAmount * ENUM_HEIGHT * values);
     }
 
     @Override
@@ -126,15 +131,20 @@ public class EnumRenderer extends SubModuleRenderer {
             return true;
         }
         else if (SubModuleRenderer.activeSubModule == subModule) {
-            int rectY = ENUM_Y+ENUM_HEIGHT+ENUM_GAP;
-
-            if (!MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, rectY, rectWidth, C.res().getHeight(), RenderUtil.getDrawContext(), false)) {
-                SubModuleRenderer.activeSubModule = null;
-                return false;
-            }
+            int scroll = getScrollOffset(subModule);
+            int rectY = ENUM_Y+ENUM_HEIGHT+ENUM_GAP + scroll;
 
             float projectedY = RenderUtil.projectPos(new Vector2f(0, rectY), Render2dUtil.getMatrices()).y;
             float projectedH = RenderUtil.projectPos(new Vector2f(0, rectY+ENUM_HEIGHT), Render2dUtil.getMatrices()).y-projectedY;
+
+            int relativeMouseY = (int) (MouseUtil.getMousePos().y - projectedY + scroll - ENUM_GAP);
+
+            if (!MouseUtil.isMouseInBounds(SubModuleRenderer.MIDDLE_PADDING, rectY, rectWidth, C.res().getHeight(), RenderUtil.getDrawContext(), false)
+                    || relativeMouseY < -2
+                    || relativeMouseY >= ENUM_HEIGHT * MAX_ENUM_VALUES) {
+                SubModuleRenderer.activeSubModule = null;
+                return false;
+            }
 
             int enumOrdinal = (int) ((MouseUtil.getMousePos().y - projectedY) / projectedH);
             Enum<?>[] values = ((Enum<?>) subModule.get()).getDeclaringClass().getEnumConstants();
