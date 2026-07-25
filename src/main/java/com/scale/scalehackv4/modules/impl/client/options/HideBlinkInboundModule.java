@@ -3,6 +3,7 @@ package com.scale.scalehackv4.modules.impl.client.options;
 import com.scale.scalehackv4.bridge.EntityS2CPacketBridge;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
+import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.impl.client.OptionsModule;
 import com.scale.scalehackv4.utils.C;
@@ -11,8 +12,6 @@ import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -21,11 +20,30 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Predicate;
 
+// lerp magic stolen from net.minecraft.entity.PositionInterpolator
 public class HideBlinkInboundModule extends OptionsModule {
     @RegisterSubModule(name = "Hide Blink Inbound")
     public static boolean hideBlinkInbound = true;
+
+    private static final Map<Integer, BlinkInterpolation> INTERPOLATIONS = new HashMap<>();
+
+    private static class BlinkInterpolation {
+        // net.minecraft.entity.PositionInterpolator.DEFAULT_INTERPOLATION_DURATION
+        private static final int LERP_DURATION = 3;
+
+        public BlinkInterpolation(Vec3d pos) {
+            this.serverPos = this.current = this.previous = pos;
+        }
+
+        public void updatePlayerPosition(Vec3d pos) {
+            this.serverPos = pos;
+            this.steps = LERP_DURATION;
+        }
+
+        Vec3d previous, current, serverPos;
+        int steps;
+    }
 
     public static final HashSet<Class<?>> VISUAL_INBOUND_PACKETS = new HashSet<>(Set.of(
             EntitySetHeadYawS2CPacket.class,
@@ -35,108 +53,89 @@ public class HideBlinkInboundModule extends OptionsModule {
             EntityDamageS2CPacket.class,
 
             ChatMessageS2CPacket.class,
-            PlaySoundS2CPacket.class,
-            ScoreboardDisplayS2CPacket.class,
-            ScoreboardObjectiveUpdateS2CPacket.class,
-            ScoreboardScoreResetS2CPacket.class
+            PlaySoundS2CPacket.class
     ));
 
-    public static final HashMap<Class<?>, Predicate<Packet<?>>> POSITION_PACKET_HANDLERS = new HashMap<>(Map.of(
-            EntityS2CPacket.MoveRelative.class, (packet) -> {
-                handleMovePacket((EntityS2CPacket) packet);
-                return true;
-            },
-            EntityS2CPacket.RotateAndMoveRelative.class, (packet) -> {
-                handleMovePacket((EntityS2CPacket) packet);
-                return true;
-            },
-            EntityPositionSyncS2CPacket.class, (packet) -> {
-                EntityPositionSyncS2CPacket positionPacket = (EntityPositionSyncS2CPacket) packet;
-                int playerID = positionPacket.id();
-                Entity entity = C.w().getEntityById(playerID);
-                if (entity == null) return false;
+    private final Event tickPlayerInterpolation = new PlayerUpdateEvent(null, params -> {
+        for (BlinkInterpolation interpolation : INTERPOLATIONS.values()) {
+            interpolation.previous = interpolation.current;
 
-                updatePlayerPos(entity, playerID, positionPacket.values().position());
-
-                return true;
+            if (interpolation.steps > 0) {
+                double t = 1.0 / interpolation.steps--;
+                interpolation.current = MathHelper.lerp(t, interpolation.current, interpolation.serverPos);
             }
-    ));
+        }
+        return false;
+    });
 
     private final Event trackPlayerPositions = new PacketEvent.Received(null, params -> {
-        if (C.w() == null) return false;
+        if (C.w() == null || BlinkUtil.shouldAllowPackets) return false;
 
-        POSITION_PACKET_HANDLERS.getOrDefault(params.packet.getClass(), p -> false).test(params.packet);
+        if (params.packet instanceof EntityS2CPacket movePacket)
+            handleMovePacket(movePacket);
+        else if (params.packet instanceof EntityPositionSyncS2CPacket posPacket)
+            handlePositionPacket(posPacket);
 
         return false;
     }, 0);
 
 
-    private static final HashMap<Integer, Integer> LAST_PLAYER_TICK = new HashMap<>();
-
-    private static final HashMap<Integer, Vec3d> LAST_PLAYER_POS = new HashMap<>();
-    private static final HashMap<Integer, Vec3d> REAL_PLAYER_POS = new HashMap<>();
-
     public static void handlePlayerRenderPosition(EntityRenderState entityRenderState) {
-        if (!shouldOverridePlayerRenderPositions()
-                || !(entityRenderState instanceof PlayerEntityRenderState playerEntityRenderState)) return;
+        if (!shouldOverwritePos() || !(entityRenderState instanceof PlayerEntityRenderState playerState)) return;
 
-        int playerID = playerEntityRenderState.id;
-        Vec3d realPos = REAL_PLAYER_POS.get(playerID);
-        if (realPos == null) return;
-
+        int playerID = playerState.id;
         Entity player = C.w().getEntityById(playerID);
         if (player == null) return;
 
+        BlinkInterpolation interpolation = INTERPOLATIONS.get(playerID);
+        if (interpolation == null) return;
+
         Vec3d renderPos = getPlayerRenderPos(player);
-        playerEntityRenderState.x = renderPos.x; playerEntityRenderState.y = renderPos.y; playerEntityRenderState.z = renderPos.z;
+
+        playerState.x = renderPos.x;
+        playerState.y = renderPos.y;
+        playerState.z = renderPos.z;
     }
 
-    private static boolean shouldOverridePlayerRenderPositions() {
-        return hideBlinkInbound &&  WorldUtil.tick - 10 <= BlinkUtil.getLastBlinkReceivedTick();
+    private static boolean shouldOverwritePos() {
+        return !hideBlinkInbound || WorldUtil.tick - BlinkUtil.getLastBlinkReceivedTick() <= 10;
     }
 
     public static Vec3d getPlayerRenderPos(Entity entity) {
-        float tickProgress = C.mc.getRenderTickCounter().getTickProgress(true);
-        if (C.w() == null
-                || !shouldOverridePlayerRenderPositions()
-                || !(entity instanceof PlayerEntity player)
-        ) return entity.getLerpedPos(tickProgress);
+        float tickDelta = C.mc.getRenderTickCounter().getTickProgress(true);
 
-        int playerId = player.getId();
-        Vec3d realPos = REAL_PLAYER_POS.get(player.getId());
-        if (realPos == null) return player.getLerpedPos(tickProgress);
+        BlinkInterpolation interpolation = INTERPOLATIONS.get(entity.getId());
+        if (interpolation == null || !shouldOverwritePos()) return entity.getLerpedPos(tickDelta);
 
-        Vec3d lastPos = LAST_PLAYER_POS.getOrDefault(playerId, realPos);
-        int lastTick = LAST_PLAYER_TICK.getOrDefault(playerId, 0);
-
-        // dividing by 3 comes from net.minecraft.entity.PositionInterpolator.PositionInterpolator(net.minecraft.entity.Entity)
-        float lerp = Math.min(1, (WorldUtil.tick - lastTick + tickProgress) / 3f);
-
-        return MathHelper.lerp(
-                lerp,
-                lastPos,
-                realPos
-        );
+        return MathHelper.lerp(tickDelta, interpolation.previous, interpolation.current);
     }
 
     private static void handleMovePacket(EntityS2CPacket movePacket) {
         int playerID = EntityS2CPacketBridge.from(movePacket).bridge$id();
+
         Entity entity = C.w().getEntityById(playerID);
         if (entity == null) return;
 
-        Vec3d newPos = REAL_PLAYER_POS.getOrDefault(playerID, entity.getTrackedPosition().getPos())
-                .add(unpackDelta(movePacket.getDeltaX()), unpackDelta(movePacket.getDeltaY()), unpackDelta(movePacket.getDeltaZ()));
+        BlinkInterpolation interpolation = INTERPOLATIONS.computeIfAbsent(playerID, i -> new BlinkInterpolation(entity.getTrackedPosition().getPos()));
 
-        updatePlayerPos(entity, playerID, newPos);
+
+        interpolation.updatePlayerPosition(
+                interpolation.serverPos.add(
+                        unpackDelta(movePacket.getDeltaX()),
+                        unpackDelta(movePacket.getDeltaY()),
+                        unpackDelta(movePacket.getDeltaZ())
+                )
+        );
     }
 
-    private static void updatePlayerPos(Entity entity, int id, Vec3d newPos) {
-        Vec3d lastPos = REAL_PLAYER_POS.getOrDefault(id, entity.getTrackedPosition().getPos());
-        LAST_PLAYER_POS.put(id, lastPos);
-        LAST_PLAYER_TICK.put(id, WorldUtil.tick);
+    private static void handlePositionPacket(EntityPositionSyncS2CPacket positionPacket) {
+        int playerID = positionPacket.id();
+        Entity entity = C.w().getEntityById(playerID);
+        if (entity == null) return;
 
-        if (BlinkUtil.isBlinking(false, true)) REAL_PLAYER_POS.put(id, newPos);
-        else REAL_PLAYER_POS.put(id, entity.getTrackedPosition().getPos());
+        Vec3d pos = positionPacket.values().position();
+        BlinkInterpolation interpolation = INTERPOLATIONS.computeIfAbsent(playerID, i -> new BlinkInterpolation(pos));
+        interpolation.updatePlayerPosition(pos);
     }
 
     // used by net.minecraft.client.network.ClientPlayNetworkHandler.onEntity(EntityS2CPacket)

@@ -81,7 +81,7 @@ public class BlinkUtil {
         }
     }
 
-    private static boolean shouldAllowPackets = false;
+    public static boolean shouldAllowPackets = false;
 
     public static void popBlink(boolean sent, boolean received, Class<?> clazz) {
         if (sent) {

@@ -119,12 +119,12 @@ public class AltManagerUtil {
         public Identifier skin;
 
         public static Alt getCurrent() {
-            Alt alt = getAlt(C.mc.getGameProfile().id());
+            Alt alt = getAlt(C.mc.getSession().getUuidOrNull());
             if (alt != null) return alt;
 
             return new Alt(
-                    C.mc.getGameProfile().name(),
-                    C.mc.getGameProfile().id(),
+                    C.mc.getSession().getUsername(),
+                    C.mc.getSession().getUuidOrNull(),
                     new LoginData(C.mc.getSession().getAccessToken(), null, null, null, null),
                     System.currentTimeMillis(),
                     null,

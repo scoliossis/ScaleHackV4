@@ -20,6 +20,7 @@ import net.minecraft.util.math.Vec3d;
         category = Category.RENDER
 )
 // todo: impl blocking interaction
+//  lol horrid code :sob: why cant i do anything right, bouta kms.
 public class Freelook extends Module {
     @RegisterSubModule(name = "Lock Rotation", hasKeybind = true)
     public static boolean lockRotation = true;
@@ -125,7 +126,7 @@ public class Freelook extends Module {
 
     private void onSetPositionLock(boolean lockPosition) {
         if (!lockPosition) {
-            if (C.isInGame()) C.p().setPos(realPos.x, realPos.y, realPos.z);
+            if (C.isInGame() && realPos != null) C.p().setPos(realPos.x, realPos.y, realPos.z);
             renderPos = lastRenderPos = lastRealPos = realPos = null;
         }
     }
