@@ -202,7 +202,7 @@ public class ColourRenderer extends SubModuleRenderer {
                 float projectedX = RenderUtil.projectPos(new Vector2f(OPACITY_SLIDER_RECT.x, 0), Render2dUtil.getMatrices()).x;
                 float projectedW = RenderUtil.projectPos(new Vector2f(OPACITY_SLIDER_RECT.x+OPACITY_SLIDER_RECT.width, 0), Render2dUtil.getMatrices()).x-projectedX;
 
-                double mousePos = Math.clamp(MouseUtil.getMousePos().x - projectedX, 0, OPACITY_SLIDER_RECT.width);
+                double mousePos = Math.clamp(MouseUtil.getMousePos().x - projectedX, 0, projectedW);
                 double percent = Math.clamp(mousePos / projectedW, 0, 1);
 
                 subModule.set(new Color(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), (int) (percent * 255)));
@@ -211,7 +211,7 @@ public class ColourRenderer extends SubModuleRenderer {
                 float projectedY = RenderUtil.projectPos(new Vector2f(0, HUE_SLIDER_RECT.y), Render2dUtil.getMatrices()).y;
                 float projectedH = RenderUtil.projectPos(new Vector2f(0, HUE_SLIDER_RECT.y+HUE_SLIDER_RECT.height), Render2dUtil.getMatrices()).y-projectedY;
 
-                float mousePos = Math.clamp(MouseUtil.getMousePos().y - projectedY, 0, HUE_SLIDER_RECT.height);
+                float mousePos = Math.clamp(MouseUtil.getMousePos().y - projectedY, 0, projectedH);
 
                 // terrible variable name, its hard to name it, cause its used as both the HUE and DARKNESS depending on mode.
                 float v = 1 - Math.clamp(mousePos / projectedH, 0, 1);
@@ -237,8 +237,8 @@ public class ColourRenderer extends SubModuleRenderer {
                 Vector2f projectedXY = RenderUtil.projectPos(new Vector2f(COLOUR_SQUARE.x, COLOUR_SQUARE.y), Render2dUtil.getMatrices());
                 Vector2f projectedWH = RenderUtil.projectPos(new Vector2f(COLOUR_SQUARE.x+COLOUR_SQUARE.width, COLOUR_SQUARE.y+COLOUR_SQUARE.height), Render2dUtil.getMatrices()).sub(projectedXY, new Vector2f());
 
-                float mousePosX = Math.clamp(MouseUtil.getMousePos().x - projectedXY.x, 0, COLOUR_SQUARE.width);
-                float mousePosY = Math.clamp(MouseUtil.getMousePos().y - projectedXY.y, 0, COLOUR_SQUARE.height);
+                float mousePosX = Math.clamp(MouseUtil.getMousePos().x - projectedXY.x, 0, projectedWH.x);
+                float mousePosY = Math.clamp(MouseUtil.getMousePos().y - projectedXY.y, 0, projectedWH.y);
 
                 if (ClickGuiModule.colourBoxType == ClickGuiModule.ColourBoxType.Normal) {
                     float hue = ColourRenderer.hsb[0] == -1 ? Color.RGBtoHSB(moduleValue.getRed(), moduleValue.getGreen(), moduleValue.getBlue(), null)[0] : ColourRenderer.hsb[0];
@@ -253,8 +253,8 @@ public class ColourRenderer extends SubModuleRenderer {
                 }
                 else {
                     // anime girl is so different wowowow
-                    float mousePercentX = mousePosX / COLOUR_SQUARE.width;
-                    float mousePercentY = mousePosY / COLOUR_SQUARE.height;
+                    float mousePercentX = mousePosX / projectedWH.x;
+                    float mousePercentY = mousePosY / projectedWH.y;
 
                     float colourX = Math.clamp(mousePercentX * ANIME_GIRL.getWidth(), 0, ANIME_GIRL.getWidth());
                     float colourY = Math.clamp(mousePercentY * ANIME_GIRL.getHeight(), 0, ANIME_GIRL.getHeight());

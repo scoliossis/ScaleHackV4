@@ -30,6 +30,7 @@ import java.util.Optional;
 )
 // todo: telly scaffold ig bro...
 //  better on edge check
+//  SWAP BLOCKS AT A RANDOM TIME
 public class ScaffoldModule extends Module {
     @RegisterSubModule(name = "Fast Place", hasKeybind = true)
     public static boolean fastPlace = true;

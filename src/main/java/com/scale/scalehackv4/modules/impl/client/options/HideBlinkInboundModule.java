@@ -16,17 +16,17 @@ import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 // lerp magic stolen from net.minecraft.entity.PositionInterpolator
 public class HideBlinkInboundModule extends OptionsModule {
     @RegisterSubModule(name = "Hide Blink Inbound")
     public static boolean hideBlinkInbound = true;
 
-    private static final Map<Integer, BlinkInterpolation> INTERPOLATIONS = new HashMap<>();
+    private static final Map<Integer, BlinkInterpolation> INTERPOLATIONS = new ConcurrentHashMap<>();
 
     private static class BlinkInterpolation {
         // net.minecraft.entity.PositionInterpolator.DEFAULT_INTERPOLATION_DURATION
@@ -57,7 +57,7 @@ public class HideBlinkInboundModule extends OptionsModule {
     ));
 
     private final Event tickPlayerInterpolation = new PlayerUpdateEvent(null, params -> {
-        for (BlinkInterpolation interpolation : INTERPOLATIONS.values()) {
+        for (BlinkInterpolation interpolation : INTERPOLATIONS.values().toArray(BlinkInterpolation[]::new)) {
             interpolation.previous = interpolation.current;
 
             if (interpolation.steps > 0) {
