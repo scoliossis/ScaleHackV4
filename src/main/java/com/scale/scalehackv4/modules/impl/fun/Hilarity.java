@@ -47,6 +47,7 @@ public class Hilarity extends Module {
             "&c[&fYOUTUBE&c] AverageSweat", // shady addons goat
             "&c[&fYOUTUBE&c] Alan_Wood", // 7sense official gaming
             "&c[&fYOUTUBE&c] ijustcheat", // rip ijustcheat </3
+            "&c[&fYOUTUBE&c] WiZARDHAX", // 11/10 videos
 
             "&7kulovhax", // hypixel god bypass tech
             "&7chazed", // hypixel god bypass tech
