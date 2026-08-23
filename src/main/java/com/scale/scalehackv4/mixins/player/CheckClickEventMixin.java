@@ -2,9 +2,9 @@ package com.scale.scalehackv4.mixins.player;
 
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
-import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.GameOptions;
+import net.minecraft.client.option.KeyBinding;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -22,20 +22,32 @@ public abstract class CheckClickEventMixin {
     protected abstract void handleBlockBreaking(boolean breaking);
 
     @Unique private boolean cancelledAttack = false;
+    @Unique private boolean cancelledUseItem = false;
 
-    @Inject(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;isUsingItem()Z", ordinal = 0))
-    private void handleInputEvents(CallbackInfo ci) {
-        if (C.p().isUsingItem()) return;
-
+    @Redirect(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/option/KeyBinding;wasPressed()Z", ordinal = 14))
+    private boolean handleLeftClickCheck(KeyBinding instance) {
         // if the event is cancelled, it stops u from clicking
         cancelledAttack = Bus.post(CheckClickEvent.Left.class, new CheckClickEvent.Params());
         while (cancelledAttack && this.options.attackKey.wasPressed());
-        if (Bus.post(CheckClickEvent.Right.class, new CheckClickEvent.Params())) while (this.options.useKey.wasPressed());
+        return instance.wasPressed();
+    }
+
+    @Redirect(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/option/KeyBinding;wasPressed()Z", ordinal = 15))
+    private boolean handleRightClickCheck(KeyBinding instance) {
+        cancelledUseItem = Bus.post(CheckClickEvent.Right.class, new CheckClickEvent.Params());
+        while (cancelledUseItem && this.options.useKey.wasPressed());
+
+        return instance.wasPressed();
     }
 
     @Redirect(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/MinecraftClient;handleBlockBreaking(Z)V"))
     private void blockClickDown(MinecraftClient instance, boolean breaking) {
         if (cancelledAttack) this.handleBlockBreaking(false);
         else this.handleBlockBreaking(breaking);
+    }
+
+    @Inject(method = "handleInputEvents", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/MinecraftClient;doItemUse()V"), cancellable = true)
+    private void blockInteractDown(CallbackInfo ci) {
+        if (cancelledUseItem) ci.cancel();
     }
 }

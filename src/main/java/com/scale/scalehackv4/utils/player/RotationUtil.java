@@ -99,8 +99,10 @@ public class RotationUtil {
     }
 
     public static Rotation getEasedRotation(Rotation currentRotation, Vec3d toVector, EasingUtil.EasingFunctions easingFunction, double easing) {
-        Rotation to = getRotation(currentRotation, toVector);
+        return getEasedRotation(currentRotation, getRotation(currentRotation, toVector), easingFunction, easing);
+    }
 
+    public static Rotation getEasedRotation(Rotation currentRotation, Rotation to, EasingUtil.EasingFunctions easingFunction, double easing) {
         Rotation rotationDifference = to.subtract(currentRotation);
 
         float pitchDelta = (float) (rotationDifference.pitch * easingFunction.ease(easing));
