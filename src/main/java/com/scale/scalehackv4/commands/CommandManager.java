@@ -28,7 +28,7 @@ public class CommandManager {
     public static int moduleFuzzySearchLimit = 20;
 
     private final Event handleCommandSent = new ChatEvent.Sent(null, (params -> {
-        if (params.message.isEmpty() || params.message.charAt(0) != CommandManager.prefix) return false;
+        if (params.message.length() <= 1 || params.message.charAt(0) != CommandManager.prefix) return false;
 
         C.mc.inGameHud.getChatHud().addToMessageHistory(params.message);
 

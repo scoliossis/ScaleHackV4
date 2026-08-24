@@ -194,10 +194,12 @@ public class ScaffoldModule extends Module {
     });
 
     public Event onAllowRightClick = new CheckClickEvent.Right(this, params -> {
-        if (!autoplace || !shouldScaffold()) return false;
+        if (!shouldScaffold()) return false;
 
         if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem())
                 || !isValidPlacement(RotationEvent.getLastRotation(), closestBlock)) return true;
+
+        if (!autoplace) return false;
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
