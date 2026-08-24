@@ -197,8 +197,7 @@ public class ScaffoldModule extends Module {
         if (!autoplace || !shouldScaffold()) return false;
 
         if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem())
-                || !isValidPlacement(RotationEvent.getLastRotation(), closestBlock)
-                || (easingTicks < easingCycle && rotationMode == RotationMode.Telly)) return true;
+                || !isValidPlacement(RotationEvent.getLastRotation(), closestBlock)) return true;
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
