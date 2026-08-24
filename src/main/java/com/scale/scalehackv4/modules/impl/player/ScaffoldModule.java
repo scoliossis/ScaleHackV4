@@ -128,9 +128,9 @@ public class ScaffoldModule extends Module {
                 }
 
                 if (easingTicks == 0) startEasingRotation = RotationEvent.getLastRotation();
-                easingTicks = Math.min(easingTicks+1, easingCycle);
+                easingTicks++;
 
-                params.rotation = RotationUtil.getEasedRotation(startEasingRotation, bestRotation, easingMode, (double) easingTicks / easingCycle);
+                params.rotation = RotationUtil.getEasedRotation(startEasingRotation, bestRotation, easingMode, (double) Math.min(easingTicks, easingCycle) / easingCycle);
                 return true;
             }
         };
@@ -164,7 +164,7 @@ public class ScaffoldModule extends Module {
         if (rotation == null) return Float.MAX_VALUE;
         return Math.abs(rotation.yaw - RotationEvent.getLastRotation().yaw) -
                 ((RotationEvent.clientRotation.yaw-rotation.yaw) % 45)*2 -
-                (C.p().isOnGround() ? 0 : rotation.pitch);
+                (C.p().isOnGround() ? 0 : (rotation.pitch-60)/4);
     }
 
     private static boolean isValidPlacement(Rotation rotation, BlockPos closestBlock) {
@@ -180,7 +180,7 @@ public class ScaffoldModule extends Module {
     public Event onRotationEvent = new RotationEvent(this, params -> {
         // queue swapping to blocks for next tick, i think it helps bypahh
         if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem()) && (!MultiSelectUtil.isEnabled(ScaffoldConditions.Holding_Block) || wasActive))
-            C.mc.execute(InventoryUtil::swapToBestBlocks);
+            InventoryUtil.swapToBestBlocks();
 
         closestBlock = findClosestBlock();
         if (!(wasActive = shouldScaffold())) {
@@ -197,7 +197,8 @@ public class ScaffoldModule extends Module {
         if (!autoplace || !shouldScaffold()) return false;
 
         if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem())
-                || !isValidPlacement(RotationEvent.getLastRotation(), closestBlock)) return true;
+                || !isValidPlacement(RotationEvent.getLastRotation(), closestBlock)
+                || (easingTicks < easingCycle && rotationMode == RotationMode.Telly)) return true;
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
