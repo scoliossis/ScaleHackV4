@@ -1,18 +1,37 @@
 package com.scale.scalehackv4.modules;
 
+import com.scale.scalehackv4.Main;
+import com.scale.scalehackv4.modules.impl.client.ClickGuiModule;
 import lombok.AllArgsConstructor;
 import net.minecraft.util.Identifier;
 
+import java.util.HashMap;
+
 @AllArgsConstructor
 public enum Category {
-    COMBAT(Identifier.of("scalehackv4", "clickgui/combat.png")),
-    MOVEMENT(Identifier.of("scalehackv4", "clickgui/movement.png")),
-    RENDER(Identifier.of("scalehackv4", "clickgui/render.png")),
-    PLAYER(Identifier.of("scalehackv4", "clickgui/player.png")),
-    OTHER(Identifier.of("scalehackv4", "clickgui/other.png")),
-    FUN(Identifier.of("scalehackv4", "clickgui/fun.png")),
-    CLIENT(Identifier.of("scalehackv4", "clickgui/client.png")),
-    CONFIGS(Identifier.of("scalehackv4", "clickgui/configs.png"));
+    COMBAT,
+    MOVEMENT,
+    RENDER,
+    PLAYER,
+    OTHER,
+    FUN,
+    CLIENT,
+    CONFIGS;
 
-    public final Identifier texture;
+    private final HashMap<String, Identifier> icons = new HashMap<>();
+
+    public Identifier getTexture() {
+        Identifier icon = icons.get(ClickGuiModule.iconPack.name() + this.name());
+        if (icon != null) return icon;
+
+        icon = Identifier.of(Main.MOD_ID,
+                "clickgui/icons/"
+                        + ClickGuiModule.iconPack.name().toLowerCase()
+                        + "/"
+                        + this.name().toLowerCase()
+                        + ".png"
+        );
+        icons.put(ClickGuiModule.iconPack.name() + this.name(), icon);
+        return icon;
+    }
 }

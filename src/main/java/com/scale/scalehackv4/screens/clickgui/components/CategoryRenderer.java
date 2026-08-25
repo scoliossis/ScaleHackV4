@@ -50,7 +50,7 @@ public class CategoryRenderer {
             Render2dUtil.drawRect(0, HALF_CATEGORY_DIAMETER+HALF_CATEGORY_GAP, CATEGORY_DIAMETER, 1, new Color(60, 60, 60));
         }
 
-        Render2dUtil.drawTexturedRect(category.texture, HALF_CATEGORY_DIAMETER/2, 0, HALF_CATEGORY_DIAMETER, HALF_CATEGORY_DIAMETER, selected ? new Color(180, 180, 180) : new Color(130, 130, 130));
+        Render2dUtil.drawTexturedRect(category.getTexture(), HALF_CATEGORY_DIAMETER/2, 0, HALF_CATEGORY_DIAMETER, HALF_CATEGORY_DIAMETER, selected ? new Color(180, 180, 180) : new Color(130, 130, 130));
 
         matrices.translate(0, HALF_CATEGORY_DIAMETER+CATEGORY_GAP);
     }

@@ -21,6 +21,7 @@ import javax.imageio.ImageIO;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.util.HashMap;
 
 // scalehack manages to do this in 168 lines, not sure how, but this code is much cleaner imo
 public class ColourRenderer extends SubModuleRenderer {
@@ -109,7 +110,7 @@ public class ColourRenderer extends SubModuleRenderer {
             Render2dUtil.drawRect(selectLightSaturation.x, selectLightSaturation.y, 1, 1, moduleRGB, true);
         }
         else {
-            Render2dUtil.drawTexturedRect(Identifier.of("scalehackv4", "clickgui/animegirlcolourpicker.png"), COLOUR_SQUARE.x, COLOUR_SQUARE.y, COLOUR_SQUARE.width, COLOUR_SQUARE.height, Color.WHITE, true);
+            Render2dUtil.drawTexturedRect(Identifier.of(Main.MOD_ID, getColourPickerImageString()), COLOUR_SQUARE.x, COLOUR_SQUARE.y, COLOUR_SQUARE.width, COLOUR_SQUARE.height, Color.WHITE, true);
 
             Vector2i selectLightSaturation = new Vector2i(COLOUR_SQUARE.x + (int) (COLOUR_SQUARE.width * ANIME_GIRL_MOUSE_POS[0]), COLOUR_SQUARE.y + (int) (COLOUR_SQUARE.height * ANIME_GIRL_MOUSE_POS[1]));
             Render2dUtil.drawRect(selectLightSaturation.x-1, selectLightSaturation.y-1, 3, 3, Color.BLACK, true);
@@ -157,7 +158,7 @@ public class ColourRenderer extends SubModuleRenderer {
             ColourRenderer.hsb[0] = -1;
             SubModuleRenderer.activeSubModule = subModule;
             if (ClickGuiModule.colourBoxType == ClickGuiModule.ColourBoxType.Anime_Girl) {
-                ANIME_GIRL_MOUSE_POS = guessPictureMousePos(ANIME_GIRL, (Color) subModule.get());
+                ANIME_GIRL_MOUSE_POS = guessPictureMousePos(getColourPickerImage(), (Color) subModule.get());
             }
 
             return true;
@@ -252,14 +253,16 @@ public class ColourRenderer extends SubModuleRenderer {
                     subModule.set(newColour);
                 }
                 else {
-                    // anime girl is so different wowowow
+                    // image colour picker is so different wowowow
+                    BufferedImage image = getColourPickerImage();
+
                     float mousePercentX = mousePosX / projectedWH.x;
                     float mousePercentY = mousePosY / projectedWH.y;
 
-                    float colourX = Math.clamp(mousePercentX * ANIME_GIRL.getWidth(), 0, ANIME_GIRL.getWidth());
-                    float colourY = Math.clamp(mousePercentY * ANIME_GIRL.getHeight(), 0, ANIME_GIRL.getHeight());
+                    float colourX = Math.clamp(mousePercentX * image.getWidth(), 0, image.getWidth());
+                    float colourY = Math.clamp(mousePercentY * image.getHeight(), 0, image.getHeight());
 
-                    Color pixelColour = new Color(ANIME_GIRL.getRGB((int) colourX, (int) colourY));
+                    Color pixelColour = new Color(image.getRGB((int) colourX, (int) colourY));
                     float[] hsb = Color.RGBtoHSB(pixelColour.getRed(), pixelColour.getGreen(), pixelColour.getBlue(), null);
 
                     // hacky blehhh
@@ -315,13 +318,24 @@ public class ColourRenderer extends SubModuleRenderer {
 
     private static float[] ANIME_GIRL_MOUSE_POS = new float[] {0, 0};
 
-    private static final BufferedImage ANIME_GIRL = getAnimeGirl();
+    private static final HashMap<String, BufferedImage> COLOUR_PICKER_IMAGES = new HashMap<>();
 
-    private static BufferedImage getAnimeGirl() {
+    private static BufferedImage getColourPickerImage() {
+        String colourPickerImage = getColourPickerImageString();
+        BufferedImage image = COLOUR_PICKER_IMAGES.get(colourPickerImage);
+        if (image != null) return image;
+
         try {
-            return ImageIO.read(Main.class.getResourceAsStream("/assets/scalehackv4/clickgui/animegirlcolourpicker.png"));
+            image = ImageIO.read(Main.class.getResourceAsStream("/assets/scalehackv4/" + colourPickerImage));
+            COLOUR_PICKER_IMAGES.put(getColourPickerImageString(), image);
+            return image;
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static String getColourPickerImageString() {
+        String colourPickerImage = ClickGuiModule.colourBoxType.name().toLowerCase().replace("_", "");
+        return "clickgui/colourpicker/" + colourPickerImage + ".png";
     }
 }

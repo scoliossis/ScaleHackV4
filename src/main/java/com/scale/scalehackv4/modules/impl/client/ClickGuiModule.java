@@ -28,7 +28,17 @@ public class ClickGuiModule extends Module {
 
     public enum ColourBoxType {
         Normal,
-        Anime_Girl
+        Anime_Girl,
+        Frogyeezy
+    }
+
+    @RegisterSubModule(name = "Icon Pack")
+    public static IconPack iconPack = IconPack.Skeet;
+
+    public enum IconPack {
+        Skeet,
+        Frogyeezy,
+        Oringo
     }
 
     private static final ClickGuiScreen GUI = new ClickGuiScreen();
