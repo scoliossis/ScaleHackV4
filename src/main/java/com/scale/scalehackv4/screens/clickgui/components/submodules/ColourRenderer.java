@@ -157,9 +157,9 @@ public class ColourRenderer extends SubModuleRenderer {
             selectedPart = null;
             ColourRenderer.hsb[0] = -1;
             SubModuleRenderer.activeSubModule = subModule;
-            if (ClickGuiModule.colourBoxType == ClickGuiModule.ColourBoxType.Anime_Girl) {
-                ANIME_GIRL_MOUSE_POS = guessPictureMousePos(getColourPickerImage(), (Color) subModule.get());
-            }
+            if (ClickGuiModule.colourBoxType == ClickGuiModule.ColourBoxType.Normal) return true;
+
+            ANIME_GIRL_MOUSE_POS = guessPictureMousePos(getColourPickerImage(), (Color) subModule.get());
 
             return true;
         }
