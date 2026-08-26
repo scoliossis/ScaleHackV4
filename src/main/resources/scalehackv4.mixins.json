@@ -30,6 +30,7 @@
     "player.KeybindPressedMixin",
     "player.KeyboardInputMixin",
     "player.MouseTargetBridgeMixin",
+    "player.NukerMixin",
     "player.PacketSequenceBridgeMixin",
     "player.RotationEventMixin",
     "player.SelectedStackBridgeMixin",
