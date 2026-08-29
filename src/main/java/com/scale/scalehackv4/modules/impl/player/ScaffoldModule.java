@@ -29,10 +29,8 @@ import java.util.Optional;
         category = Category.PLAYER
 )
 public class ScaffoldModule extends Module {
-    @RegisterSubModule(name = "Fast Place", hasKeybind = true)
-    public static boolean fastPlace = true;
     // in theory, the "fast place" option isnt needed, only place delay.
-    @RegisterSubModule(name = "Fast Place Speed", parent = "Fast Place", min = 1, max = 3)
+    @RegisterSubModule(name = "Vanilla Block Place Delay", parent = "Fast Place", min = 1, max = 4)
     public static int placeDelay = 1;
 
     @RegisterSubModule(name = "Safewalk", hasKeybind = true)
@@ -117,6 +115,7 @@ public class ScaffoldModule extends Module {
             @Override
             public boolean rotate(RotationEvent.Params params, BlockPos closestBlock) {
                 if (C.p().isOnGround() && MovementUtil.willJump()) {
+                    params.rotation.pitch = RotationEvent.getLastRotation().pitch;
                     easingTicks = 0;
                     return false;
                 }
@@ -157,14 +156,19 @@ public class ScaffoldModule extends Module {
 
     // the ideal rotation is:
     //  - a multiple of 45 away from client rotation (so movefix is less noticable)
+    //      - but should only attempt diagonal rotation
     //      - only matters on ground
     //  - a low a pitch as possible so it doesnt climb too quick when in air
     //  - as close to the last rotation as possible
     private static float getRotationScore(Rotation rotation) {
         if (rotation == null) return Float.MAX_VALUE;
+
+        float yawDifferenceFromClient = ((RotationEvent.clientRotation.yaw-rotation.yaw + 45) % 90);
+        // i realised u cant just divide by 90 when i was dming my friend to fix scalehackv3 scaffold rots
+        float yawDifferenceFrom90 = Math.min(yawDifferenceFromClient, 90-yawDifferenceFromClient)*1.5f;
+
         return Math.abs(rotation.yaw - RotationEvent.getLastRotation().yaw) -
-                ((RotationEvent.clientRotation.yaw-rotation.yaw) % 45)*2 -
-                (C.p().isOnGround() ? 0 : (rotation.pitch-60)/4);
+                (C.p().isOnGround() ? -yawDifferenceFrom90 : (rotation.pitch-60)/4);
     }
 
     private static boolean isValidPlacement(Rotation rotation, BlockPos closestBlock) {
@@ -224,7 +228,7 @@ public class ScaffoldModule extends Module {
 
         return (isPlacingBlock || isDoingNothing)
                 && C.p().getMainHandStack().getItem() instanceof BlockItem
-                && ModuleUtil.isEnabled(ScaffoldModule.class) && fastPlace
+                && ModuleUtil.isEnabled(ScaffoldModule.class)
                 ? placeDelay
                 : 4;
     }

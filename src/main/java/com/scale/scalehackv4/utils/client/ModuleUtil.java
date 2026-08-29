@@ -267,10 +267,10 @@ public class ModuleUtil {
     }
 
     public static boolean loadConfig(String configName) {
-        MultiSelectUtil.ENABLED_ENUMS.clear();
         String configFileText = readConfig(configName);
         if (configFileText == null) return false;
 
+        MultiSelectUtil.ENABLED_ENUMS.clear();
         for (Module m : MODULES.values()) loadModule(m, configFileText);
 
         return true;

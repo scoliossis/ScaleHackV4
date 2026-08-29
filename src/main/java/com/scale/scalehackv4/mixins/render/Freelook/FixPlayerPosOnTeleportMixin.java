@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.mixins.render.Freelook;
 
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.player.Rotation;
@@ -34,5 +35,8 @@ public class FixPlayerPosOnTeleportMixin {
                 C.p().setPitch(Freelook.renderRotation.pitch);
             }
         }
+
+        // fix gcd issues and stops modules which attempt to set the EXACT previous rotation again setting an identical rotation, the tick after the teleport packet
+        RotationEvent.setLastRotation(new Rotation(packet.change().yaw(), packet.change().pitch()));
     }
 }
