@@ -1,26 +1,37 @@
 package com.scale.scalehackv4.modules.impl.render;
 
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.render.RenderWorldEvent;
+import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.InventoryUtil;
 import com.scale.scalehackv4.utils.player.BlockTracker;
-import com.scale.scalehackv4.utils.render.Render3dUtil;
+import com.scale.scalehackv4.utils.player.WorldUtil;
+import com.scale.scalehackv4.utils.render.Render2dUtil;
+import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.block.BedBlock;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.enums.BedPart;
 import net.minecraft.client.texture.Sprite;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.EmptyBlockView;
+import org.joml.Matrix3x2fStack;
 import org.joml.Quaternionf;
+import org.joml.Vector2i;
 
 import java.awt.*;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 
 @RegisterModule(
@@ -29,9 +40,6 @@ import java.util.List;
 )
 // todo: allow ANY block to be picked, not just beds
 public class BlockESP extends Module {
-    @RegisterSubModule(name = "ESP Colour")
-    public static Color espColour = new Color(240, 139, 248,100);
-
     // uh huh.
     private final List<Block> BED_COLOURS = List.of(
             Blocks.BLACK_BED,
@@ -52,45 +60,64 @@ public class BlockESP extends Module {
             Blocks.YELLOW_BED
     );
 
-    public final Event renderWorldEvent = new RenderWorldEvent(this, params -> {
+    private static final int ESP_SIZE = 16;
+    private static final int PADDING = 2;
+    private static final int DOWNSCALE = 2;
+
+    private final HashMap<BlockPos, Vector2i> bedPositions  = new HashMap<>();
+
+    public final Event renderTickEvent = new RenderTickEvent(this, params -> {
         BED_COLOURS.forEach(bed -> {
             for (BlockPos blockPos : BlockTracker.getBlockPositions(bed)) {
-                BlockState blockState = C.w().getBlockState(blockPos);
-                if (!(blockState.getBlock() instanceof BedBlock bedBlock) || blockState.get(BedBlock.PART) != BedPart.FOOT) continue;
+                BlockState bedBlockState = C.w().getBlockState(blockPos);
+                if (!(bedBlockState.getBlock() instanceof BedBlock) || bedBlockState.get(BedBlock.PART) != BedPart.FOOT) continue;
 
-                Direction facing = blockState.get(BedBlock.FACING);
-                // shrug, https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/render/BedESP.java#L53
-                Box box = new Box(
-                        Math.min(facing.getOffsetX(), 0), 0, Math.min(facing.getOffsetZ(), 0),
-                        1.0F + Math.abs(facing.getOffsetX()), 0.5625F, 1.0F + Math.abs(facing.getOffsetZ())
-                );
+                Direction facing = bedBlockState.get(BedBlock.FACING);
 
-                Render3dUtil.getMatrices().push();
-                Render3dUtil.getMatrices().translate(blockPos.getX(), blockPos.getY(), blockPos.getZ());
+                Vec3d bedMiddle = blockPos.toCenterPos().add(facing.getOffsetX()/2f, 0, facing.getOffsetZ()/2f);
 
-                Render3dUtil.drawBox(
-                        (float) box.minX, (float) box.minY, (float) box.minZ,
-                        (float) box.maxX, (float) box.maxY, (float) box.maxZ,
-                        espColour,
-                        false
-                );
+                Vector2i bedMiddlePos = Render2dUtil.projectPoint(bedMiddle);
+                if (bedMiddlePos == null) continue;
 
-                // todo: lol.
-                BlockPos bestBlock = blockPos.up();
-                BlockState bestBlockState = C.w().getBlockState(bestBlock);
+                bedPositions
+                        .compute(blockPos, (k, v) -> (v == null ? bedMiddlePos : v)
+                        .add(bedMiddlePos.sub((v == null ? bedMiddlePos : v), new Vector2i()).div(2, new Vector2i())));
 
-                if (bestBlockState.getBlock() != Blocks.AIR) {
-                    Render3dUtil.getMatrices().translate(box.minX + 0.5, 1.25, box.minZ + 0.5);
-                    Render3dUtil.getMatrices().multiply(new Quaternionf().rotationZYX(0f, (float) -Math.toRadians(C.p().getYaw()), (float) Math.toRadians(C.p().getPitch())));
-                    Sprite sprite = C.mc.getBlockRenderManager().getModel(C.w().getBlockState(blockPos.up())).particleSprite();
-                    float u0 = sprite.getMinU(), u1 = sprite.getMaxU(), v0 = sprite.getMinV(), v1 = sprite.getMaxV();
+                ArrayList<BlockState> outerBlocks = new ArrayList<>();
+                outerBlocks.add(bedBlockState);
 
-                    Render3dUtil.drawTexturedQuads(-0.25f, -0.25f, -0.25f, 0.5f, 0.5f, u0, v1, u1, v0, Color.WHITE, sprite.getAtlasId(), false);
+                // todo: maybe get more than just the immediate block
+                BlockState bestBlockState = C.w().getBlockState(WorldUtil.getWeakestSurroundingBlock(blockPos, facing));
+                if (InventoryUtil.isFullBlock(bestBlockState)) outerBlocks.add(bestBlockState);
 
-                    sprite.close();
+                Matrix3x2fStack matrices = Render2dUtil.getDrawContext().getMatrices();
+                matrices.pushMatrix();
+
+                int width = ((ESP_SIZE+PADDING)*outerBlocks.size() + PADDING) / DOWNSCALE;
+                int height = (ESP_SIZE + PADDING*2) / DOWNSCALE;
+
+                int x = -width/2;
+                int y = -height/2;
+
+                Vector2i pos = bedPositions.get(blockPos);
+
+                Render2dUtil.drawBlur(pos.x+x, pos.y+y, width, height);
+                Render2dUtil.drawRect(pos.x+x, pos.y+y, width, height, new Color(20,20,20,100));
+
+                matrices.translate(pos.x+x, pos.y+y);
+                matrices.scale(1f/DOWNSCALE);
+
+                matrices.translate(PADDING, PADDING);
+                for (BlockState outerBlockState : outerBlocks) {
+                    RenderUtil.getDrawContext().drawItem(
+                            outerBlockState.getBlock().asItem().getDefaultStack(),
+                            0,
+                            0
+                    );
+                    matrices.translate(ESP_SIZE + PADDING, 0);
                 }
 
-                Render3dUtil.getMatrices().pop();
+                matrices.popMatrix();
             };
         });
         return false;

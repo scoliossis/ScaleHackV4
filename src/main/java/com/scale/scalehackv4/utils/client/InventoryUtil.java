@@ -3,10 +3,7 @@ package com.scale.scalehackv4.utils.client;
 import com.scale.scalehackv4.bridge.SelectedStackBridge;
 import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.utils.C;
-import net.minecraft.block.AbstractBlock;
-import net.minecraft.block.Block;
-import net.minecraft.block.Blocks;
-import net.minecraft.block.FallingBlock;
+import net.minecraft.block.*;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttributeModifiersComponent;
 import net.minecraft.component.type.ItemEnchantmentsComponent;
@@ -58,9 +55,13 @@ public class InventoryUtil {
                 // gotta NOT be sand
                 !(blockItem.getBlock() instanceof FallingBlock) &&
                 // gotta be a full block, not a sapling or smth
-                blockItem.getBlock().getDefaultState().isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN) &&
+                isFullBlock(blockItem.getBlock().getDefaultState()) &&
                 // no bridging with enchantment table please
                 !isBlockInteractable(blockItem.getBlock());
+    }
+
+    public static boolean isFullBlock(BlockState blockState) {
+        return blockState.isFullCube(EmptyBlockView.INSTANCE, BlockPos.ORIGIN);
     }
 
     // i hate this, thank you minecraft

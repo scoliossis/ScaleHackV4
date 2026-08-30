@@ -29,6 +29,7 @@ public class NukerModule extends Module {
     public static float fastBreak = 1;
 
     private static int previousSlot = -1;
+    private static int bestToolSlot = -1;
     public static int lastBlockBreakTick = -1;
 
     public static int getBreakDelay() {
@@ -40,6 +41,10 @@ public class NukerModule extends Module {
     }
 
     public Event onPlayerTick = new PlayerUpdateEvent(this, params -> {
+        if (C.p().getInventory().getSelectedSlot() != bestToolSlot) {
+            previousSlot = -1;
+            lastBlockBreakTick = -1;
+        }
         if (WorldUtil.tick - lastBlockBreakTick == swapBackDelay) switchBack();
         return false;
     });
@@ -51,8 +56,9 @@ public class NukerModule extends Module {
     public static void switchToTool(Block block) {
         // swapSlot swaps instantly, which is the same as sending swapping a tick earlier
         if (previousSlot == -1) previousSlot = C.p().getInventory().getSelectedSlot();
+        bestToolSlot = InventoryUtil.getBestHotbarSlotToBreakBlock(block);
         InventoryUtil.swapSlot(
-                InventoryUtil.getBestHotbarSlotToBreakBlock(block),
+                bestToolSlot,
                 true
         );
     }

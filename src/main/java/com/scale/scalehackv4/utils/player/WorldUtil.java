@@ -5,6 +5,9 @@ import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.client.InventoryUtil;
+import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.component.DataComponentTypes;
 import net.minecraft.component.type.AttackRangeComponent;
@@ -12,11 +15,12 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.predicate.entity.EntityPredicates;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
-import net.minecraft.util.math.ChunkPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.*;
+import net.minecraft.world.EmptyBlockView;
 import net.minecraft.world.RaycastContext;
+
+import java.util.Comparator;
+import java.util.List;
 
 @RegisterListeners
 public class WorldUtil {
@@ -130,5 +134,46 @@ public class WorldUtil {
         BlockPos blockPos = blockHitResult.getBlockPos().offset(blockHitResult.getSide());
         return !C.w().getBlockState(blockHitResult.getBlockPos()).isAir()
                 && C.w().getOtherEntities(null, new Box(blockPos)).isEmpty();
+    }
+
+    public static BlockPos getWeakestSurroundingBlock(BlockPos blockPos, Direction facing) {
+        BlockPos footPos = blockPos.offset(facing);
+
+        List<BlockPos> possibleBlocks = List.of(
+                blockPos.up(),
+                blockPos.offset(facing.getOpposite()),
+                blockPos.offset(facing.rotateYClockwise()),
+                blockPos.offset(facing.rotateYCounterclockwise()),
+
+                footPos.up(),
+                footPos.offset(facing),
+                footPos.offset(facing.rotateYClockwise()),
+                footPos.offset(facing.rotateYCounterclockwise())
+        );
+
+        possibleBlocks = possibleBlocks
+                .stream()
+                .sorted(Comparator.comparingDouble(e -> C.p().squaredDistanceTo(e.toCenterPos())))
+                .toList();
+
+        BlockPos bestBlock = possibleBlocks.getFirst();
+        float bestSpeed = 0;
+
+        for (BlockPos pos : possibleBlocks) {
+            BlockState blockState = C.w().getBlockState(pos);
+            if (!InventoryUtil.isFullBlock(blockState)) return pos;
+
+            float breakSpeed =  MiningUtil.calcBlockBreakingDelta(
+                    pos,
+                    C.p().getInventory().getStack(InventoryUtil.getBestHotbarSlotToBreakBlock(blockState.getBlock()))
+            );
+
+            if (breakSpeed > bestSpeed) {
+                bestSpeed = breakSpeed;
+                bestBlock = pos;
+            }
+        }
+
+        return bestBlock;
     }
 }

@@ -41,15 +41,21 @@ public class EspModule extends Module {
 
     @RegisterSubModule(name = "Blur")
     public boolean blurESP = false;
-    @RegisterSubModule(name = "Width", parent = "Square", min = 0.5, max = 3, increment = 0.1)
+    @RegisterSubModule(name = "Width", parent = "Blur", min = 0.5, max = 3, increment = 0.1)
     public float squareWidth = 1;
-    @RegisterSubModule(name = "Height", parent = "Square", min = 1.5, max = 3, increment = 0.1)
+    @RegisterSubModule(name = "Height", parent = "Blur", min = 1.5, max = 3, increment = 0.1)
     public float squareHeight = 2;
 
     @RegisterSubModule(name = "Nametags")
     public static boolean nametags = true;
     @RegisterSubModule(name = "Nametag Size", min = 5, max = 20, parent = "Nametags")
     public int nametagSize = 7;
+
+    private final static int RECT_PADDING = 2;
+    private final static int ARMOUR_GAP = RECT_PADDING + 2;
+
+    private final static int SLOT_PIECES = 4;
+    private final static int ARMOR_BASE_SIZE = 16;
 
     private final HashMap<LivingEntity, Vector2i> nametagPositions  = new HashMap<>();
 
@@ -69,7 +75,7 @@ public class EspModule extends Module {
             Vec3d playerPos = PlayerUtil.getPlayerRenderPos(player);
 
             if (blurESP) drawSquareESP(playerPos, partialTicks, params);
-            if (nametags) drawNameTag(player, playerPos.add(0, player.getHeight(), 0), params);
+            if (nametags) drawNameTag(player, playerPos.add(0, 2, 0), params);
         });
 
         return false;
@@ -99,7 +105,7 @@ public class EspModule extends Module {
         int y = Math.min(Math.min(p1.y, p2.y), Math.min(p3.y, p4.y));
         int height = Math.max(Math.max(p1.y, p2.y), Math.max(p3.y, p4.y)) - y;
 
-        Render2dUtil.drawBlur(x, C.res().getScaledHeight() - y - height, width, height);
+        Render2dUtil.drawBlur(x,  y, width, height);
     }
 
     private void drawNameTag(PlayerEntity player, Vec3d pos, RenderTickEvent.Params params) {
@@ -108,6 +114,8 @@ public class EspModule extends Module {
             nametagPositions.remove(player);
             return;
         }
+
+        boolean fullNametag = C.p().distanceTo(player) < 20 || player.getArmor() == 0;
 
         nametagPositions
                 .compute(player, (k, v) -> (v == null ? playerHeadPos2d : v)
@@ -124,51 +132,49 @@ public class EspModule extends Module {
                 .append(" ")
                 .append(Text.literal(playerHealth+"").withColor(healthColor.getRGB()));
 
-        int rectPadding = 2;
-        int armorGap = rectPadding+2;
-
         int playerMiddleX = nametagPositions.get(player).x;
         int playerMiddleY = nametagPositions.get(player).y;
 
         int textWidth = FontUtil.getStringWidth(playerText.getString(), nametagSize);
         int textHeight = FontUtil.getFontHeight(nametagSize);
 
-        int SLOT_PIECES = 4;
-        int ARMOR_BASE_SIZE = 16;
         float armorScaling = MathUtil.toNearest(1f/ARMOR_BASE_SIZE * nametagSize, 0.5f);
         int armorSize = (int) (ARMOR_BASE_SIZE * armorScaling);
 
-        int maxRowWidth = Math.max(textWidth, (armorSize * SLOT_PIECES + armorGap * (SLOT_PIECES - 1) + 1));
+        int maxRowWidth = Math.max(textWidth, (armorSize * SLOT_PIECES + ARMOUR_GAP * (SLOT_PIECES - 1) + 1));
 
-        int rectHeight = textHeight + armorSize + rectPadding;
+        int rectHeight = textHeight + (fullNametag ? armorSize + RECT_PADDING : 0);
         int headDiameter = rectHeight;
 
-        int rectWidth = maxRowWidth + headDiameter + rectPadding;
+        int rectWidth = maxRowWidth + headDiameter + RECT_PADDING * 2;
 
         int rectX = playerMiddleX - rectWidth/2;
         int rectY = playerMiddleY - rectHeight;
 
         Matrix3x2fStack matrices = RenderUtil.getDrawContext().getMatrices();
         matrices.pushMatrix();
+
+        Render2dUtil.drawBlur(rectX-RECT_PADDING, rectY-RECT_PADDING, rectWidth+ RECT_PADDING *2, rectHeight+ RECT_PADDING *2);
         matrices.translate(rectX, rectY);
 
-        Render2dUtil.drawSkeetRect(-rectPadding, -rectPadding, rectWidth+rectPadding*2, rectHeight+rectPadding*2, null);
+        //Render2dUtil.drawSkeetRect(-RECT_PADDING, -RECT_PADDING, rectWidth+ RECT_PADDING *2, rectHeight+ RECT_PADDING *2, null);
+        Render2dUtil.drawRect(-RECT_PADDING, -RECT_PADDING, rectWidth+ RECT_PADDING *2, rectHeight+ RECT_PADDING *2, new Color(20,20,20,100));
 
         Render2dUtil.drawPlayerHead(player, 0, 0, headDiameter, headDiameter, Color.WHITE, true);
 
-        matrices.translate(headDiameter + rectPadding, 0);
-        FontUtil.drawString(playerText, 0, 0, nametagSize, Color.WHITE, false);
+        matrices.translate(headDiameter + RECT_PADDING, 0);
+        FontUtil.drawString(playerText, 0, 0, nametagSize, Color.WHITE, true);
 
-        for (EquipmentSlot slot : EquipmentSlot.values()) {
+        if (fullNametag) for (EquipmentSlot slot : EquipmentSlot.values()) {
             if (slot.getType() != EquipmentSlot.Type.HUMANOID_ARMOR) continue;
 
-            int xOffset = slot.getEntitySlotId() * (armorSize + armorGap);
+            int xOffset = slot.getEntitySlotId() * (armorSize + ARMOUR_GAP);
 
             matrices.pushMatrix();
-            matrices.translate(xOffset + 1, textHeight + rectPadding - 1);
+            matrices.translate(xOffset + 1, textHeight + RECT_PADDING - 1);
 
-            Render2dUtil.drawRect(-1, -1, armorSize+2, armorSize+2, new Color(60, 60, 60));
-            Render2dUtil.drawRect(0, 0, armorSize, armorSize, new Color(40, 40, 40));
+            //Render2dUtil.drawRect(-1, -1, armorSize+2, armorSize+2, new Color(60, 60, 60));
+            Render2dUtil.drawRect(0, 0, armorSize, armorSize, new Color(40, 40, 40, 100));
 
             ItemStack stack = player.getEquippedStack(slot);
             if (!stack.isEmpty()) {

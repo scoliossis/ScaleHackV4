@@ -11,6 +11,7 @@ import lombok.Setter;
 import net.minecraft.client.network.PlayerListEntry;
 import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.util.DefaultSkinHelper;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
@@ -173,6 +174,8 @@ public class Render2dUtil extends RenderUtil {
     public static void drawSkinHead(Identifier skin, int x, int y, int width, int height, Color tint, boolean showHat) {
         Matrix3x2f matrices = getMatrices();
 
+        if (skin == null) skin = DefaultSkinHelper.getTexture();
+
         // yes these depend on the skin...
         int TEXTURE_WIDTH = C.mc.getTextureManager().getTexture(skin).getGlTexture().getWidth(0);
         int TEXTURE_HEIGHT = C.mc.getTextureManager().getTexture(skin).getGlTexture().getHeight(0);
@@ -207,6 +210,8 @@ public class Render2dUtil extends RenderUtil {
 
     public static void drawBlur(int x, int y, int width, int height) {
         if (C.mc.currentScreen != null) return;
+
+        y = C.res().getScaledHeight() - y - height;
 
         x *= C.res().getScaleFactor();
         y *= C.res().getScaleFactor();

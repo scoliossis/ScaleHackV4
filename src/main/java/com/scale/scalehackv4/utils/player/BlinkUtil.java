@@ -29,11 +29,7 @@ public class BlinkUtil {
     }, 0);
 
     private final Event onPacketReceived = new PacketEvent.Received(null, params -> {
-        boolean visualPacket =
-                HideBlinkInboundModule.hideBlinkInbound
-                && HideBlinkInboundModule.VISUAL_INBOUND_PACKETS.contains(params.packet.getClass());
-
-        if (C.w() == null || !isBlinking(false, true) || visualPacket)
+        if (C.w() == null || !isBlinking(false, true))
             return false;
 
         lastBlinkReceivedTick = WorldUtil.tick;

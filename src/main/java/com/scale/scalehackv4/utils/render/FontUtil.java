@@ -84,7 +84,7 @@ public class FontUtil {
     private static FontTexture createFontTexture(Font font, Rectangle stringBounds) {
         int textureWidth = stringBounds.width + (LETTERS.length() * X_SPACING);
 
-        BufferedImage texture = new BufferedImage(textureWidth, stringBounds.height, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage texture = new BufferedImage(textureWidth, Math.max(1, stringBounds.height), BufferedImage.TYPE_INT_ARGB);
         Graphics2D graphics = setAntiAliasing(texture.createGraphics());
         graphics.setColor(Color.WHITE);
         graphics.drawRect(0, 0, 1, stringBounds.height);

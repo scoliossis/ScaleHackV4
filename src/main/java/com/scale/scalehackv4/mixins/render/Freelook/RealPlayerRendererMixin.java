@@ -1,5 +1,6 @@
 package com.scale.scalehackv4.mixins.render.Freelook;
 
+import com.scale.scalehackv4.events.impl.player.RotationEvent;
 import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import com.scale.scalehackv4.utils.C;
@@ -68,7 +69,7 @@ public abstract class RealPlayerRendererMixin {
             entityRenderState.z = lerpedPos.z;
         }
         if (Freelook.realRotation != null) {
-            ((PlayerEntityRenderState) entityRenderState).pitch = Freelook.realRotation.pitch;
+            ((PlayerEntityRenderState) entityRenderState).pitch = MathHelper.lerp(tickProgress, RotationEvent.lastPitch, RotationEvent.currentPitch);
         }
 
         return entityRenderState;
