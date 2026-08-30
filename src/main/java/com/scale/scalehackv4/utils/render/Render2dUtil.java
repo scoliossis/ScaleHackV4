@@ -206,6 +206,8 @@ public class Render2dUtil extends RenderUtil {
     private static int blurOverrideLastTick = -1;
 
     public static void drawBlur(int x, int y, int width, int height) {
+        if (C.mc.currentScreen != null) return;
+
         x *= C.res().getScaleFactor();
         y *= C.res().getScaleFactor();
         width *= C.res().getScaleFactor();
@@ -214,9 +216,11 @@ public class Render2dUtil extends RenderUtil {
         for (int i = 0; i < 5; i++) blurStack.add(new Rectangle(x, y, width, height));
         C.mc.gameRenderer.renderBlur();
 
-        SimpleOption<Integer> blurOption = C.mc.options.getMenuBackgroundBlurriness();
-        blurOverrideLastTick = blurOption.getValue();
-        blurOption.setValue(OptionsModule.blurRadius);
+        if (blurOverrideLastTick == -1) {
+            SimpleOption<Integer> blurOption = C.mc.options.getMenuBackgroundBlurriness();
+            blurOverrideLastTick = blurOption.getValue();
+            blurOption.setValue(OptionsModule.blurRadius);
+        }
     }
 
     private final static Event handleRenderTickHead = new RenderTickEvent(null, params -> {

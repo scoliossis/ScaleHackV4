@@ -2,6 +2,7 @@ package com.scale.scalehackv4.mixins.render;
 
 import com.scale.scalehackv4.modules.impl.client.Targets;
 import com.scale.scalehackv4.modules.impl.render.EspModule;
+import com.scale.scalehackv4.utils.client.ModuleUtil;
 import net.minecraft.client.network.ClientPlayerLikeEntity;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.LivingEntityRenderer;
@@ -23,6 +24,7 @@ public abstract class HideNametagsMixin <AvatarlikeEntity extends PlayerLikeEnti
 
     @Inject(method = "hasLabel(Lnet/minecraft/entity/PlayerLikeEntity;D)Z", at = @At("HEAD"), cancellable = true)
     private void hasLabel(AvatarlikeEntity playerLikeEntity, double d, CallbackInfoReturnable<Boolean> cir) {
-        if (EspModule.nametags && Targets.isValidTarget(playerLikeEntity, true)) cir.setReturnValue(false);
+        if (EspModule.nametags && ModuleUtil.isEnabled(EspModule.class) && Targets.isValidTarget(playerLikeEntity, true))
+            cir.setReturnValue(false);
     }
 }

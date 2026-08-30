@@ -37,7 +37,7 @@ public class ScaffoldModule extends Module {
     public static boolean crouchOnEdge = true;
     @RegisterSubModule(name = "Autoplace", hasKeybind = true)
     public static boolean autoplace = true;
-    @RegisterSubModule(name = "Keep Y", hasKeybind = true)
+    @RegisterSubModule(name = "Keep Y", parent = "Autoplace", hasKeybind = true)
     public static boolean keepY = false;
 
     @RegisterSubModule(name = "Conditions")
@@ -175,9 +175,15 @@ public class ScaffoldModule extends Module {
         HitResult hitResult = WorldUtil.getMouseOver(rotation);
         return hitResult instanceof BlockHitResult blockHitResult
                 && WorldUtil.isBlockHitResultValid(blockHitResult)
-                && blockHitResult.getBlockPos().equals(closestBlock)
-                && (!keepY || blockHitResult.getSide() != Direction.UP)
+                && (blockHitResult.getBlockPos().equals(closestBlock) || !shouldBlockPlacements())
+                && (!keepY || !autoplace || blockHitResult.getSide() != Direction.UP)
                 && blockHitResult.getBlockPos().offset(blockHitResult.getSide()).getY() <= C.p().getY() - 1;
+    }
+
+    private static boolean shouldBlockPlacements() {
+        return rotationMode == RotationMode.Telly
+                || rotationMode == RotationMode.Snap
+                || rotationMode == RotationMode.God_Bridge;
     }
 
     private BlockPos closestBlock;
@@ -198,12 +204,10 @@ public class ScaffoldModule extends Module {
     });
 
     public Event onAllowRightClick = new CheckClickEvent.Right(this, params -> {
-        if (!shouldScaffold()) return false;
+        if (!shouldScaffold() || !autoplace) return false;
 
         if (!InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem())
                 || !isValidPlacement(RotationEvent.getLastRotation(), closestBlock)) return true;
-
-        if (!autoplace) return false;
 
         UseItemBridge.from(C.mc).bridge$DoItemUse();
         return true;
@@ -227,7 +231,7 @@ public class ScaffoldModule extends Module {
         boolean isDoingNothing = C.mc.crosshairTarget == null || C.mc.crosshairTarget.getType() == HitResult.Type.MISS;
 
         return (isPlacingBlock || isDoingNothing)
-                && C.p().getMainHandStack().getItem() instanceof BlockItem
+                && InventoryUtil.isItemValidBlock(C.p().getMainHandStack().getItem())
                 && ModuleUtil.isEnabled(ScaffoldModule.class)
                 ? placeDelay
                 : 4;
