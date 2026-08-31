@@ -144,9 +144,9 @@ public class AltManagerUtil {
                 try {
                     currentAlt = this;
                     this.lastLogin = System.currentTimeMillis();
-                    System.out.println("Saved alt " + this.name + " : " + this.lastLogin);
+                    System.out.println("Saved alt " + this.name + "!");
                     this.loginData.ssid = C.mc.getSession().getAccessToken();
-                    updateSkin();
+                    //updateSkin();
                     Files.write(new File(ALTS_FOLDER, this.uuid.toString() + ".json").toPath(), this.toString().getBytes());
 
                     // refresh alts that arent really real

@@ -52,11 +52,11 @@ public class EnumRenderer extends SubModuleRenderer {
                     .map(e -> fixValueName(e.name()))
                     .collect(Collectors.joining(", "));
             if (enabledEnums.isEmpty()) enabledEnums = "None";
-            FontUtil.drawString(enabledEnums, 3, ENUM_Y+textY, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+            FontUtil.drawString(enabledEnums, 3, (int) (ENUM_Y+textY), ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
             drawContext.disableScissor();
         }
-        else FontUtil.drawString(fixValueName(moduleValue.name()), 3, ENUM_Y+textY, ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
+        else FontUtil.drawString(fixValueName(moduleValue.name()), 3, (int) (ENUM_Y+textY), ClickGuiScreen.FONT_SIZE, Color.WHITE, false);
 
         matrices.pushMatrix();
         matrices.translate(rectWidth - 10, ENUM_Y+(ENUM_HEIGHT/2f)-1);
@@ -99,7 +99,7 @@ public class EnumRenderer extends SubModuleRenderer {
             }
 
             Render2dUtil.drawRect(0, ENUM_Y, rectWidth, ENUM_HEIGHT, hovered ? new Color(20,20,20) : new Color(40,40,40), true);
-            FontUtil.drawString(fixValueName(value.name()),  3,  ENUM_Y+textY, ClickGuiScreen.FONT_SIZE, selected ? ClickGuiModule.guiColour : Color.WHITE, false, true);
+            FontUtil.drawString(fixValueName(value.name()),  3,  (int)(ENUM_Y+textY), ClickGuiScreen.FONT_SIZE, selected ? ClickGuiModule.guiColour : Color.WHITE, false, true);
             matrices.translate(0, ENUM_HEIGHT);
         }
         matrices.popMatrix();

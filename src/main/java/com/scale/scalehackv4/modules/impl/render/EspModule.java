@@ -115,11 +115,11 @@ public class EspModule extends Module {
             return;
         }
 
-        boolean fullNametag = C.p().distanceTo(player) < 20 || player.getArmor() == 0;
+        boolean fullNametag = C.p().distanceTo(player) < 32 && player.getArmor() != 0;
 
         nametagPositions
                 .compute(player, (k, v) -> (v == null ? playerHeadPos2d : v)
-                .add(playerHeadPos2d.sub((v == null ? playerHeadPos2d : v), new Vector2i()).div(5, new Vector2i())));
+                .add(playerHeadPos2d.sub((v == null ? playerHeadPos2d : v), new Vector2i()).div(3, new Vector2i())));
 
         float playerHealth = MathUtil.roundTo(player.getHealth() + player.getAbsorptionAmount(), 1);
         double smoothedHealthRatio = EasingUtil.EasingFunctions.Ease_In_Out_Sine

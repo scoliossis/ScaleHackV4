@@ -81,7 +81,7 @@ public class BlockESP extends Module {
 
                 bedPositions
                         .compute(blockPos, (k, v) -> (v == null ? bedMiddlePos : v)
-                        .add(bedMiddlePos.sub((v == null ? bedMiddlePos : v), new Vector2i()).div(2, new Vector2i())));
+                        .add(bedMiddlePos.sub((v == null ? bedMiddlePos : v), new Vector2i()).div(3, new Vector2i())));
 
                 ArrayList<BlockState> outerBlocks = new ArrayList<>();
                 outerBlocks.add(bedBlockState);
@@ -101,7 +101,7 @@ public class BlockESP extends Module {
 
                 Vector2i pos = bedPositions.get(blockPos);
 
-                Render2dUtil.drawBlur(pos.x+x, pos.y+y, width, height);
+                //Render2dUtil.drawBlur(pos.x+x, pos.y+y, width, height);
                 Render2dUtil.drawRect(pos.x+x, pos.y+y, width, height, new Color(20,20,20,100));
 
                 matrices.translate(pos.x+x, pos.y+y);

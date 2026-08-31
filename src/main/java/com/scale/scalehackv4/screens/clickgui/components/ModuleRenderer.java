@@ -112,7 +112,14 @@ public class ModuleRenderer {
         Render2dUtil.drawGradientDown(0, module.height-10, module.width, 10, new Color(22, 22, 22, 0), new Color(22, 22, 22));
 
         // module name
-        FontUtil.drawString(Text.literal(moduleName).formatted(Formatting.BOLD), titleX, -fontHeight / 2f, ClickGuiScreen.FONT_SIZE, new Color(255, 255, 255), false);
+        FontUtil.drawString(
+                Text.literal(moduleName).formatted(Formatting.BOLD),
+                titleX,
+                (int) (-fontHeight / 2f),
+                ClickGuiScreen.FONT_SIZE,
+                new Color(255, 255, 255),
+                false
+        );
 
         handleScrollBar(module.height, subModulesHeight, module);
     }

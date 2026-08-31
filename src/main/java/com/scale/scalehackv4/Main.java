@@ -24,8 +24,6 @@ public class Main implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        FontUtil.setCurrentFont(FontUtil.Fonts.Verdana);
-
         ModuleUtil.init();
         CommandManager.init();
         DraggableRenderer.loadDraggingPositions();

@@ -63,25 +63,12 @@ public class Freelook extends Module {
         return false;
     }));
 
-    private boolean changedLockRotation = false;
-    private boolean changedLockPosition = false;
-
     private final Event onToggleSubmodules = new SubModuleToggledEvent(this, params -> {
-        if (params.field.getName().equals("lockRotation")) changedLockRotation = true;
-        if (params.field.getName().equals("lockPosition")) changedLockPosition = true;
-
-        return false;
-    });
-
-    // smth was wrong w disabling them on SubModuleToggledEvent and idk why, i assume this should fix wtv caused it
-    private final Event onPlayerTick = new ClientTickEvent(this, params -> {
-        if (changedLockRotation) {
-            onSetRotationLock(lockRotation);
-            changedLockRotation = false;
+        if (params.field.getName().equals("lockRotation")) {
+            C.mc.execute(() -> onSetRotationLock(lockRotation));
         }
-        if (changedLockPosition) {
-            onSetPositionLock(lockPosition);
-            changedLockPosition = false;
+        if (params.field.getName().equals("lockPosition")) {
+            C.mc.execute(() -> onSetPositionLock(lockPosition));
         }
 
         return false;
@@ -95,14 +82,18 @@ public class Freelook extends Module {
 
     @Override
     public void onEnable() {
-        onSetPositionLock(lockPosition);
-        onSetRotationLock(lockRotation);
+        C.mc.execute(() -> {
+            onSetPositionLock(lockPosition);
+            onSetRotationLock(lockRotation);
+        });
     }
 
     @Override
     public void onDisable() {
-        onSetPositionLock(false);
-        onSetRotationLock(false);
+        C.mc.execute(() -> {
+            onSetPositionLock(false);
+            onSetRotationLock(false);
+        });
     }
 
     private Perspective perspective = Perspective.FIRST_PERSON;
