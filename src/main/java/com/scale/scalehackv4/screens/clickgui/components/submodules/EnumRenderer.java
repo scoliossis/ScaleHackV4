@@ -60,7 +60,7 @@ public class EnumRenderer extends SubModuleRenderer {
 
         matrices.pushMatrix();
         matrices.translate(rectWidth - 10, ENUM_Y+(ENUM_HEIGHT/2f)-1);
-        Render2dUtil.drawPoints(new int[] {0, 4, 2}, new int[] {0, 0, 2}, Color.WHITE, false);
+        Render2dUtil.drawPolygon(new int[] {0, 4, 2}, new int[] {0, 0, 2}, Color.WHITE, false);
 
         matrices.popMatrix();
 

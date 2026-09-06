@@ -181,7 +181,7 @@ public class EasingUtil {
         else {
             animations.remove(key);
 
-            double currentProgress = (double) (System.currentTimeMillis() - animation.start) / animation.duration;
+            double currentProgress = Math.clamp((double) (System.currentTimeMillis() - animation.start) / animation.duration, 0, 1);
 
             if (currentProgress > 1) {
                 animations.put(key, new Animation(System.currentTimeMillis(), duration, up, easingFunction));
@@ -204,8 +204,11 @@ public class EasingUtil {
         double progress = (double) (System.currentTimeMillis() - animation.start) / animation.duration;
 
         if (progress > 1) {
-            animations.remove(key);
-            return -1;
+            if (!animation.up) {
+                animations.remove(key);
+                return 0;
+            }
+            return 1;
         }
 
         double returnValue = animation.up ? animation.easingFunction.ease(progress) : 1 - animation.easingFunction.ease(progress);

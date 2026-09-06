@@ -9,6 +9,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.util.InputUtil;
 import org.joml.Matrix3x2fStack;
 import org.joml.Vector2f;
+import org.joml.Vector2i;
 
 import java.awt.*;
 import java.util.HashSet;
@@ -67,4 +68,26 @@ public class MouseUtil {
         return isMouseInBounds(xy.x, xy.y, wh.x, wh.y, C.mc.mouse);
     }
 
+    public static boolean isMouseInPolygon(int[][] polygon) {
+        Vector2f mousePos = getMousePos();
+        boolean inside = false;
+
+        int j = polygon[0].length - 1;
+
+        for (int i = 0; i < polygon[0].length; i++) {
+            float xi = polygon[0][i];
+            float yi = polygon[1][i];
+
+            float xj = polygon[0][j];
+            float yj = polygon[1][j];
+
+            if ((yi > mousePos.y) != (yj > mousePos.y) && mousePos.x < (xj - xi) * (mousePos.y - yi) / (yj - yi) + xi) {
+                inside = !inside;
+            }
+
+            j = i;
+        }
+
+        return inside;
+    }
 }

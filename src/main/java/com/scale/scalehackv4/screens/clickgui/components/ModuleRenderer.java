@@ -90,17 +90,14 @@ public class ModuleRenderer {
         // bottom of outline
         Render2dUtil.drawRect(-1, module.height, module.width+2, 1, outlineColour);
 
-        /*
-        // todo:
-        int size = 5;
+        int size = 4;
         // arrow in bottom right!
-        Render2dUtil.drawPoints(
+        Render2dUtil.drawPolygon(
                 new int[]{module.width - size, module.width, module.width},
                 new int[]{module.height, module.height-size, module.height},
                 outlineColour,
-                false
+                true
         );
-         */
 
         // interior crocodile alligator
         Render2dUtil.drawRect(0, 0, module.width, module.height, new Color(22, 22, 22));

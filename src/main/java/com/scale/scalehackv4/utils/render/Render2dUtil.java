@@ -2,6 +2,7 @@ package com.scale.scalehackv4.utils.render;
 
 import com.mojang.blaze3d.systems.RenderPass;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
@@ -22,6 +23,7 @@ import org.joml.Vector3f;
 
 import java.awt.*;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 @RegisterListeners
 public class Render2dUtil extends RenderUtil {
@@ -58,7 +60,7 @@ public class Render2dUtil extends RenderUtil {
         drawRect(x, y, width, height, new Color(22, 22, 22));
 
         if (colour != null) drawRect(x, y-1, width, 1, colour);
-        else drawTexturedRect(Identifier.of("scalehackv4", "clickgui/rainbowbar.png"), x, y-1, width, 1);
+        else drawTexturedRect(Identifier.of(Main.MOD_ID, "clickgui/rainbowbar.png"), x, y-1, width, 1);
     }
 
     public static void drawRect(int x, int y, int width, int height, Color colour) {
@@ -145,16 +147,60 @@ public class Render2dUtil extends RenderUtil {
         }, queue);
     }
 
-    public static void drawPoints(int[] xCoords, int[] yCoords, Color color, boolean queue) {
+    public static void drawPolygon(int[] xCoords, int[] yCoords, Color color, boolean queue) {
         Matrix3x2f matrices = getMatrices();
 
         drawVertexes(VertexFormats.POSITION_COLOR, VertexFormat.DrawMode.TRIANGLE_FAN, (vertices) -> {
             for (int i = 0; i < xCoords.length; i++) {
                 vertices.vertex(matrices, xCoords[i], yCoords[i]).color(color.getRGB());
             }
+            vertices.vertex(matrices, xCoords[0], yCoords[0]).color(color.getRGB());
 
             return true;
         }, queue);
+    }
+
+    public static void drawTexturedPolygon(
+            Identifier image,
+            int[] xCoords,
+            int[] yCoords,
+            Color colour
+    ) {
+        Matrix3x2f matrices = getMatrices();
+
+        int minX = Arrays.stream(xCoords).min().orElse(0);
+        int maxX = Arrays.stream(xCoords).max().orElse(0);
+        int minY = Arrays.stream(yCoords).min().orElse(0);
+        int maxY = Arrays.stream(yCoords).max().orElse(0);
+
+        float width = maxX - minX;
+        float height = maxY - minY;
+
+        drawVertexes(
+                VertexFormats.POSITION_TEXTURE_COLOR,
+                VertexFormat.DrawMode.TRIANGLE_FAN,
+                getTexture(image),
+                vertices -> {
+                    for (int i = 0; i < xCoords.length; i++) {
+                        float u = (xCoords[i] - minX) / width;
+                        float v = (yCoords[i] - minY) / height;
+
+                        vertices.vertex(matrices, xCoords[i], yCoords[i])
+                                .texture(u, v)
+                                .color(colour.getRGB());
+                    }
+
+                    float u = (xCoords[0] - minX) / width;
+                    float v = (yCoords[0] - minY) / height;
+
+                    vertices.vertex(matrices, xCoords[0], yCoords[0])
+                            .texture(u, v)
+                            .color(colour.getRGB());
+
+                    return true;
+                },
+                false
+        );
     }
 
     public static Identifier getPlayerSkin(PlayerEntity player) {
@@ -209,7 +255,7 @@ public class Render2dUtil extends RenderUtil {
     private static int blurOverrideLastTick = -1;
 
     public static void drawBlur(int x, int y, int width, int height) {
-        if (C.mc.currentScreen != null || OptionsModule.blurRadius == 0) return;
+        if (OptionsModule.blurRadius == 0) return;
 
         y = C.res().getScaledHeight() - y - height;
 

@@ -12,6 +12,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.awt.*;
+
 @Mixin(GameRenderer.class)
 public abstract class HookProjectionMatrixMixin {
     @Shadow public abstract Matrix4f getBasicProjectionMatrix(float fovDegrees);
