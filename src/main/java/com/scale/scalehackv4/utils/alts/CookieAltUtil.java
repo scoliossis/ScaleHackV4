@@ -110,9 +110,10 @@ public class CookieAltUtil {
             String location = res.headers().firstValue("Location").orElse("");
             if (res.statusCode() == 302 && location.contains("oauth20_authorize.srf"))
                 return NetworkUtil.fixURL(location);
-        } catch (Exception e) {
-            AltManagerUtil.setErrorMessage("Invalid Cookie, cannot log in to xbox account: " + e.getMessage());
+        } catch (Exception ignored) {
         }
+
+        AltManagerUtil.setErrorMessage("Invalid Cookie, cannot log in to xbox account!");
         return null;
     }
 

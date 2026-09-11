@@ -255,7 +255,7 @@ public class Render2dUtil extends RenderUtil {
     private static int blurOverrideLastTick = -1;
 
     public static void drawBlur(int x, int y, int width, int height) {
-        if (OptionsModule.blurRadius == 0) return;
+        if (C.mc.currentScreen != null || OptionsModule.blurRadius == 0) return;
 
         y = C.res().getScaledHeight() - y - height;
 

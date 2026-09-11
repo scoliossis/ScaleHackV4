@@ -8,6 +8,7 @@ import com.scale.scalehackv4.utils.render.MouseUtil;
 import com.scale.scalehackv4.utils.render.Render2dUtil;
 import com.scale.scalehackv4.utils.render.RenderUtil;
 import net.minecraft.client.gui.Click;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.entity.player.PlayerModelPart;
 import net.minecraft.util.Util;
 import org.joml.Matrix3x2fStack;
@@ -26,6 +27,10 @@ public class AltManager {
     private static final int GAP_WIDTH = 4;
 
     private static boolean altsListOpen = false;
+
+    private static final int MAX_ALTS_DISPLAY = 6;
+
+    protected static int scrolledAmount = 0;
 
     // yes i had to google the multiplication symbol, i sadly dont have it on my keyboard
     private static final String REMOVE_ACCOUNT_INDICATOR = "×";
@@ -53,7 +58,18 @@ public class AltManager {
 
         Rectangle removeIndicatorBounds = getRemoveIndicatorBounds();
 
-        for (AltManagerUtil.Alt account : getAltsList()) {
+        List<AltManagerUtil.Alt> alts = getAltsList();
+
+        DrawContext context = RenderUtil.getDrawContext();
+        int altsHeight = getAltsHeight();
+
+        int maxScroll = Math.min(0, (MAX_ALTS_DISPLAY-alts.size()))*bounds.height;
+        scrolledAmount = Math.clamp(scrolledAmount, altsListOpen ? maxScroll : 0, 0);
+        context.enableScissor(bounds.x, bounds.y, bounds.x+bounds.width, bounds.y+altsHeight);
+
+        matrices.translate(0, scrolledAmount);
+
+        for (AltManagerUtil.Alt account : alts) {
             // ive noticed i use 22,22,22 grey a lot, and have for a while, but im not sure where i got this specific number from
             Render2dUtil.drawRect(bounds.x, bounds.y, bounds.width, bounds.height, new Color(22, 22, 22, 100));
             Render2dUtil.drawSkinHead(account.skin, headX, headY, HEAD_DIAMETER, HEAD_DIAMETER, Color.WHITE, shouldShowHat);
@@ -67,6 +83,22 @@ public class AltManager {
             }
 
             matrices.translate(0, bounds.height);
+        }
+
+        context.disableScissor();
+        matrices.popMatrix();
+
+        matrices.pushMatrix();
+        matrices.translate(0, altsHeight);
+
+        if (altsListOpen && scrolledAmount > maxScroll) {
+            Render2dUtil.drawPolygon(
+                    new int[] {(bounds.x + bounds.width / 2) - 5, (bounds.x + bounds.width / 2) + 5, (bounds.x + bounds.width / 2)},
+                    new int[] {bounds.y, bounds.y, bounds.y+5},
+                    new Color(22, 22, 22, 100),
+                    false
+            );
+            //Render2dUtil.drawGradientDown(bounds.x, -bounds.y/2, bounds.width, bounds.height, new Color(22, 22, 22, 0), new Color(22, 22, 22, 100));
         }
 
         // drawing the add account button
@@ -129,11 +161,33 @@ public class AltManager {
         return AltManagerUtil.ALTS;
     }
 
+    public static boolean isHoveringAlts() {
+        Rectangle bounds = getAltBounds();
+        return MouseUtil.isMouseInBounds(new Rectangle(
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                getAltsHeight() + ADD_ACCOUNT_HEIGHT
+        ), false);
+    }
+
+    protected static int getAltsHeight() {
+        Rectangle bounds = getAltBounds();
+        return bounds.height * Math.min(MAX_ALTS_DISPLAY, getAltsList().size());
+    }
+
     protected static boolean handleClick(Click click) {
+        if (!isHoveringAlts()) {
+            altsListOpen = false;
+            return false;
+        }
         if (click.button() != 0) return false;
 
         Rectangle accountBounds = getAltBounds();
+        accountBounds.y += AltManager.scrolledAmount;
+
         Rectangle removeIndicatorBounds = getRemoveIndicatorBounds();
+        removeIndicatorBounds.y += AltManager.scrolledAmount;
 
         List<AltManagerUtil.Alt> altsList = getAltsList();
         for (int i = 0; i < altsList.size(); i++) {
@@ -145,8 +199,9 @@ public class AltManager {
                     alt.delete();
                 }
                 else {
-                    alt.login();
-                    altsListOpen = false;
+                    C.ASYNC.execute(() -> {
+                        if (alt.login()) altsListOpen = false;
+                    });
                 }
                 return true;
             }

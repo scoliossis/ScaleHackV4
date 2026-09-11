@@ -2,6 +2,7 @@ package com.scale.scalehackv4.screens.mainmenu;
 
 import com.scale.scalehackv4.Main;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.alts.AltManagerUtil;
 import com.scale.scalehackv4.utils.client.EasingUtil;
 import com.scale.scalehackv4.utils.render.FontUtil;
 import com.scale.scalehackv4.utils.render.MouseUtil;
@@ -30,6 +31,8 @@ public class MainMenuScreen extends Screen {
 
     private final static int TEXT_INDENT_X = 10;
     private final static int TEXT_INDENT_Y = 5;
+
+    protected static double lastMouseScroll = 0;
 
     /*
     private static final RotatingCubeMapRenderer SINGLEPLAYER_PANORAMA =
@@ -172,7 +175,7 @@ public class MainMenuScreen extends Screen {
         index -= 2;
         Rectangle dividerBounds = getDividerBounds();
 
-        int diameter = (int) (getDividerBounds().y / 1.5);
+        int diameter = (int) (getDividerBounds().y / 2);
         int gap = diameter / 2;
         int extras = Button.values().length - 2;
 
@@ -270,14 +273,23 @@ public class MainMenuScreen extends Screen {
                 false
         );
 
+        boolean altsHovered = AltManager.isHoveringAlts();
+
+        if (altsHovered) {
+            int maxHeight = AltManager.getAltsHeight();
+            AltManager.scrolledAmount += (int) (lastMouseScroll * maxHeight / 10);
+        }
+
         for (Button button : Button.values()) {
-            if (MouseUtil.isMouseInPolygon(button.getBounds())) button.onHover();
+            if (MouseUtil.isMouseInPolygon(button.getBounds()) && !altsHovered) button.onHover();
             else button.onNotHover();
 
             button.render();
         }
 
         AltManager.render();
+
+        lastMouseScroll = 0;
     }
 
 
@@ -296,5 +308,16 @@ public class MainMenuScreen extends Screen {
             }
         }
         return false;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        lastMouseScroll = verticalAmount;
+        return true;
+    }
+
+    @Override
+    protected void init() {
+        AltManagerUtil.loadAlts();
     }
 }

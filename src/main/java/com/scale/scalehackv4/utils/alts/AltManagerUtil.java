@@ -70,26 +70,33 @@ public class AltManagerUtil {
     }
 
     public static void loadAlts() {
-        currentAlt = Alt.getCurrent();
-        ALTS.add(currentAlt);
-        if (SessionUtil.queryPlayerProfile(C.mc.getSession().getAccessToken()) != null) currentAlt.save();
+        C.ASYNC.execute(() -> {
+            currentAlt = Alt.getCurrent();
 
-        if (!ALTS_FOLDER.exists() && !ALTS_FOLDER.mkdirs()) return;
+            ArrayList<Alt> altsCache = new ArrayList<>();
+            altsCache.add(currentAlt);
+            if (SessionUtil.queryPlayerProfile(C.mc.getSession().getAccessToken()) != null) currentAlt.save();
 
-        for (File file : ALTS_FOLDER.listFiles()) {
-            if (!file.getName().endsWith(".json")) continue;
+            if (!ALTS_FOLDER.exists() && !ALTS_FOLDER.mkdirs()) return;
 
-            try {
-                Alt alt = C.gson.fromJson(FileUtils.readFileToString(file, Charset.defaultCharset()), Alt.class);
-                if (ALTS.stream().anyMatch(a -> a.uuid.equals(alt.uuid))) continue;
+            for (File file : ALTS_FOLDER.listFiles()) {
+                if (!file.getName().endsWith(".json")) continue;
 
-                ALTS.add(alt);
-                alt.loadSkin();
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.err.println("Failed to load alt " + file.getName());
+                try {
+                    Alt alt = C.gson.fromJson(FileUtils.readFileToString(file, Charset.defaultCharset()), Alt.class);
+                    if (altsCache.stream().anyMatch(a -> a.uuid.equals(alt.uuid))) continue;
+
+                    altsCache.add(alt);
+                    alt.loadSkin();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    System.err.println("Failed to load alt " + file.getName());
+                }
             }
-        }
+
+            ALTS.clear();
+            ALTS.addAll(altsCache);
+        });
     }
 
     private static Alt getAlt(UUID uuid) {
@@ -132,8 +139,12 @@ public class AltManagerUtil {
             );
         }
 
-        public void login() {
-            if (loginData.attemptLogin()) this.save();
+        public boolean login() {
+            if (loginData.attemptLogin()) {
+                this.save();
+                return true;
+            }
+            return false;
         }
 
         /// dont call too often, because it requires a request to update skin,
