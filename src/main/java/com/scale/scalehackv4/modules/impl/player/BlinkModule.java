@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.player;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.client.SubModuleToggledEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
@@ -15,35 +16,22 @@ import com.scale.scalehackv4.utils.player.BlinkUtil;
 public class BlinkModule extends Module {
     @RegisterSubModule(name = "Outgoing", hasKeybind = true)
     public boolean outgoing = true;
+    @RegisterSubModule(name = "Outgoing Delay", min = 0, max = 1000, hasKeybind = true)
+    public int outgoingDelay = 0;
+
     @RegisterSubModule(name = "Incoming", hasKeybind = true)
     public boolean incoming = true;
+    @RegisterSubModule(name = "Incoming Delay", min = 0, max = 1000, hasKeybind = true)
+    public int incomingDelay = 0;
 
-    private final Event onToggleBlink = new SubModuleToggledEvent(this, params -> {
-        if (params.field.getName().equals("outgoing")) {
-            onToggleOutgoing((boolean) params.value);
-            return false;
-        }
-        if (params.field.getName().equals("incoming")) {
-            onToggleIncoming((boolean) params.value);
-            return false;
-        }
+    public final Event onClientTick = new ClientTickEvent(this, params -> {
 
-        return false;
+       return false;
     });
-
-    private void onToggleOutgoing(boolean outgoing) {
-        if (outgoing) BlinkUtil.pushBlink(true, false, this.getClass());
-        else BlinkUtil.popBlink(true, false, this.getClass());
-    }
-    private void onToggleIncoming(boolean incoming) {
-        if (incoming) BlinkUtil.pushBlink(false, true, this.getClass());
-        else BlinkUtil.popBlink(false, true, this.getClass());
-    }
 
     @Override
     public void onEnable() {
-        onToggleOutgoing(outgoing);
-        onToggleIncoming(incoming);
+        BlinkUtil.pushBlink(true, true, this.getClass(), null, 250);
     }
 
     @Override

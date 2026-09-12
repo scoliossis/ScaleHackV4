@@ -1,7 +1,7 @@
 package com.scale.scalehackv4.mixins.render.Freelook;
 
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
-import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
+import com.scale.scalehackv4.modules.impl.client.options.ShowBlinkModule;
 import com.scale.scalehackv4.modules.impl.render.Freelook;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
@@ -40,7 +40,7 @@ public abstract class RealPlayerRendererMixin {
     // allows u to add an EXTRA entity, wow.
     @Inject(method = "pushEntityRenders", at = @At("TAIL"))
     private void pushEntityRenders(MatrixStack matrices, WorldRenderState renderStates, OrderedRenderCommandQueue queue, CallbackInfo ci) {
-        if (!HideBlinkInboundModule.hideBlinkInbound || !BlinkUtil.isBlinking(false, true)) return;
+        if (!ShowBlinkModule.showBlinkedInbound || !BlinkUtil.isBlinking(false, true)) return;
 
         Vec3d vec3d = renderStates.cameraRenderState.pos;
         double d = vec3d.getX();
@@ -53,10 +53,10 @@ public abstract class RealPlayerRendererMixin {
                 .toList();
 
         for (PlayerEntityRenderState playerEntityRenderState : playerEntityRenderStates) {
-            HideBlinkInboundModule.handlePlayerRenderPosition(playerEntityRenderState);
+            ShowBlinkModule.handlePlayerRenderPosition(playerEntityRenderState);
             playerEntityRenderState.invisible = true;
 
-            HideBlinkInboundModule.REAL_PLAYER_RENDERERS.add(playerEntityRenderState.id);
+            ShowBlinkModule.REAL_PLAYER_RENDERERS.add(playerEntityRenderState.id);
             this.entityRenderManager.render(
                     playerEntityRenderState,
                     renderStates.cameraRenderState,

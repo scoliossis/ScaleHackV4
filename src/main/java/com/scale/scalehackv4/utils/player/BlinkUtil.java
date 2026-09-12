@@ -4,59 +4,95 @@ import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
-import com.scale.scalehackv4.modules.impl.client.options.HideBlinkInboundModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import net.minecraft.network.packet.Packet;
 
-import java.util.ArrayList;
+import java.util.*;
 
 // roughly based on https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlinkUtil.java
 @RegisterListeners
 public class BlinkUtil {
-    private static final ArrayList<BlinkedClass> OUTGOING_BLINK = new ArrayList<>();
-    private static final ArrayList<BlinkedClass> INCOMING_BLINK = new ArrayList<>();
-    @Getter private static int lastBlinkReceivedTick = -1;
+    private static final HashMap<Class<?>, Integer> OUTGOING_CLASSES = new HashMap<>();
+    private static final HashMap<Class<?>, Integer> INCOMING_CLASSES = new HashMap<>();
 
-    private record BlinkedClass(Class<?> clazz, ArrayList<Packet<?>> packets) {}
+    private static final ArrayList<BlinkedPacket> OUTGOING_PACKETS = new ArrayList<>();
+    private static final ArrayList<BlinkedPacket> INCOMING_PACKETS = new ArrayList<>();
+
+    @AllArgsConstructor
+    public static class BlinkedPacket {
+        Packet<?> packet; long sendTime; Class<?> owner;
+    }
 
     private final Event onPacketSent = new PacketEvent.Sent(null, params -> {
         if (!isBlinking(true, false)) return false;
 
-        OUTGOING_BLINK.getLast().packets().add(params.packet);
+        addPacket(params.packet, OUTGOING_CLASSES, OUTGOING_PACKETS);
         return true;
     }, 0);
 
     private final Event onPacketReceived = new PacketEvent.Received(null, params -> {
-        if (C.w() == null || !isBlinking(false, true))
-            return false;
+        if (C.w() == null || !isBlinking(false, true)) return false;
 
-        lastBlinkReceivedTick = WorldUtil.tick;
-        INCOMING_BLINK.getLast().packets().add(params.packet);
+        addPacket(params.packet, INCOMING_CLASSES, INCOMING_PACKETS);
         return true;
     }, 0);
 
-    private final Event onLeaveGame = new ClientTickEvent(null, params -> {
+    private static void addPacket(Packet<?> packet, HashMap<Class<?>, Integer> classes, ArrayList<BlinkedPacket> packets) {
+        Class<?> owner = getOwner(classes);
+        packets.add(new BlinkedPacket(packet, getReleaseTime(owner, classes), owner));
+    }
+
+    /// returns the class blinking with the highest delay, which will own the packet until its popped
+    private static Class<?> getOwner(HashMap<Class<?>, Integer> classes) {
+        if (classes.isEmpty()) return null;
+
+        return classes.entrySet().stream()
+                .max(Comparator.comparingInt(e -> e.getValue() == 0
+                        ? Integer.MAX_VALUE
+                        : e.getValue()))
+                .map(Map.Entry::getKey)
+                .orElse(null);
+    }
+
+    private static long getReleaseTime(Class<?> owner, HashMap<Class<?>, Integer> classes) {
+        return owner == null ? 0 : classes.get(owner) == 0 ? Long.MAX_VALUE : System.currentTimeMillis() + classes.get(owner);
+    }
+
+    private final Event handleClientTick = new ClientTickEvent(null, params -> {
         if (!C.isInGame()) {
             disableBlink(true, true);
+            return false;
         }
+
+        handlePackets(getReadyPackets(OUTGOING_PACKETS), true);
+        handlePackets(getReadyPackets(INCOMING_PACKETS), false);
 
         return false;
     });
 
+    private static ArrayList<Packet<?>> getReadyPackets(ArrayList<BlinkedPacket> packets) {
+        ArrayList<Packet<?>> ready = new ArrayList<>();
+
+        while (!packets.isEmpty() && packets.getFirst().sendTime <= System.currentTimeMillis())
+            ready.add(packets.removeFirst().packet);
+
+        return ready;
+    }
+
     public static boolean isBlinking(boolean sent, boolean received, Class<?> clazz) {
-        if (sent) for (BlinkedClass blinkedClass : OUTGOING_BLINK) {
-            if (blinkedClass.clazz == clazz) return true;
-        }
-        if (received) for (BlinkedClass blinkedClass : INCOMING_BLINK) {
-            if (blinkedClass.clazz == clazz) return true;
-        }
-        return false;
+        return (sent && OUTGOING_CLASSES.keySet().stream().anyMatch(e -> e == clazz))
+                || (received && INCOMING_CLASSES.keySet().stream().anyMatch(e -> e == clazz));
     }
 
     public static boolean isBlinking(boolean sent, boolean received) {
-        return !shouldAllowPackets && ((sent && !OUTGOING_BLINK.isEmpty()) || (received && !INCOMING_BLINK.isEmpty()));
+        boolean blinkingOutgoing = !OUTGOING_PACKETS.isEmpty() || !OUTGOING_CLASSES.isEmpty();
+        boolean blinkingIncoming = !INCOMING_PACKETS.isEmpty() || !INCOMING_CLASSES.isEmpty();
+
+        return !shouldAllowPackets && ((sent && blinkingOutgoing) || (received && blinkingIncoming));
     }
 
     public static void pushBlink(boolean sent, boolean received, Class<?> clazz) {
@@ -64,16 +100,20 @@ public class BlinkUtil {
     }
 
     public static void pushBlink(boolean sent, boolean received, Class<?> clazz, Packet<?> packet) {
+        pushBlink(sent, received, clazz, packet, 0);
+    }
+
+    public static void pushBlink(boolean sent, boolean received, Class<?> clazz, Packet<?> packet, int delay) {
         if (C.mc.isInSingleplayer()) return;
 
         if (sent) {
-            OUTGOING_BLINK.add(new BlinkedClass(clazz, new ArrayList<>()));
-            if (packet != null) OUTGOING_BLINK.getLast().packets().add(packet);
+            OUTGOING_CLASSES.put(clazz, delay);
+            if (packet != null) addPacket(packet, OUTGOING_CLASSES, OUTGOING_PACKETS);
         }
 
         if (received) {
-            INCOMING_BLINK.add(new BlinkedClass(clazz, new ArrayList<>()));
-            if (packet != null) INCOMING_BLINK.getLast().packets().add(packet);
+            INCOMING_CLASSES.put(clazz, delay);
+            if (packet != null) addPacket(packet, INCOMING_CLASSES, INCOMING_PACKETS);
         }
     }
 
@@ -81,30 +121,23 @@ public class BlinkUtil {
 
     public static void popBlink(boolean sent, boolean received, Class<?> clazz) {
         if (sent) {
-            for (int i = 0; i < OUTGOING_BLINK.size(); i++) {
-                BlinkedClass blinkedClass = OUTGOING_BLINK.get(i);
-                if (blinkedClass.clazz != clazz) continue;
-
-                if (i == 0) handlePackets(blinkedClass.packets(), true);
-                else OUTGOING_BLINK.get(i - 1).packets().addAll(blinkedClass.packets());
-
-                OUTGOING_BLINK.remove(i);
-                break;
-            }
+            handlePop(OUTGOING_PACKETS, clazz, true);
+            OUTGOING_CLASSES.remove(clazz);
         }
-
         if (received) {
-            for (int i = 0; i < INCOMING_BLINK.size(); i++) {
-                BlinkedClass blinkedClass = INCOMING_BLINK.get(i);
-                if (blinkedClass.clazz != clazz) continue;
+            handlePop(INCOMING_PACKETS, clazz, false);
+            INCOMING_CLASSES.remove(clazz);
+        }
+    }
 
-                if (i == 0) handlePackets(blinkedClass.packets(), false);
-                else INCOMING_BLINK.get(i - 1).packets().addAll(blinkedClass.packets());
-
-                INCOMING_BLINK.remove(i);
-                break;
+    public static void handlePop(ArrayList<BlinkedPacket> packets, Class<?> clazz, boolean sent) {
+        for (BlinkedPacket blinkedPacket : packets) {
+            if (blinkedPacket.owner == clazz) {
+                blinkedPacket.sendTime = 0;
             }
         }
+
+        handlePackets(getReadyPackets(packets), sent);
     }
 
     private static void handlePackets(ArrayList<Packet<?>> packets, boolean sent) {
@@ -124,7 +157,14 @@ public class BlinkUtil {
 
     /// clears all the blinked packets and pretends they didnt happen
     public static void disableBlink(boolean sent, boolean received) {
-        if (sent) OUTGOING_BLINK.clear();
-        if (received) INCOMING_BLINK.clear();
+        if (sent) {
+            OUTGOING_CLASSES.clear();
+            OUTGOING_PACKETS.clear();
+        }
+
+        if (received) {
+            INCOMING_CLASSES.clear();
+            INCOMING_PACKETS.clear();
+        }
     }
 }

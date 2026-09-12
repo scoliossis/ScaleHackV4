@@ -22,9 +22,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 // lerp magic stolen from net.minecraft.entity.PositionInterpolator
-public class HideBlinkInboundModule extends OptionsModule {
-    @RegisterSubModule(name = "Hide Blink Inbound")
-    public static boolean hideBlinkInbound = true;
+public class ShowBlinkModule extends OptionsModule {
+    @RegisterSubModule(name = "Show Blinked Inbound")
+    public static boolean showBlinkedInbound = true;
+
+    @RegisterSubModule(name = "Show Blinked Outbound")
+    public static boolean showBlinkedOutbound = true;
 
     private static final Map<Integer, BlinkInterpolation> INTERPOLATIONS = new ConcurrentHashMap<>();
 
@@ -46,17 +49,6 @@ public class HideBlinkInboundModule extends OptionsModule {
         Vec3d previous, current, serverPos;
         int steps;
     }
-
-    public static final HashSet<Class<?>> VISUAL_INBOUND_PACKETS = new HashSet<>(Set.of(
-            EntitySetHeadYawS2CPacket.class,
-            EntityStatusS2CPacket.class,
-            // technically not just visual, waking up from a bed changes ur hitbox.
-            EntityAnimationS2CPacket.class,
-            EntityDamageS2CPacket.class,
-
-            ChatMessageS2CPacket.class,
-            PlaySoundS2CPacket.class
-    ));
 
     private final Event tickPlayerInterpolation = new PlayerUpdateEvent(null, params -> {
         for (BlinkInterpolation interpolation : INTERPOLATIONS.values().toArray(BlinkInterpolation[]::new)) {
