@@ -87,10 +87,6 @@ public class PlayerUtil {
         return false;
     }, 1);
 
-    public static Vec3d getPlayerRenderPos(Entity entity) {
-        return HideBlinkInboundModule.getPlayerRenderPos(entity);
-    }
-
     public static ArrayList<Vec3d> getEntityCorners(Entity entity) {
         Box targetBoundingBox = entity.getBoundingBox();
         return getCorners(

@@ -10,6 +10,7 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.MultiSelectEnum;
 import com.scale.scalehackv4.utils.client.MultiSelectUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
@@ -17,6 +18,7 @@ import com.scale.scalehackv4.utils.player.*;
 import lombok.AllArgsConstructor;
 import net.minecraft.item.consume.UseAction;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.math.Vec3d;
 
@@ -48,7 +50,7 @@ public class VelocityModule extends Module {
         On_Ground(x -> C.p().isOnGround()){
             @Override public boolean enabledByDefault() {return true;}
         },
-        Attack(x -> PlayerUtil.lastAttackTick >= WorldUtil.tick-1){
+        Attack(x -> PlayerUtil.lastAttackTick == WorldUtil.tick){
             @Override public boolean enabledByDefault() {return true;}
         };
 
@@ -86,14 +88,19 @@ public class VelocityModule extends Module {
     public enum InvalidVelocity implements MultiSelectEnum {
         Teleports(velocity -> PacketUtil.lastPacket instanceof PlayerPositionLookS2CPacket)
                 {@Override public boolean enabledByDefault() {return true;}},
-        Explosions(velocity -> velocity.getVelocity().length() > 1)
+        Explosions(velocity ->
+                Math.hypot(velocity.getVelocity().x, velocity.getVelocity().z) > 1
+                        || velocity.getVelocity().y > 1
+                        || velocity.getVelocity().y < 0.2
+        )
                 {@Override public boolean enabledByDefault() {return true;}},
-        Irrelevant(velocity -> velocity.getVelocity().length() < 0.1)
+        Irrelevant(velocity -> velocity.getVelocity().horizontalLength() < 0.1)
                 {@Override public boolean enabledByDefault() {return true;}};
 
         public final Predicate<EntityVelocityUpdateS2CPacket> isInvalid;
 
         public static boolean isValid(EntityVelocityUpdateS2CPacket velocity) {
+            ChatUtil.chat(Math.hypot(velocity.getVelocity().x, velocity.getVelocity().z) + " : " + velocity.getVelocity().y);
             for (InvalidVelocity ignore : values()) {
                 if (MultiSelectUtil.isEnabled(ignore) && ignore.isInvalid.test(velocity)) return false;
             }
@@ -118,31 +125,28 @@ public class VelocityModule extends Module {
 
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
         if (!C.isInGame()
-                || currentVelocityMode != null
                 || PacketUtil.clientSentPackets.contains(params.packet)
-                || Bus.isEventCancelled(PacketEvent.Received.class)
-        ) return false;
-
-        if (!(params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket)
+                || !(params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket)
                 || velocityPacket.getEntityId() != C.p().getId()
                 || !InvalidVelocity.isValid(velocityPacket)) return false;
 
         lastVelocity = velocityPacket.getVelocity();
-        lastVelocityTick = WorldUtil.tick;
 
-        Vec3d velocity = velocityPacket.getVelocity();
+        if (currentVelocityMode != null || Bus.isEventCancelled(PacketEvent.Received.class)) return false;
+
+        lastVelocityTick = WorldUtil.tick;
 
         return switch (mode) {
             case Add -> {
                 C.p().setVelocity(
-                        velocity.x * horizontal + C.p().getVelocity().x * (1 - horizontal),
-                        velocity.y * vertical + C.p().getVelocity().y * (1 - vertical),
-                        velocity.z * horizontal + C.p().getVelocity().z * (1 - horizontal)
+                        lastVelocity.x * horizontal + C.p().getVelocity().x * (1 - horizontal),
+                        lastVelocity.y * vertical + C.p().getVelocity().y * (1 - vertical),
+                        lastVelocity.z * horizontal + C.p().getVelocity().z * (1 - horizontal)
                 );
                 yield true;
             }
             case Edit -> {
-                C.p().setVelocity(velocity.x * horizontal, velocity.y * vertical, velocity.z * horizontal);
+                C.p().setVelocity(lastVelocity.x * horizontal, lastVelocity.y * vertical, lastVelocity.z * horizontal);
                 yield true;
             }
             case Jump_Reset -> {

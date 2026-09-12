@@ -72,10 +72,10 @@ public class EspModule extends Module {
             if (player == C.p() && C.mc.options.getPerspective() == Perspective.FIRST_PERSON) return;
 
             float partialTicks = C.mc.getRenderTickCounter().getTickProgress(false);
-            Vec3d playerPos = PlayerUtil.getPlayerRenderPos(player);
+            Vec3d renderPos = player.getLerpedPos(partialTicks);
 
-            if (blurESP) drawSquareESP(playerPos, partialTicks, params);
-            if (nametags) drawNameTag(player, playerPos.add(0, 2, 0), params);
+            if (blurESP) drawSquareESP(renderPos, partialTicks, params);
+            if (nametags) drawNameTag(player, renderPos.add(0, 2, 0), params);
         });
 
         return false;

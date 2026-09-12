@@ -28,6 +28,8 @@ public class HideBlinkInboundModule extends OptionsModule {
 
     private static final Map<Integer, BlinkInterpolation> INTERPOLATIONS = new ConcurrentHashMap<>();
 
+    public static final HashSet<Integer> REAL_PLAYER_RENDERERS = new HashSet<>();
+
     private static class BlinkInterpolation {
         // net.minecraft.entity.PositionInterpolator.DEFAULT_INTERPOLATION_DURATION
         private static final int LERP_DURATION = 3;
@@ -81,7 +83,7 @@ public class HideBlinkInboundModule extends OptionsModule {
 
 
     public static void handlePlayerRenderPosition(EntityRenderState entityRenderState) {
-        if (!shouldOverwritePos() || !(entityRenderState instanceof PlayerEntityRenderState playerState)) return;
+        if (!(entityRenderState instanceof PlayerEntityRenderState playerState)) return;
 
         int playerID = playerState.id;
         Entity player = C.w().getEntityById(playerID);
@@ -90,24 +92,12 @@ public class HideBlinkInboundModule extends OptionsModule {
         BlinkInterpolation interpolation = INTERPOLATIONS.get(playerID);
         if (interpolation == null) return;
 
-        Vec3d renderPos = getPlayerRenderPos(player);
+        float tickDelta = C.mc.getRenderTickCounter().getTickProgress(true);
+        Vec3d renderPos =  MathHelper.lerp(tickDelta, interpolation.previous, interpolation.current);
 
         playerState.x = renderPos.x;
         playerState.y = renderPos.y;
         playerState.z = renderPos.z;
-    }
-
-    private static boolean shouldOverwritePos() {
-        return !hideBlinkInbound || WorldUtil.tick - BlinkUtil.getLastBlinkReceivedTick() <= 10;
-    }
-
-    public static Vec3d getPlayerRenderPos(Entity entity) {
-        float tickDelta = C.mc.getRenderTickCounter().getTickProgress(true);
-
-        BlinkInterpolation interpolation = INTERPOLATIONS.get(entity.getId());
-        if (interpolation == null || !shouldOverwritePos()) return entity.getLerpedPos(tickDelta);
-
-        return MathHelper.lerp(tickDelta, interpolation.previous, interpolation.current);
     }
 
     private static void handleMovePacket(EntityS2CPacket movePacket) {
