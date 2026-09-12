@@ -2,7 +2,6 @@ package com.scale.scalehackv4.modules.impl.combat;
 
 import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
-import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.KeyboardInputEvent;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
@@ -11,17 +10,17 @@ import com.scale.scalehackv4.modules.Module;
 import com.scale.scalehackv4.modules.RegisterModule;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.MultiSelectEnum;
+import com.scale.scalehackv4.utils.client.MultiSelectUtil;
 import com.scale.scalehackv4.utils.client.PacketUtil;
-import com.scale.scalehackv4.utils.player.BlinkUtil;
-import com.scale.scalehackv4.utils.player.PlayerUtil;
-import com.scale.scalehackv4.utils.player.RotationUtil;
-import com.scale.scalehackv4.utils.player.WorldUtil;
+import com.scale.scalehackv4.utils.player.*;
+import lombok.AllArgsConstructor;
 import net.minecraft.item.consume.UseAction;
-import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
-import net.minecraft.network.packet.s2c.play.ExplosionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.math.Vec3d;
+
+import java.util.function.Predicate;
 
 @RegisterModule(
         name = "Velocity",
@@ -29,156 +28,170 @@ import net.minecraft.util.math.Vec3d;
 )
 public class VelocityModule extends Module {
     @RegisterSubModule(name = "Knockback Mode")
-    public static Mode mode = Mode.Jump_Reset;
+    public static Mode mode = Mode.Blink;
     @RegisterSubModule(name = "Horizontal", parent = "Knockback Mode", modeParentString = {"Edit", "Add"}, min = -2, max = 2)
     public static float horizontal = 0;
     @RegisterSubModule(name = "Vertical", parent = "Knockback Mode", modeParentString = {"Edit", "Add"}, min = -2, max = 2)
     public static float vertical = 0;
 
-    @RegisterSubModule(name = "Max Delay Ticks", parent = "Knockback Mode", modeParentString = {"Delay", "Dynamic"}, min = 1, max = 20)
+    @RegisterSubModule(name = "Max Delay Ticks", parent = "Knockback Mode", modeParentString = {"Blink"}, min = 1, max = 60)
     public static int maxDelayTicks = 13;
 
-    @RegisterSubModule(name = "Force Sprint", parent = "Knockback Mode", modeParentString = {"Jump_Reset", "Dynamic"})
+    @RegisterSubModule(name = "Force Sprint", parent = "Knockback Mode", modeParentString = {"Jump_Reset", "Blink"})
     public static boolean forceSprint = true;
 
-    @RegisterSubModule(name = "Ignore Explosions")
-    public static boolean ignoreExplosions = true;
-    @RegisterSubModule(name = "Ignore Fall Damage")
-    public static boolean ignoreFallDamage = true;
+    @RegisterSubModule(name = "Unblink Conditions", parent = "Knockback Mode", modeParentString = {"Blink"})
+    public static UnblinkConditions unblinkConditions = UnblinkConditions.On_Ground;
 
-    private static boolean handledVelocity = true;
-    private static Mode lastVelocityMode = mode;
+    @AllArgsConstructor
+    public enum UnblinkConditions implements MultiSelectEnum {
+        On_Ground(x -> C.p().isOnGround()){
+            @Override public boolean enabledByDefault() {return true;}
+        },
+        Attack(x -> PlayerUtil.lastAttackTick >= WorldUtil.tick-1){
+            @Override public boolean enabledByDefault() {return true;}
+        };
+
+        public final Predicate<?> ready;
+
+        public static boolean isReady(UnblinkConditions unblinkConditions) {
+            return unblinkConditions.ready.test(null) || !MultiSelectUtil.isEnabled(unblinkConditions);
+        }
+
+        public static boolean isReady() {
+            if (currentVelocityMode != Mode.Blink || WorldUtil.tick - lastVelocityTick > maxDelayTicks) return true;
+            if (noConditions()) return false;
+
+            for (UnblinkConditions unblinkConditions : values()) {
+                if (!isReady(unblinkConditions)) return false;
+            }
+
+            return true;
+        }
+
+        // if you have no unblink conditions, you just want to delay kb.
+        public static boolean noConditions() {
+            for (UnblinkConditions unblinkCondition : values()) {
+                if (MultiSelectUtil.isEnabled(unblinkCondition)) return false;
+            }
+
+            return true;
+        }
+    }
+
+    @RegisterSubModule(name = "Ignore")
+    public static InvalidVelocity ignore = InvalidVelocity.Teleports;
+
+    @AllArgsConstructor
+    public enum InvalidVelocity implements MultiSelectEnum {
+        Teleports(velocity -> PacketUtil.lastPacket instanceof PlayerPositionLookS2CPacket)
+                {@Override public boolean enabledByDefault() {return true;}},
+        Explosions(velocity -> velocity.getVelocity().length() > 1)
+                {@Override public boolean enabledByDefault() {return true;}},
+        Irrelevant(velocity -> velocity.getVelocity().length() < 0.1)
+                {@Override public boolean enabledByDefault() {return true;}};
+
+        public final Predicate<EntityVelocityUpdateS2CPacket> isInvalid;
+
+        public static boolean isValid(EntityVelocityUpdateS2CPacket velocity) {
+            for (InvalidVelocity ignore : values()) {
+                if (MultiSelectUtil.isEnabled(ignore) && ignore.isInvalid.test(velocity)) return false;
+            }
+
+            return true;
+        }
+    }
+
+    private static Mode currentVelocityMode = null;
+
     private static Vec3d lastVelocity = Vec3d.ZERO;
-    private static int lastUnhandledVelocityTick = 0;
+    private static int lastVelocityTick = 0;
+
+    private static boolean shouldJump = false;
 
     public enum Mode {
-        Cancel,
         Edit,
         Add,
         Jump_Reset,
-        // god bypass tech from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/Velocity.java
-        Dynamic,
-        Delay
+        Blink
     }
 
-    public Packet<?> lastPacket = null;
     private final Event cancelVelocity = new PacketEvent.Received(this, params -> {
-        if (!C.isInGame() || PacketUtil.clientSentPackets.contains(params.packet) || Bus.isEventCancelled(PacketEvent.Received.class)) return false;
-        boolean isExplosion = params.packet instanceof ExplosionS2CPacket;
-        boolean isVelocity = !isExplosion
-                && params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket
-                && velocityPacket.getEntityId() == C.p().getId()
-                && (!ignoreFallDamage || !isFallDamage(velocityPacket.getVelocity()))
-                // if a velocity packet is preceded by a PlayerPositionLookS2CPacket then its NOT real.
-                && !(lastPacket instanceof PlayerPositionLookS2CPacket);
+        if (!C.isInGame()
+                || currentVelocityMode != null
+                || PacketUtil.clientSentPackets.contains(params.packet)
+                || Bus.isEventCancelled(PacketEvent.Received.class)
+        ) return false;
 
-        lastPacket = params.packet;
-        if ((isExplosion && !ignoreExplosions) || !isVelocity) return false;
+        if (!(params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket)
+                || velocityPacket.getEntityId() != C.p().getId()
+                || !InvalidVelocity.isValid(velocityPacket)) return false;
 
-        Vec3d velocity = params.packet instanceof EntityVelocityUpdateS2CPacket velocityPacket ? velocityPacket.getVelocity()
-                : params.packet instanceof ExplosionS2CPacket explosionS2CPacket
-                  ? explosionS2CPacket.playerKnockback().orElse(null)
-                  : null;
+        lastVelocity = velocityPacket.getVelocity();
+        lastVelocityTick = WorldUtil.tick;
 
-        if (velocity == null) return false;
-
-        if (handledVelocity) {
-            lastUnhandledVelocityTick = WorldUtil.tick;
-            handledVelocity = false;
-            lastVelocityMode = mode;
-        }
-        lastVelocity = velocity;
+        Vec3d velocity = velocityPacket.getVelocity();
 
         return switch (mode) {
-            case Cancel -> {
-                handledVelocity = true;
-                yield true;
-            }
             case Add -> {
                 C.p().setVelocity(
                         velocity.x * horizontal + C.p().getVelocity().x * (1 - horizontal),
                         velocity.y * vertical + C.p().getVelocity().y * (1 - vertical),
                         velocity.z * horizontal + C.p().getVelocity().z * (1 - horizontal)
                 );
-                handledVelocity = true;
                 yield true;
             }
             case Edit -> {
                 C.p().setVelocity(velocity.x * horizontal, velocity.y * vertical, velocity.z * horizontal);
-                handledVelocity = true;
                 yield true;
             }
-            case Dynamic, Delay -> {
-                if (!BlinkUtil.isBlinking(false, true, this.getClass())) {
-                    BlinkUtil.pushBlink(false, true, this.getClass(), params.packet);
-                    yield true;
-                }
+            case Jump_Reset -> {
+                currentVelocityMode = Mode.Jump_Reset;
                 yield false;
             }
-            default -> false;
+            case Blink -> {
+                currentVelocityMode = Mode.Blink;
+                BlinkUtil.pushBlink(false, true, this.getClass(), params.packet);
+                yield true;
+            }
         };
     });
 
-    private boolean isFallDamage(Vec3d velocity) {
-        return velocity.y <= 0;
-    }
-
-    private final Event handleVelocityKeyInputs = new KeyboardInputEvent(this, params -> {
-        if (handledVelocity) return false;
-
-        switch (lastVelocityMode) {
-            case Dynamic:
-                if (!C.p().isOnGround()) {
-                    handledVelocity |= !BlinkUtil.isBlinking(false, true, this.getClass());
-                    return false;
-                }
-                BlinkUtil.popBlink(false, true, this.getClass());
-            case Jump_Reset:
-                handledVelocity = true;
-                if (forceSprint) params.forwardKey = params.sprintKey = params.jumpKey = true;
-                else if (C.p().isSprinting()) params.jumpKey = true;
-        }
-
-        return false;
-    });
-
     private final Event handleVelocityRotation = new RotationEvent(this, params -> {
-        if (handledVelocity) return false;
+        shouldJump = false;
+        if (currentVelocityMode == null) return false;
 
-        switch (lastVelocityMode) {
-            case Dynamic, Jump_Reset:
-                if (!C.p().isOnGround() || !forceSprint) return false;
-                params.rotation.yaw = RotationUtil.applyWrap360(params.rotation.yaw, getYawFromVelocity(lastVelocity));
+        if (currentVelocityMode != Mode.Jump_Reset && (currentVelocityMode != Mode.Blink || !UnblinkConditions.isReady())) return false;
 
-                return true;
-        }
-        return false;
+        currentVelocityMode = null;
+        shouldJump = shouldJump();
+        BlinkUtil.popBlink(false, true, this.getClass());
+
+        if (forceSprint) params.rotation.yaw = getYawFromVelocity(lastVelocity);
+
+        return forceSprint;
+    }, 0);
+
+    private final Event handleKeyboardInputs = new KeyboardInputEvent(this, params -> {
+        params.backKey = !shouldJump && params.backKey;
+        params.leftKey = !shouldJump && params.leftKey;
+        params.rightKey = !shouldJump && params.rightKey;
+        params.sneakKey = !shouldJump && params.sneakKey;
+
+        params.forwardKey = shouldJump || params.forwardKey;
+        params.sprintKey = shouldJump || params.sprintKey;
+        params.jumpKey = shouldJump || (!BlinkUtil.isBlinking(false, true, this.getClass()) && params.jumpKey);
+
+        // stops you blocking ur sword, so u can sprint, im sure the 1 tick of not blocking wont matter.
+        if (C.p().getMainHandStack().getUseAction() == UseAction.BLOCK || !C.p().isUsingItem())
+            PlayerUtil.oneTickKeybind(C.mc.options.useKey, false);
+
+        return shouldJump;
     });
 
-    private final Event resetBlink = new ClientTickEvent(null, params -> {
-        if (handledVelocity || !C.isInGame()) return false;
-
-        boolean stopBlinking = WorldUtil.tick - lastUnhandledVelocityTick > maxDelayTicks;
-        switch (lastVelocityMode) {
-            case Delay:
-                handledVelocity |= stopBlinking;
-                BlinkUtil.popBlink(false, stopBlinking, this.getClass());
-                break;
-            case Dynamic:
-                if (C.p().isOnGround()) {
-                    stopBlinking = true;
-
-                    // stops you blocking ur sword, so u can sprint, im sure the 1 tick of not blocking wont matter.
-                    if (C.p().getMainHandStack().getUseAction() == UseAction.BLOCK || !C.p().isUsingItem())
-                        PlayerUtil.oneTickKeybind(C.mc.options.useKey, false);
-                }
-
-                BlinkUtil.popBlink(false, stopBlinking, this.getClass());
-                break;
-        }
-
-        return false;
-    });
+    private static boolean shouldJump() {
+        return C.p().isOnGround() && (forceSprint || C.p().isSprinting());
+    }
 
     // https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/modules/impl/combat/Velocity.java#L203
     private static float getYawFromVelocity(Vec3d velocity) {
@@ -196,5 +209,6 @@ public class VelocityModule extends Module {
         if (BlinkUtil.isBlinking(false, true, this.getClass())) {
             BlinkUtil.popBlink(false, true, this.getClass());
         }
+        currentVelocityMode = null;
     }
 }

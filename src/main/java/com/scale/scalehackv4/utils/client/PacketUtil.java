@@ -4,6 +4,8 @@ import com.scale.scalehackv4.bridge.PacketReceiveBridge;
 import com.scale.scalehackv4.bridge.PacketSequenceBridge;
 import com.scale.scalehackv4.bridge.PacketUtilBridge;
 import com.scale.scalehackv4.events.Bus;
+import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.utils.C;
 import net.minecraft.client.network.PendingUpdateManager;
@@ -13,7 +15,13 @@ import net.minecraft.network.packet.Packet;
 
 import java.util.HashSet;
 
+@RegisterListeners
 public class PacketUtil {
+    private final Event logReceivedPackets = new PacketEvent.Received(null, params -> {
+        lastPacket = params.packet;
+        return false;
+    }, 9999);
+    public static Packet<?> lastPacket;
     public static HashSet<Packet<?>> clientSentPackets = new HashSet<>();
 
     public static void sendPacket(Packet<?> packet) {

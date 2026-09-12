@@ -270,7 +270,6 @@ public class ModuleUtil {
         String configFileText = readConfig(configName);
         if (configFileText == null) return false;
 
-        MultiSelectUtil.ENABLED_ENUMS.clear();
         for (Module m : MODULES.values()) loadModule(m, configFileText);
 
         return true;
@@ -327,8 +326,10 @@ public class ModuleUtil {
                     if (subModule.get() instanceof MultiSelectEnum) {
                         ArrayList<String> values = (ArrayList<String>) value;
 
-                        for (Enum<?> enumConstant : enumConstants)
+                        for (Enum<?> enumConstant : enumConstants) {
                             if (values.contains(enumConstant.name())) MultiSelectUtil.ENABLED_ENUMS.add(enumConstant);
+                            else MultiSelectUtil.ENABLED_ENUMS.remove(enumConstant);
+                        }
                     }
                     else {
                         for (Enum<?> enumConstant : enumConstants)

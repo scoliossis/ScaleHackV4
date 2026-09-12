@@ -20,6 +20,10 @@ public class Rotation {
         return new Rotation(yaw - other.yaw, pitch - other.pitch);
     }
 
+    public Rotation(Rotation other) {
+        this(other.yaw, other.pitch);
+    }
+
     @Override
     public String toString() {
         return "Rotation(" + yaw + ", " + pitch + ")";

@@ -21,8 +21,14 @@ public class RotationEventMixin {
 
     @Inject(method = "tick", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/tick/TickManager;step()V"))
     public void preTickPlayer(CallbackInfo ci) {
-        RotationEvent.clientRotation = RotationUtil.getClientRotation();
-        RotationEvent.Params rotation = new RotationEvent.Params(RotationUtil.getClientRotation());
+        Rotation currentRot = new Rotation(RotationEvent.clientRotation = RotationUtil.getClientRotation());
+
+        if (RotationUtil.rotationYawOverride != null) currentRot.yaw = RotationUtil.rotationYawOverride;
+        if (RotationUtil.rotationPitchOverride != null) currentRot.pitch = RotationUtil.rotationPitchOverride;
+
+        RotationUtil.rotationYawOverride = RotationUtil.rotationPitchOverride = null;
+
+        RotationEvent.Params rotation = new RotationEvent.Params(currentRot);
         Bus.post(RotationEvent.class, rotation);
         // make sure that the client rotation is within 180 of the server yaw, to stop flagging aimmodulo360
         RotationEvent.clientRotation.yaw = RotationUtil.applyWrap360(rotation.rotation.yaw, RotationEvent.clientRotation.yaw);

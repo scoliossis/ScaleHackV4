@@ -43,6 +43,7 @@
     "render.MouseDraggedEventMixin",
     "render.RenderScoreboardEventMixin",
     "render.RenderTickEventMixin",
+    "render.RenderWorldMixin",
     "render.Freelook.FakePlayerSetterMixin",
     "render.Freelook.FixPlayerPosOnTeleportMixin",
     "render.Freelook.FreeMoveMixin",

@@ -199,9 +199,7 @@ public class AltManager {
                     alt.delete();
                 }
                 else {
-                    C.ASYNC.execute(() -> {
-                        if (alt.login()) altsListOpen = false;
-                    });
+                    if (alt.login()) altsListOpen = false;
                 }
                 return true;
             }

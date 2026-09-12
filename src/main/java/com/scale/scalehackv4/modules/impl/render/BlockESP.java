@@ -1,6 +1,7 @@
 package com.scale.scalehackv4.modules.impl.render;
 
 import com.scale.scalehackv4.events.Event;
+import com.scale.scalehackv4.events.impl.client.WorldJoinEvent;
 import com.scale.scalehackv4.events.impl.render.RenderTickEvent;
 import com.scale.scalehackv4.modules.Category;
 import com.scale.scalehackv4.modules.Module;
@@ -123,6 +124,11 @@ public class BlockESP extends Module {
         return false;
     });
 
+    private final Event onJoinWorld = new WorldJoinEvent(this, params -> {
+        bedPositions.clear();
+        return false;
+    });
+
     @Override
     public void onEnable() {
         BlockTracker.beginTracking(BED_COLOURS, this.getClass());
@@ -131,5 +137,6 @@ public class BlockESP extends Module {
     @Override
     public void onDisable() {
         BlockTracker.stopTracking(BED_COLOURS, this.getClass());
+        bedPositions.clear();
     }
 }

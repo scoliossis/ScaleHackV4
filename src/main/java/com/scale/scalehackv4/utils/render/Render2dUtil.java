@@ -27,10 +27,9 @@ import java.util.Arrays;
 
 @RegisterListeners
 public class Render2dUtil extends RenderUtil {
-    @Setter
-    private static Matrix4f lastProjectionMatrix = new Matrix4f();
-    protected static Matrix4f lastPosMatrix = new Matrix4f();
-    protected static Vec3d cameraPos = new Vec3d(0, 0, 0);
+    @Setter private static Matrix4f lastProjectionMatrix = new Matrix4f();
+    @Setter private static Matrix4f lastPosMatrix = new Matrix4f();
+    @Setter private static Vec3d cameraPos = new Vec3d(0, 0, 0);
 
     // this was relatively simple, the tricky part was figuring out that you need "C.mc.gameRenderer.getBasicProjectionMatrix(C.mc.options.getFov().getValue())"
     // i hate you mojang

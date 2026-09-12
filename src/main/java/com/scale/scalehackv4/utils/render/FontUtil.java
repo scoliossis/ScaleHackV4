@@ -143,7 +143,6 @@ public class FontUtil {
         RenderableTexture renderableTexture = new RenderableTexture(identifier, abstractTexture, width, height, System.currentTimeMillis());
         HASHED_STRINGS.put(uniqueText, renderableTexture);
 
-        System.out.println("new texture, currently storing: " + HASHED_STRINGS.size() + " unique strings");
         return renderableTexture;
     }
 

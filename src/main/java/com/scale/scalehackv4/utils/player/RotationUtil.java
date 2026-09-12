@@ -13,6 +13,9 @@ import net.minecraft.util.math.Vec3d;
 import java.util.ArrayList;
 
 public class RotationUtil {
+    public static Float rotationYawOverride = null;
+    public static Float rotationPitchOverride = null;
+
     public static Rotation getRotation(Vec3d to) {
         return applyGcd(RotationEvent.getLastRotation(), getRotationNoGcd(RotationEvent.getLastRotation(), C.p().getEyePos(), to));
     }
