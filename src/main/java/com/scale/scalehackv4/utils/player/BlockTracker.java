@@ -48,7 +48,7 @@ public class BlockTracker {
     });
 
     // hope no modules which use the block tracker are time sensitive :pray:
-    public final Event onRenderWorld = new PlayerUpdateEvent(null, params -> {
+    public final Event updateBlocks = new PlayerUpdateEvent(null, params -> {
         if (C.w() == null || currentlyUpdating) return false;
 
         C.ASYNC.execute(() -> {

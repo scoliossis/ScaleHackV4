@@ -65,7 +65,6 @@
     "player.PlayerUpdateEventMixin",
     "player.BlockScanner.ChunkLoadMixin",
     "render.EspMixin",
-    "render.HideNametagsMixin",
-    "render.RenderWorldEventMixin"
+    "render.HideNametagsMixin"
   ]
 }
