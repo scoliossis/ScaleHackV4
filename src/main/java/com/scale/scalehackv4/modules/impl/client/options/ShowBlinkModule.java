@@ -1,17 +1,20 @@
 package com.scale.scalehackv4.modules.impl.client.options;
 
 import com.scale.scalehackv4.bridge.EntityS2CPacketBridge;
+import com.scale.scalehackv4.events.Bus;
 import com.scale.scalehackv4.events.Event;
 import com.scale.scalehackv4.events.impl.player.PacketEvent;
 import com.scale.scalehackv4.events.impl.player.PlayerUpdateEvent;
 import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.impl.client.OptionsModule;
 import com.scale.scalehackv4.utils.C;
+import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.client.render.entity.state.EntityRenderState;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
 import net.minecraft.entity.Entity;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.network.packet.s2c.play.*;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -30,6 +33,10 @@ public class ShowBlinkModule extends OptionsModule {
     public static boolean showBlinkedOutbound = true;
 
     private static final Map<Integer, BlinkInterpolation> INTERPOLATIONS = new ConcurrentHashMap<>();
+
+    public static long lastUpdate = 0;
+    public static Vec3d lastServerPlayerPos = null;
+    public static Vec3d currentServerPlayerPos = null;
 
     public static final HashSet<Integer> REAL_PLAYER_RENDERERS = new HashSet<>();
 
@@ -63,7 +70,7 @@ public class ShowBlinkModule extends OptionsModule {
     });
 
     private final Event trackPlayerPositions = new PacketEvent.Received(null, params -> {
-        if (C.w() == null || BlinkUtil.shouldAllowPackets) return false;
+        if (C.w() == null || BlinkUtil.shouldAllowIncomingPackets) return false;
 
         if (params.packet instanceof EntityS2CPacket movePacket)
             handleMovePacket(movePacket);
@@ -72,6 +79,18 @@ public class ShowBlinkModule extends OptionsModule {
 
         return false;
     }, 0);
+
+    private final Event trackClientPlayerPos = new PacketEvent.Sent(null, params -> {
+        if (Bus.isEventCancelled(PacketEvent.Sent.class)) return false;
+
+        if (!(params.packet instanceof PlayerMoveC2SPacket movePacket) || !movePacket.changesPosition()) return false;
+
+        lastServerPlayerPos = currentServerPlayerPos;
+        currentServerPlayerPos = new Vec3d(movePacket.getX(0), movePacket.getY(0), movePacket.getZ(0));
+        lastUpdate = System.currentTimeMillis();
+
+        return false;
+    }, 9999);
 
 
     public static void handlePlayerRenderPosition(EntityRenderState entityRenderState) {

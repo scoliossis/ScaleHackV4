@@ -40,32 +40,53 @@ public abstract class RealPlayerRendererMixin {
     // allows u to add an EXTRA entity, wow.
     @Inject(method = "pushEntityRenders", at = @At("TAIL"))
     private void pushEntityRenders(MatrixStack matrices, WorldRenderState renderStates, OrderedRenderCommandQueue queue, CallbackInfo ci) {
-        if (!ShowBlinkModule.showBlinkedInbound || !BlinkUtil.isBlinking(false, true)) return;
-
         Vec3d vec3d = renderStates.cameraRenderState.pos;
         double d = vec3d.getX();
         double e = vec3d.getY();
         double f = vec3d.getZ();
 
         List<PlayerEntityRenderState> playerEntityRenderStates = renderStates.entityRenderStates.stream()
-                .filter(state -> state.entityType == EntityType.PLAYER && ((PlayerEntityRenderState)state).id != C.p().getId())
+                .filter(state -> state.entityType == EntityType.PLAYER)
                 .map(state -> (PlayerEntityRenderState) state)
                 .toList();
 
         for (PlayerEntityRenderState playerEntityRenderState : playerEntityRenderStates) {
-            ShowBlinkModule.handlePlayerRenderPosition(playerEntityRenderState);
-            playerEntityRenderState.invisible = true;
+            if (ShowBlinkModule.showBlinkedInbound && playerEntityRenderState.id != C.p().getId() && BlinkUtil.isBlinking(false, true)) {
+                ShowBlinkModule.handlePlayerRenderPosition(playerEntityRenderState);
+                playerEntityRenderState.invisible = true;
 
-            ShowBlinkModule.REAL_PLAYER_RENDERERS.add(playerEntityRenderState.id);
-            this.entityRenderManager.render(
-                    playerEntityRenderState,
-                    renderStates.cameraRenderState,
-                    playerEntityRenderState.x - d,
-                    playerEntityRenderState.y - e,
-                    playerEntityRenderState.z - f,
-                    matrices,
-                    queue
-            );
+                ShowBlinkModule.REAL_PLAYER_RENDERERS.add(playerEntityRenderState.id);
+                this.entityRenderManager.render(
+                        playerEntityRenderState,
+                        renderStates.cameraRenderState,
+                        playerEntityRenderState.x - d,
+                        playerEntityRenderState.y - e,
+                        playerEntityRenderState.z - f,
+                        matrices,
+                        queue
+                );
+            }
+            if (ShowBlinkModule.showBlinkedOutbound
+                    && playerEntityRenderState.id == C.p().getId()
+                    && ShowBlinkModule.lastServerPlayerPos != null
+                    && BlinkUtil.isBlinking(true, false)
+            ) {
+                Vec3d pos = ShowBlinkModule.lastServerPlayerPos.lerp(
+                        ShowBlinkModule.currentServerPlayerPos,
+                        Math.min(1, (System.currentTimeMillis() - ShowBlinkModule.lastUpdate) / 50f));
+                playerEntityRenderState.invisible = true;
+
+                ShowBlinkModule.REAL_PLAYER_RENDERERS.add(playerEntityRenderState.id);
+                this.entityRenderManager.render(
+                        playerEntityRenderState,
+                        renderStates.cameraRenderState,
+                        pos.x - d,
+                        pos.y - e,
+                        pos.z - f,
+                        matrices,
+                        queue
+                );
+            }
         }
     }
 

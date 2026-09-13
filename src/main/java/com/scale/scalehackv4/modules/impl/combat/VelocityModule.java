@@ -171,7 +171,7 @@ public class VelocityModule extends Module {
         shouldJump = shouldJump();
         BlinkUtil.popBlink(false, true, this.getClass());
 
-        if (forceSprint) params.rotation.yaw = getYawFromVelocity(lastVelocity);
+        if (forceSprint) params.rotation.yaw = RotationUtil.applyWrap360(params.rotation.yaw, getYawFromVelocity(lastVelocity));
 
         return forceSprint;
     }, 0);
