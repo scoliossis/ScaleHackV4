@@ -100,7 +100,6 @@ public class VelocityModule extends Module {
         public final Predicate<EntityVelocityUpdateS2CPacket> isInvalid;
 
         public static boolean isValid(EntityVelocityUpdateS2CPacket velocity) {
-            ChatUtil.chat(Math.hypot(velocity.getVelocity().x, velocity.getVelocity().z) + " : " + velocity.getVelocity().y);
             for (InvalidVelocity ignore : values()) {
                 if (MultiSelectUtil.isEnabled(ignore) && ignore.isInvalid.test(velocity)) return false;
             }
