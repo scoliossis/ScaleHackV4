@@ -70,7 +70,7 @@ public class ShowBlinkModule extends OptionsModule {
     });
 
     private final Event trackPlayerPositions = new PacketEvent.Received(null, params -> {
-        if (C.w() == null || BlinkUtil.isBlinking(false, true, params.packet)) return false;
+        if (C.w() == null || !BlinkUtil.isBlinking(false, true, params.packet)) return false;
 
         if (params.packet instanceof EntityS2CPacket movePacket)
             handleMovePacket(movePacket);

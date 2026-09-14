@@ -21,8 +21,7 @@ public class BlinkUtil {
     private static final ConcurrentLinkedDeque<BlinkedPacket> OUTGOING_PACKETS = new ConcurrentLinkedDeque<>();
     private static final ConcurrentLinkedDeque<BlinkedPacket> INCOMING_PACKETS = new ConcurrentLinkedDeque<>();
 
-    private static final Set<Packet<?>> REPLAYING_OUTGOING = Collections.newSetFromMap(new IdentityHashMap<>());
-    private static final Set<Packet<?>> REPLAYING_INCOMING = Collections.newSetFromMap(new IdentityHashMap<>());
+    private static final HashSet<Packet<?>> REPLAYING_PACKETS = new HashSet<>();
 
     @AllArgsConstructor
     public static class BlinkedPacket {
@@ -30,14 +29,14 @@ public class BlinkUtil {
     }
 
     private final Event onPacketSent = new PacketEvent.Sent(null, params -> {
-        if (!isBlinking(true, false) || REPLAYING_OUTGOING.contains(params.packet)) return false;
+        if (!isBlinking(true, false, params.packet)) return false;
 
         addPacket(params.packet, OUTGOING_CLASSES, OUTGOING_PACKETS);
         return true;
     }, 0);
 
     private final Event onPacketReceived = new PacketEvent.Received(null, params -> {
-        if (!isBlinking(false, true) || REPLAYING_INCOMING.contains(params.packet)) return false;
+        if (!isBlinking(false, true, params.packet)) return false;
 
         addPacket(params.packet, INCOMING_CLASSES, INCOMING_PACKETS);
         return true;
@@ -82,7 +81,7 @@ public class BlinkUtil {
 
         while (true) {
             BlinkedPacket packet = packets.peekFirst();
-            if (packet == null || packet.sendTime > System.nanoTime()) break;
+            if (packet == null || packet.sendTime > System.currentTimeMillis()) break;
 
             if (packets.pollFirst() == packet) ready.add(packet.packet);
         }
@@ -97,7 +96,7 @@ public class BlinkUtil {
     }
 
     public static boolean isBlinking(boolean sent, boolean received, Packet<?> packet) {
-        return REPLAYING_INCOMING.contains(packet) || REPLAYING_OUTGOING.contains(packet) || isBlinking(sent, received);
+        return !REPLAYING_PACKETS.contains(packet) && isBlinking(sent, received);
     }
 
     public static boolean isBlinking(boolean sent, boolean received) {
@@ -151,19 +150,13 @@ public class BlinkUtil {
     }
 
     private static void handlePackets(ArrayList<Packet<?>> packets, boolean sent) {
-        Set<Packet<?>> replaying = sent ? REPLAYING_OUTGOING : REPLAYING_INCOMING;
-
         for (Packet<?> packet : packets) {
-            replaying.add(packet);
+            REPLAYING_PACKETS.add(packet);
 
-            try {
-                if (sent) PacketUtil.sendPacket(packet);
-                else PacketUtil.receivePacket(packet);
-            } catch (Exception e) {
-                e.printStackTrace();
-            } finally {
-                replaying.remove(packet);
-            }
+            if (sent) PacketUtil.sendPacket(packet);
+            else PacketUtil.receivePacket(packet);
+
+            REPLAYING_PACKETS.remove(packet);
         }
     }
 

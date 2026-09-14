@@ -7,6 +7,7 @@ import com.scale.scalehackv4.events.RegisterListeners;
 import com.scale.scalehackv4.events.impl.client.ClientTickEvent;
 import com.scale.scalehackv4.events.impl.player.CheckClickEvent;
 import com.scale.scalehackv4.events.impl.player.RotationEvent;
+import com.scale.scalehackv4.events.impl.player.SendMovementPacketEvent;
 import com.scale.scalehackv4.utils.C;
 import lombok.Getter;
 import net.minecraft.client.option.KeyBinding;
@@ -25,6 +26,13 @@ public class PlayerUtil {
     public static ArrayList<Runnable> onAttack = new ArrayList<>();
     public static int lastAttackTick = 0;
     public static int lastSwingTick = 0;
+
+    public static HitResult lastHitResult;
+
+    private final Event onPost = new SendMovementPacketEvent(null, params -> {
+        lastHitResult = C.mc.crosshairTarget;
+        return false;
+    }, 1);
 
     private final Event clearQueuedAttack = new RotationEvent(null, params -> {
         onAttack.clear();

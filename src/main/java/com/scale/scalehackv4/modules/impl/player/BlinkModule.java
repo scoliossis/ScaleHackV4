@@ -13,7 +13,9 @@ import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
 import com.scale.scalehackv4.utils.client.MultiSelectEnum;
 import com.scale.scalehackv4.utils.client.MultiSelectUtil;
+import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
+import com.scale.scalehackv4.utils.player.PlayerUtil;
 import com.scale.scalehackv4.utils.player.RotationUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import lombok.AllArgsConstructor;
@@ -22,6 +24,7 @@ import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.*;
 import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetCursorItemS2CPacket;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 
 import java.util.function.Predicate;
@@ -43,7 +46,9 @@ public class BlinkModule extends Module {
     @AllArgsConstructor
     public enum DisableOutgoingConditions implements MultiSelectEnum {
         Swing(packet -> packet instanceof HandSwingC2SPacket
-                && WorldUtil.getMouseOver(RotationEvent.getLastRotation()).getType() == HitResult.Type.MISS),
+                && C.mc.crosshairTarget instanceof BlockHitResult b
+                && b.getType() == HitResult.Type.MISS
+        ),
         Chat_Message(packet -> packet instanceof ChatMessageC2SPacket || packet instanceof CommandExecutionC2SPacket),
         Attack(packet -> packet instanceof PlayerInteractEntityC2SPacket),
         Finish_Breaking_Block(packet -> packet instanceof PlayerActionC2SPacket action
@@ -97,6 +102,8 @@ public class BlinkModule extends Module {
 
             return false;
         }
+
+        if (!BlinkUtil.isBlinking(true, false, params.packet)) return false;
 
         for (DisableOutgoingConditions condition : DisableOutgoingConditions.values()) {
             if (MultiSelectUtil.isEnabled(condition) && condition.onPacket.test(params.packet)) {
