@@ -88,6 +88,7 @@ public class VelocityModule extends Module {
     public enum InvalidVelocity implements MultiSelectEnum {
         Teleports(velocity -> PacketUtil.lastPacket instanceof PlayerPositionLookS2CPacket)
                 {@Override public boolean enabledByDefault() {return true;}},
+        // todo: dumb.
         Explosions(velocity ->
                 Math.hypot(velocity.getVelocity().x, velocity.getVelocity().z) > 1
                         || velocity.getVelocity().y > 1
@@ -162,17 +163,20 @@ public class VelocityModule extends Module {
 
     private final Event handleVelocityRotation = new RotationEvent(this, params -> {
         shouldJump = false;
-        if (currentVelocityMode == null) return false;
+        MovementUtil.forceNoJump |= MultiSelectUtil.isEnabled(UnblinkConditions.On_Ground) && BlinkUtil.isBlinking(false, true, this.getClass());
 
-        if (currentVelocityMode != Mode.Jump_Reset && (currentVelocityMode != Mode.Blink || !UnblinkConditions.isReady())) return false;
+        if (currentVelocityMode == null
+                || (currentVelocityMode != Mode.Jump_Reset && (currentVelocityMode != Mode.Blink)
+                || !UnblinkConditions.isReady())
+        ) return false;
 
         currentVelocityMode = null;
         shouldJump = shouldJump();
         BlinkUtil.popBlink(false, true, this.getClass());
 
-        if (forceSprint) params.rotation.yaw = RotationUtil.applyWrap360(params.rotation.yaw, getYawFromVelocity(lastVelocity));
+        if (shouldJump) params.rotation.yaw = RotationUtil.applyWrap360(params.rotation.yaw, getYawFromVelocity(lastVelocity));
 
-        return forceSprint;
+        return shouldJump;
     }, 0);
 
     private final Event handleKeyboardInputs = new KeyboardInputEvent(this, params -> {
@@ -183,7 +187,7 @@ public class VelocityModule extends Module {
 
         params.forwardKey = shouldJump || params.forwardKey;
         params.sprintKey = shouldJump || params.sprintKey;
-        params.jumpKey = shouldJump || (!BlinkUtil.isBlinking(false, true, this.getClass()) && params.jumpKey);
+        params.jumpKey = shouldJump || !MultiSelectUtil.isEnabled(UnblinkConditions.On_Ground) || (!BlinkUtil.isBlinking(false, true, this.getClass()) && params.jumpKey);
 
         // stops you blocking ur sword, so u can sprint, im sure the 1 tick of not blocking wont matter.
         if (C.p().getMainHandStack().getUseAction() == UseAction.BLOCK || !C.p().isUsingItem())

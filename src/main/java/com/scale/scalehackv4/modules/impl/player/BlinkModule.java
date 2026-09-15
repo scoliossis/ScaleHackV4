@@ -23,6 +23,7 @@ import net.minecraft.item.BlockItem;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.play.*;
 import net.minecraft.network.packet.s2c.play.PlayerListS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.network.packet.s2c.play.SetCursorItemS2CPacket;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -51,15 +52,14 @@ public class BlinkModule extends Module {
         ),
         Chat_Message(packet -> packet instanceof ChatMessageC2SPacket || packet instanceof CommandExecutionC2SPacket),
         Attack(packet -> packet instanceof PlayerInteractEntityC2SPacket),
+        Teleport(packet -> packet instanceof PlayerPositionLookS2CPacket),
+        Breaking_Block(packet -> (packet instanceof PlayerActionC2SPacket action
+                && action.getAction() == PlayerActionC2SPacket.Action.START_DESTROY_BLOCK)
+                || C.im().isBreakingBlock()),
         Finish_Breaking_Block(packet -> packet instanceof PlayerActionC2SPacket action
                 && action.getAction() == PlayerActionC2SPacket.Action.STOP_DESTROY_BLOCK),
         In_GUI(packet -> (packet instanceof ClientCommandC2SPacket command && command.getMode() == ClientCommandC2SPacket.Mode.OPEN_INVENTORY)
                 || (packet instanceof ClickSlotC2SPacket)
-        ),
-
-        Interact_Block(packet -> packet instanceof PlayerInteractBlockC2SPacket interact
-                && interact.getBlockHitResult().getType() != HitResult.Type.MISS
-                && !(WorldUtil.isBlockHitResultValid(interact.getBlockHitResult()) || !(C.p().getMainHandStack().getItem() instanceof BlockItem))
         ),
         Interact_Item(packet -> packet instanceof PlayerInteractItemC2SPacket interactItem),
         Place_Block(packet -> packet instanceof PlayerInteractBlockC2SPacket interact
@@ -103,11 +103,11 @@ public class BlinkModule extends Module {
             return false;
         }
 
-        if (!BlinkUtil.isBlinking(true, false, params.packet)) return false;
-
         for (DisableOutgoingConditions condition : DisableOutgoingConditions.values()) {
             if (MultiSelectUtil.isEnabled(condition) && condition.onPacket.test(params.packet)) {
                 DisableOutgoingConditions.lastDisableTime = System.currentTimeMillis();
+
+                if (!BlinkUtil.isBlinking(true, false, params.packet)) return false;
                 BlinkUtil.popBlink(true, false, this.getClass());
 
                 return false;

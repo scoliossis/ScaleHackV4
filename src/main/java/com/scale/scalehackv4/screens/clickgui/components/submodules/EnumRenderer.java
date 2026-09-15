@@ -104,7 +104,7 @@ public class EnumRenderer extends SubModuleRenderer {
         }
         matrices.popMatrix();
         if (canScroll) {
-            int scrollBarY = ENUM_Y + (int) (subModule.scrolledAmount * (ENUM_HEIGHT * (MAX_ENUM_VALUES - 1)));
+            int scrollBarY = ENUM_Y + (int) (subModule.scrolledAmount * (ENUM_HEIGHT * MAX_ENUM_VALUES));
             int scrollBarHeight = (int) (ENUM_HEIGHT * MAX_ENUM_VALUES * possibleScrollRatio) + 1;
             Render2dUtil.drawRect(rectWidth-4, ENUM_Y, 4, ENUM_HEIGHT * MAX_ENUM_VALUES, new Color(60, 60, 60), true);
             Render2dUtil.drawRect(rectWidth - 3, scrollBarY+1, 2, scrollBarHeight, new Color(130, 130, 130), true);
