@@ -9,6 +9,7 @@ import com.scale.scalehackv4.modules.RegisterSubModule;
 import com.scale.scalehackv4.modules.impl.client.OptionsModule;
 import com.scale.scalehackv4.utils.C;
 import com.scale.scalehackv4.utils.client.ChatUtil;
+import com.scale.scalehackv4.utils.client.PacketUtil;
 import com.scale.scalehackv4.utils.player.BlinkUtil;
 import com.scale.scalehackv4.utils.player.WorldUtil;
 import net.minecraft.client.render.entity.state.EntityRenderState;
@@ -70,7 +71,7 @@ public class ShowBlinkModule extends OptionsModule {
     });
 
     private final Event trackPlayerPositions = new PacketEvent.Received(null, params -> {
-        if (C.w() == null || !BlinkUtil.isBlinking(false, true, params.packet)) return false;
+        if (C.w() == null || PacketUtil.clientSentPackets.contains(params.packet)) return false;
 
         if (params.packet instanceof EntityS2CPacket movePacket)
             handleMovePacket(movePacket);

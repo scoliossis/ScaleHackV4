@@ -45,7 +45,7 @@ public class NukerModule extends Module {
             previousSlot = -1;
             lastBlockBreakTick = -1;
         }
-        if (WorldUtil.tick - lastBlockBreakTick == swapBackDelay) switchBack();
+        else if (WorldUtil.tick - lastBlockBreakTick == swapBackDelay) switchBack();
         return false;
     });
 
