@@ -61,7 +61,7 @@ public class BlinkModule extends Module {
         In_GUI(packet -> (packet instanceof ClientCommandC2SPacket command && command.getMode() == ClientCommandC2SPacket.Mode.OPEN_INVENTORY)
                 || (packet instanceof ClickSlotC2SPacket)
         ),
-        Interact_Item(packet -> packet instanceof PlayerInteractItemC2SPacket interactItem),
+        Interact_Item(packet -> packet instanceof PlayerInteractItemC2SPacket),
         Place_Block(packet -> packet instanceof PlayerInteractBlockC2SPacket interact
                 && interact.getBlockHitResult().getType() != HitResult.Type.MISS
                 && (WorldUtil.isBlockHitResultValid(interact.getBlockHitResult()) && (C.p().getMainHandStack().getItem() instanceof BlockItem))),
@@ -124,6 +124,10 @@ public class BlinkModule extends Module {
 
     @Override
     public void onDisable() {
-        BlinkUtil.popBlink(true, true, this.getClass());
+        BlinkUtil.popBlink(
+                BlinkUtil.isBlinking(true, false, this.getClass()),
+                BlinkUtil.isBlinking(false, true, this.getClass()),
+                this.getClass()
+        );
     }
 }

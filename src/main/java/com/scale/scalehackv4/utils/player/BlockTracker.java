@@ -12,6 +12,7 @@ import net.minecraft.util.math.ChunkPos;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 
 // ripped 1:1 from https://github.com/scoliossis/ScaleHackV3/blob/master/src/main/java/com/github/scoliossis/utils/minecraft/BlockTracker.java,
@@ -19,7 +20,7 @@ import java.util.List;
 @RegisterListeners
 public class BlockTracker {
     @Getter
-    private static final HashMap<Block, ArrayList<BlockPos>> trackedBlocks = new HashMap<>();
+    private static final HashMap<Block, HashSet<BlockPos>> trackedBlocks = new HashMap<>();
     @Getter
     private static final HashMap<Integer, HashMap<Integer, Integer>> loadedChunks = new HashMap<>();
 
@@ -87,7 +88,7 @@ public class BlockTracker {
 
                     if (blocks != null && !blocks.contains(block)) continue;
 
-                    ArrayList<BlockPos> alreadyTrackedBlocks = trackedBlocks.get(block);
+                    HashSet<BlockPos> alreadyTrackedBlocks = trackedBlocks.get(block);
                     if (alreadyTrackedBlocks != null) alreadyTrackedBlocks.add(blockPos);
                 }
             }
@@ -97,14 +98,12 @@ public class BlockTracker {
     private void unloadBlocksFromChunk(int chunkX, int chunkZ, List<Block> blocks) {
         if (trackedBlocks.isEmpty()) return;
 
-        for (ArrayList<BlockPos> positions : trackedBlocks.values()) {
-            for (int i = 0; i < positions.size(); i++) {
-                BlockPos pos = positions.get(i);
+        for (HashSet<BlockPos> positions : trackedBlocks.values()) {
+            for (BlockPos pos : positions.toArray(BlockPos[]::new)) {
                 if (pos.getX() < chunkX * 16 || pos.getX() >= chunkX * 16 + 16 || pos.getZ() < chunkZ * 16 || pos.getZ() >= chunkZ * 16 + 16) continue;
                 if (blocks != null && !blocks.contains(getTrackedBlockAtPos(pos))) continue;
 
-                positions.remove(i);
-                i--;
+                positions.remove(pos);
             }
         }
     }
@@ -159,7 +158,7 @@ public class BlockTracker {
             if (classesTrackingBlock.get(b).size() != 1) continue;
 
             newBlocksToTrack.add(b);
-            trackedBlocks.put(b, new ArrayList<>());
+            trackedBlocks.put(b, new HashSet<>());
         }
 
         if (newBlocksToTrack.isEmpty()) return;
@@ -199,7 +198,7 @@ public class BlockTracker {
     }
 
     public static BlockPos[] getBlockPositions(Block block) {
-        ArrayList<BlockPos> positions = trackedBlocks.get(block);
+        HashSet<BlockPos> positions = trackedBlocks.get(block);
         return positions == null ? new BlockPos[]{} : positions.toArray(BlockPos[]::new);
     }
 

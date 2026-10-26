@@ -65,10 +65,10 @@ public class Freelook extends Module {
 
     private final Event onToggleSubmodules = new SubModuleToggledEvent(this, params -> {
         if (params.field.getName().equals("lockRotation")) {
-            C.mc.execute(() -> onSetRotationLock(lockRotation));
+            onSetRotationLock(!lockRotation);
         }
         if (params.field.getName().equals("lockPosition")) {
-            C.mc.execute(() -> onSetPositionLock(lockPosition));
+            onSetPositionLock(!lockPosition);
         }
 
         return false;
